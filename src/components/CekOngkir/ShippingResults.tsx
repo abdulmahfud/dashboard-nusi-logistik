@@ -99,11 +99,104 @@ type LionApiResult = {
 
 type SapApiResult = {
   status: string;
+  msg?: string;
   data?: {
-    shipping_cost?: number;
-    estimated_days?: number;
-    service_type?: string;
-    message?: string;
+    origin?: string;
+    destination?: string;
+    coverage_cod?: boolean;
+    services?: Array<{
+      minimum_kilo: number;
+      insurance_cost: number;
+      insurance_admin_cost: number;
+      volumetric_kg: number;
+      packing_cost: number;
+      weight: number;
+      final_weight: number;
+      kilo_divider: number;
+      cost: number;
+      discount: string;
+      total_cost: number;
+      service_type_code: string;
+      service_type_name: string;
+      surcharge: number;
+      sla: string;
+      markup_percentage: string;
+    }>;
+  };
+};
+
+type PosIndonesiaApiResult = {
+  status: string;
+  message?: string;
+  data?: Array<{
+    insurance: string;
+    estimation: string;
+    insurancetax: string;
+    penyesuaian: string;
+    notes: string;
+    productid: string;
+    penyesuaianpersentase: string;
+    totalfee: string;
+    fee: string;
+    feetax: string;
+    productname: string;
+    discount: string;
+  }>;
+};
+
+type JneApiResult = {
+  status: string;
+  message?: string;
+  data?: {
+    price?: Array<{
+      origin_name: string;
+      destination_name: string;
+      service_display: string;
+      service_code: string;
+      goods_type: string;
+      currency: string;
+      price: string;
+      etd_from: string;
+      etd_thru: string;
+      times: string;
+    }>;
+  };
+  shipping_costs_with_discount?: Array<unknown>;
+};
+
+type IdexpressApiResult = {
+  status: string;
+  message?: string;
+  data?: {
+    selected?: {
+      expressType: string;
+      publishRate: number;
+      clientRate: number;
+      canCOD: number;
+      minSla: number;
+      maxSla: number;
+    };
+  };
+};
+
+type AnterajaApiResult = {
+  status: string;
+  cost?: number;
+  response?: {
+    status: number;
+    info: string;
+    content?: {
+      origin: string;
+      destination: string;
+      services?: Array<{
+        product_code: string;
+        product_name: string;
+        etd: string;
+        rates: number;
+        is_cod: boolean;
+        surcharges: unknown;
+      }>;
+    };
   };
 };
 
@@ -114,6 +207,10 @@ type CombinedApiResult = {
     paxel: PaxelApiResult | null;
     lion: LionApiResult | null;
     sap: SapApiResult | null;
+    posindonesia: PosIndonesiaApiResult | null;
+    jne: JneApiResult | null;
+    idexpress: IdexpressApiResult | null;
+    anteraja: AnterajaApiResult | null;
   };
 };
 
@@ -151,7 +248,6 @@ export default function ShippingResults({
       // Process JNT results
       if (combinedData.jnt && combinedData.jnt.status === "success") {
         const jntData = combinedData.jnt;
-        console.log("🔍 JNT Debug:", JSON.stringify(jntData, null, 2));
 
         // Use shipping_costs_with_discount array if available
         if (
@@ -250,20 +346,122 @@ export default function ShippingResults({
       // Process SAP results
       if (combinedData.sap && combinedData.sap.status === "success") {
         const sapData = combinedData.sap.data;
-        if (sapData?.shipping_cost && sapData.shipping_cost > 0) {
-          const shippingCost = sapData.shipping_cost;
-          const estimatedDays = sapData.estimated_days || 3;
-          const serviceType = sapData.service_type || "REGULER";
+        if (
+          sapData?.services &&
+          Array.isArray(sapData.services) &&
+          sapData.services.length > 0
+        ) {
+          sapData.services.forEach((service, index) => {
+            if (service.total_cost && service.total_cost > 0) {
+              options.push({
+                id: `sap-${service.service_type_code.toLowerCase()}`,
+                name: `SAP ${service.service_type_name}`,
+                logo: "/images/sap-new.png",
+                price: `Rp${service.total_cost.toLocaleString("id-ID")}`,
+                duration: service.sla || "2-4 Hari",
+                available: true,
+                recommended: index === 0,
+                tags: [{ label: "Pengiriman Cepat", type: "info" }],
+              });
+            }
+          });
+        }
+      }
+
+      // Process Pos Indonesia results
+      if (
+        combinedData.posindonesia &&
+        combinedData.posindonesia.status === "success"
+      ) {
+        const posData = combinedData.posindonesia.data;
+        if (posData && Array.isArray(posData) && posData.length > 0) {
+          // Filter hanya untuk "Pos Reguler"
+          const posReguler = posData.find(
+            (item) => item.productname === "Pos Reguler"
+          );
+          if (posReguler && posReguler.totalfee) {
+            options.push({
+              id: "posindonesia-reguler",
+              name: posReguler.productname,
+              logo: "/images/pos.png",
+              price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
+              duration: posReguler.estimation,
+              available: true,
+              recommended: false,
+              tags: [{ label: "Pos Indonesia", type: "info" }],
+            });
+          }
+        }
+      }
+
+      // Process JNE results
+      if (combinedData.jne && combinedData.jne.status === "success") {
+        const jneData = combinedData.jne.data;
+        if (
+          jneData?.price &&
+          Array.isArray(jneData.price) &&
+          jneData.price.length > 0
+        ) {
+          jneData.price.forEach((item, index) => {
+            if (item.price && Number(item.price) > 0) {
+              const etdFrom = item.etd_from || "2";
+              const etdThru = item.etd_thru || "3";
+              const duration = `${etdFrom}-${etdThru} Hari`;
+
+              options.push({
+                id: `jne-${item.service_code.toLowerCase()}`,
+                name: `JNE ${item.service_display}`,
+                logo: "/images/jne.png",
+                price: `Rp${Number(item.price).toLocaleString("id-ID")}`,
+                duration: duration,
+                available: true,
+                recommended: index === 0,
+                tags: [{ label: "JNE Express", type: "info" }],
+              });
+            }
+          });
+        }
+      }
+
+      // Process ID Express results
+      if (
+        combinedData.idexpress &&
+        combinedData.idexpress.status === "success"
+      ) {
+        const idexpressData = combinedData.idexpress.data;
+        if (idexpressData?.selected && idexpressData.selected.publishRate > 0) {
+          const selected = idexpressData.selected;
+          const duration = `${selected.minSla}-${selected.maxSla} Hari`;
 
           options.push({
-            id: "sap-regular",
-            name: `SAP ${serviceType}`,
-            logo: "/images/sap-new.png",
-            price: `Rp${shippingCost.toLocaleString("id-ID")}`,
-            duration: `${estimatedDays}-${estimatedDays + 2} Hari`,
+            id: "idexpress-regular",
+            name: "ID Express",
+            logo: "/images/idx.png",
+            price: `Rp${selected.publishRate.toLocaleString("id-ID")}`,
+            duration: duration,
             available: true,
             recommended: false,
-            tags: [{ label: "Pengiriman Cepat", type: "info" }],
+            tags: [{ label: "ID Express", type: "info" }],
+          });
+        }
+      }
+
+      // Process Anteraja results
+      if (combinedData.anteraja && combinedData.anteraja.status === "success") {
+        const anterajaData = combinedData.anteraja;
+        if (anterajaData.cost && anterajaData.cost > 0) {
+          const service = anterajaData.response?.content?.services?.[0];
+          const etd = service?.etd || "5 - 9 Day";
+
+          options.push({
+            id: "anteraja-regular",
+            name: service?.product_name || "Anteraja Regular",
+            logo: "/images/anteraja.png",
+            price: `Rp${anterajaData.cost.toLocaleString("id-ID")}`,
+            duration: etd,
+            available: true,
+            recommended: false,
+            tags: [{ label: "Anteraja", type: "info" }],
           });
         }
       }
@@ -349,6 +547,14 @@ export default function ShippingResults({
         vendor = "LION";
       } else if (option.id.startsWith("sap")) {
         vendor = "SAP";
+      } else if (option.id.startsWith("posindonesia")) {
+        vendor = "POSINDONESIA";
+      } else if (option.id.startsWith("jne")) {
+        vendor = "JNE";
+      } else if (option.id.startsWith("idexpress")) {
+        vendor = "IDEXPRESS";
+      } else if (option.id.startsWith("anteraja")) {
+        vendor = "ANTERAJA";
       }
 
       // Get discount for the selected vendor

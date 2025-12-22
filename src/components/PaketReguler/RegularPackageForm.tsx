@@ -461,25 +461,25 @@ export default function RegularPackageForm({
 
     // Ambil data untuk ongkir
     const weight = formData.weight;
-    // Kirim nama regency pengirim dan district tujuan
-    const sendSiteCode = selectedBusiness?.regency || "";
-    const destAreaCode = selectedDistrictName;
+    // Format baru: origin_name (regency) dan destination_name (district)
+    const originName = selectedBusiness?.regency || "";
+    const destinationName = selectedDistrictName;
 
     // Validate required parameters
-    if (!weight || !sendSiteCode || !destAreaCode) {
+    if (!weight || !originName || !destinationName) {
       const missingFields = [];
       if (!weight) missingFields.push("berat");
-      if (!sendSiteCode)
+      if (!originName)
         missingFields.push(
           "kota pengirim (data alamat pengirim tidak lengkap)"
         );
-      if (!destAreaCode) missingFields.push("kecamatan tujuan");
+      if (!destinationName) missingFields.push("kecamatan tujuan");
 
       const errorMessage = `Data tidak lengkap: ${missingFields.join(", ")} wajib diisi`;
       console.error("❌ RegularPackageForm - Missing required fields:", {
         weight,
-        sendSiteCode,
-        destAreaCode,
+        originName,
+        destinationName,
         selectedBusiness,
         selectedDistrictName,
         missingFields,
@@ -494,151 +494,51 @@ export default function RegularPackageForm({
     }
 
     try {
-      // Validate required data for Paxel
-      const paxelPayload = {
-        weight,
-        origin: {
-          address: selectedBusiness?.address || "",
-          province: selectedBusiness?.province || "",
-          city: selectedBusiness?.regency || "",
-          district: selectedBusiness?.district || "",
-        },
-        destination: {
-          address: formData.receiverAddress,
-          province: formData.province,
-          city: formData.regency,
-          district: formData.district,
-        },
-        dimension: `${formData.length}x${formData.width}x${formData.height}`,
-        service_type: "SAMEDAY",
-      };
+      // Determine destination name based on receiverId or formData
+      let finalDestinationName = destinationName;
+      let paxelDestinationName = formData.district || "";
+      let lionDestinationName = `${formData.district}, ${formData.regency}`.trim();
+      let sapDestinationName = formData.regency;
 
       // For saved recipients, we need to get the actual location names
       if (receiverId) {
         const selectedRecipient = businessRecipients.find(
           (r) => String(r.id) === receiverId
         );
-        console.log("🔍 Selected recipient:", selectedRecipient);
         if (selectedRecipient) {
-          paxelPayload.destination.province = selectedRecipient.province || "";
-          paxelPayload.destination.city = selectedRecipient.regency || "";
-          paxelPayload.destination.district = selectedRecipient.district || "";
-          console.log(
-            "🔍 Updated Paxel destination:",
-            paxelPayload.destination
-          );
+          finalDestinationName = selectedRecipient.district || "";
+          paxelDestinationName = selectedRecipient.district || "";
+          lionDestinationName = `${selectedRecipient.district || ""}, ${selectedRecipient.regency || ""}`.trim();
+          sapDestinationName = selectedRecipient.regency || "";
         }
       }
 
-      // Validate Paxel payload
-      const paxelValidation = {
-        weight: !!paxelPayload.weight,
-        origin_address: !!paxelPayload.origin.address,
-        origin_province: !!paxelPayload.origin.province,
-        origin_city: !!paxelPayload.origin.city,
-        origin_district: !!paxelPayload.origin.district,
-        dest_address: !!paxelPayload.destination.address,
-        dest_province: !!paxelPayload.destination.province,
-        dest_city: !!paxelPayload.destination.city,
-        dest_district: !!paxelPayload.destination.district,
-        dimension: !!paxelPayload.dimension && paxelPayload.dimension !== "x",
-      };
+      // Prepare Lion Parcel origin (format: "district, regency")
+      const lionOriginName = `${selectedBusiness?.district || ""}, ${selectedBusiness?.regency || ""}`.trim();
 
-      console.log("🔍 Paxel payload:", paxelPayload);
-      console.log("🔍 Paxel validation:", paxelValidation);
-
-      // Check if any required field is missing
-      const missingFields = Object.entries(paxelValidation)
-        .filter(([, value]) => !value)
-        .map(([key]) => key);
-
-      if (missingFields.length > 0) {
-        console.error("❌ Missing required fields for Paxel:", missingFields);
-        onResult?.({
-          error: true,
-          message: `Data tidak lengkap untuk Paxel: ${missingFields.join(", ")}`,
-        });
-        if (setIsSearching) setIsSearching(false);
-        return;
-      }
-
-      // Prepare Lion Parcel payload
-      // Lion Parcel expects format: "district, city" (not "city, province")
-
-      // Clean and format location strings to avoid encoding issues
-      // Lion Parcel expects format: "district, city" with proper spacing
-      const cleanOrigin =
-        `${selectedBusiness?.district || ""}, ${selectedBusiness?.regency || ""}`.trim();
-      const cleanDestination =
-        `${formData.district}, ${formData.regency}`.trim();
-
-      // Log the payload for debugging
-      console.log("🚀 Lion Parcel payload:", {
-        weight,
-        origin: cleanOrigin,
-        destination: cleanDestination,
-        commodity: "gen",
-        length: formData.length,
-        width: formData.width,
-        height: formData.height,
-      });
-
-      const lionPayload = {
-        weight,
-        origin: cleanOrigin,
-        destination: cleanDestination,
-        commodity: "gen",
-        length: formData.length,
-        width: formData.width,
-        height: formData.height,
-      };
-
-      // For saved recipients, we need to get the actual location names for Lion
-      if (receiverId) {
-        const selectedRecipient = businessRecipients.find(
-          (r) => String(r.id) === receiverId
-        );
-        if (selectedRecipient) {
-          const cleanRecipientDestination =
-            `${selectedRecipient.district || ""}, ${selectedRecipient.regency || ""}`.trim();
-          lionPayload.destination = cleanRecipientDestination;
-        }
-      }
-
-      // Prepare SAP payload
-      const sapPayload = {
-        weight,
-        origin: selectedBusiness?.regency || "",
-        destination: formData.regency,
-        customer_code: "DEFAULT",
-        packing_type_code: "ACH02",
-        volumetric: `${formData.length}x${formData.width}x${formData.height}`,
-        item_value: formData.itemValue || "100000",
-      };
-
-      // For saved recipients, we need to get the actual location names for SAP
-      if (receiverId) {
-        const selectedRecipient = businessRecipients.find(
-          (r) => String(r.id) === receiverId
-        );
-        if (selectedRecipient) {
-          sapPayload.destination = selectedRecipient.regency || "";
-        }
-      }
-
-      console.log("🚀 SAP payload:", sapPayload);
-
-      // Call all four APIs in parallel
+      // Call all four APIs in parallel with simplified format
       const [jntResult, paxelResult, lionResult, sapResult] =
         await Promise.allSettled([
           getJntExpressShipmentCost({
+            origin_name: originName,
+            destination_name: finalDestinationName,
             weight,
-            sendSiteCode,
-            destAreaCode,
           }),
-          getPaxelShipmentCost(paxelPayload),
-          getLionShipmentCost(lionPayload),
-          getSapShipmentCost(sapPayload),
+          getPaxelShipmentCost({
+            origin_name: originName,
+            destination_name: paxelDestinationName,
+            weight,
+          }),
+          getLionShipmentCost({
+            origin_name: lionOriginName,
+            destination_name: lionDestinationName,
+            weight,
+          }),
+          getSapShipmentCost({
+            origin_name: originName,
+            destination_name: sapDestinationName,
+            weight,
+          }),
         ]);
 
       // Debug logging

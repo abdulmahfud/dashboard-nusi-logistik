@@ -254,14 +254,121 @@ export const getSapShipmentCost = async ({
   destination_name: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk SAP API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_name,
     destination_name,
-    weight: String(weight),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(
     "/admin/expedition/sap/shipment_cost",
+    requestPayload
+  );
+  return res.data;
+};
+
+// ✅ Get Pos Indonesia shipment cost
+export const getPosIndonesiaShipmentCost = async ({
+  origin_name,
+  destination_name,
+  weight,
+}: {
+  origin_name: string;
+  destination_name: string;
+  weight: string | number;
+}) => {
+  // Konversi berat dari gram ke kilogram untuk Pos Indonesia API
+  const weightInKg = Number(weight) / 1000;
+
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: weightInKg.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/posindonesia/shipment_cost",
+    requestPayload
+  );
+  return res.data;
+};
+
+// ✅ Get JNE shipment cost
+export const getJneShipmentCost = async ({
+  origin_name,
+  destination_name,
+  weight,
+}: {
+  origin_name: string;
+  destination_name: string;
+  weight: string | number;
+}) => {
+  // Konversi berat dari gram ke kilogram untuk JNE API
+  const weightInKg = Number(weight) / 1000;
+
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: weightInKg.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/jne/shipment_cost",
+    requestPayload
+  );
+  return res.data;
+};
+
+// ✅ Get ID Express shipment cost
+export const getIdexpressShipmentCost = async ({
+  origin_name,
+  destination_name,
+  weight,
+}: {
+  origin_name: string;
+  destination_name: string;
+  weight: string | number;
+}) => {
+  // Konversi berat dari gram ke kilogram untuk ID Express API
+  const weightInKg = Number(weight) / 1000;
+
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: weightInKg.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/idexpress/shipment_cost",
+    requestPayload
+  );
+  return res.data;
+};
+
+// ✅ Get Anteraja shipment cost
+export const getAnterajaShipmentCost = async ({
+  origin_name,
+  destination_name,
+  weight,
+}: {
+  origin_name: string;
+  destination_name: string;
+  weight: string | number;
+}) => {
+  // Konversi berat dari gram ke kilogram untuk Anteraja API
+  const weightInKg = Number(weight) / 1000;
+
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: weightInKg.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/anteraja/shipment_cost",
     requestPayload
   );
   return res.data;

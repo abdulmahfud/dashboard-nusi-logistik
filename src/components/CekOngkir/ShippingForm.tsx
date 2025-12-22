@@ -17,6 +17,11 @@ import {
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
   getLionShipmentCost,
+  getSapShipmentCost,
+  getPosIndonesiaShipmentCost,
+  getJneShipmentCost,
+  getIdexpressShipmentCost,
+  getAnterajaShipmentCost,
 } from "@/lib/apiClient";
 
 interface ShippingFormProps {
@@ -211,7 +216,7 @@ export default function ShippingForm({
 
     try {
       // Call all vendor APIs in parallel with simplified format
-      const [jntResult, paxelResult, lionResult] = await Promise.allSettled([
+      const [jntResult, paxelResult, lionResult, sapResult, posIndonesiaResult, jneResult, idexpressResult, anterajaResult] = await Promise.allSettled([
         getJntExpressShipmentCost({
           origin_name: selectedOriginRegencyName,
           destination_name: selectedDestDistrictName,
@@ -227,6 +232,31 @@ export default function ShippingForm({
           destination_name: selectedDestDistrictName,
           weight: formData.weight,
         }),
+        getSapShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
+          weight: formData.weight,
+        }),
+        getPosIndonesiaShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
+          weight: formData.weight,
+        }),
+        getJneShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
+          weight: formData.weight,
+        }),
+        getIdexpressShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
+          weight: formData.weight,
+        }),
+        getAnterajaShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
+          weight: formData.weight,
+        }),
       ]);
 
       // Log errors for debugging
@@ -237,6 +267,26 @@ export default function ShippingForm({
       if (jntResult.status === "rejected") {
         console.error("❌ JNT API Error:", jntResult.reason);
       }
+      if (sapResult.status === "rejected") {
+        console.error("❌ SAP API Error:", sapResult.reason);
+        console.error("❌ SAP Error Response:", sapResult.reason?.response?.data);
+      }
+      if (posIndonesiaResult.status === "rejected") {
+        console.error("❌ Pos Indonesia API Error:", posIndonesiaResult.reason);
+        console.error("❌ Pos Indonesia Error Response:", posIndonesiaResult.reason?.response?.data);
+      }
+      if (jneResult.status === "rejected") {
+        console.error("❌ JNE API Error:", jneResult.reason);
+        console.error("❌ JNE Error Response:", jneResult.reason?.response?.data);
+      }
+      if (idexpressResult.status === "rejected") {
+        console.error("❌ ID Express API Error:", idexpressResult.reason);
+        console.error("❌ ID Express Error Response:", idexpressResult.reason?.response?.data);
+      }
+      if (anterajaResult.status === "rejected") {
+        console.error("❌ Anteraja API Error:", anterajaResult.reason);
+        console.error("❌ Anteraja Error Response:", anterajaResult.reason?.response?.data);
+      }
 
       // Combine results from all APIs with better error handling
       const combinedResult = {
@@ -245,6 +295,11 @@ export default function ShippingForm({
           jnt: jntResult.status === "fulfilled" ? jntResult.value : null,
           paxel: paxelResult.status === "fulfilled" ? paxelResult.value : null,
           lion: lionResult.status === "fulfilled" ? lionResult.value : null,
+          sap: sapResult.status === "fulfilled" ? sapResult.value : null,
+          posindonesia: posIndonesiaResult.status === "fulfilled" ? posIndonesiaResult.value : null,
+          jne: jneResult.status === "fulfilled" ? jneResult.value : null,
+          idexpress: idexpressResult.status === "fulfilled" ? idexpressResult.value : null,
+          anteraja: anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
         },
       };
 
