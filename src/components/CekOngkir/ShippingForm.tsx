@@ -67,13 +67,8 @@ export default function ShippingForm({
     useState("");
   const [selectedDestDistrictName, setSelectedDestDistrictName] = useState("");
 
-  // Add state to store selected location names
-  const [selectedOriginProvinceName, setSelectedOriginProvinceName] =
-    useState("");
-  const [selectedOriginDistrictName, setSelectedOriginDistrictName] =
-    useState("");
-  const [selectedDestProvinceName, setSelectedDestProvinceName] = useState("");
-  const [selectedDestRegencyName, setSelectedDestRegencyName] = useState("");
+  // State untuk nama yang dipilih (untuk API)
+  // selectedOriginRegencyName dan selectedDestDistrictName sudah didefinisikan di atas
 
   const [formData, setFormData] = useState({
     originProvince: "",
@@ -215,59 +210,33 @@ export default function ShippingForm({
     }
 
     try {
-      // Call both APIs in parallel
+      // Call all vendor APIs in parallel with simplified format
       const [jntResult, paxelResult, lionResult] = await Promise.allSettled([
         getJntExpressShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
           weight: formData.weight,
-          sendSiteCode: selectedOriginRegencyName,
-          destAreaCode: selectedDestDistrictName,
         }),
         getPaxelShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
           weight: formData.weight,
-          origin: {
-            address: "Alamat Pengirim", // Placeholder, will be filled by backend
-            province: selectedOriginProvinceName,
-            city: selectedOriginRegencyName,
-            district: selectedOriginDistrictName,
-          },
-          destination: {
-            address: "Alamat Penerima", // Placeholder
-            province: selectedDestProvinceName,
-            city: selectedDestRegencyName,
-            district: selectedDestDistrictName,
-          },
-          dimension: `${formData.length || 0}x${formData.width || 0}x${formData.height || 0}`,
-          service_type: "SAMEDAY",
         }),
         getLionShipmentCost({
+          origin_name: selectedOriginRegencyName,
+          destination_name: selectedDestDistrictName,
           weight: formData.weight,
-          origin: `${selectedOriginDistrictName}, ${selectedOriginRegencyName}`,
-          destination: `${selectedDestDistrictName}, ${selectedDestRegencyName}`,
-          commodity: "gen",
-          length: formData.length || 10,
-          width: formData.width || 10,
-          height: formData.height || 10,
         }),
       ]);
 
-      // Debug logging
-      console.log("🔍 Paxel payload:", {
-        weight: formData.weight,
-        origin: {
-          address: "Alamat Pengirim",
-          province: selectedOriginProvinceName,
-          city: selectedOriginRegencyName,
-          district: selectedOriginDistrictName,
-        },
-        destination: {
-          address: "Alamat Penerima",
-          province: selectedDestProvinceName,
-          city: selectedDestRegencyName,
-          district: selectedDestDistrictName,
-        },
-        dimension: `${formData.length || 0}x${formData.width || 0}x${formData.height || 0}`,
-        service_type: "SAMEDAY",
-      });
+      // Log errors for debugging
+      if (paxelResult.status === "rejected") {
+        console.error("❌ Paxel API Error:", paxelResult.reason);
+        console.error("❌ Paxel Error Response:", paxelResult.reason?.response?.data);
+      }
+      if (jntResult.status === "rejected") {
+        console.error("❌ JNT API Error:", jntResult.reason);
+      }
 
       // Combine results from all APIs with better error handling
       const combinedResult = {
@@ -278,22 +247,6 @@ export default function ShippingForm({
           lion: lionResult.status === "fulfilled" ? lionResult.value : null,
         },
       };
-
-      // Log individual results for debugging
-      console.log("🔍 API Results:", {
-        jnt:
-          jntResult.status === "fulfilled"
-            ? "Success"
-            : `Failed: ${jntResult.reason}`,
-        paxel:
-          paxelResult.status === "fulfilled"
-            ? "Success"
-            : `Failed: ${paxelResult.reason}`,
-        lion:
-          lionResult.status === "fulfilled"
-            ? "Success"
-            : `Failed: ${lionResult.reason}`,
-      });
 
       onResult?.(combinedResult);
     } catch (err) {
@@ -360,8 +313,6 @@ export default function ShippingForm({
                           setOriginRegencySearch("");
                           setOriginDistrictSearch("");
                           setSelectedOriginRegencyName("");
-                          setSelectedOriginProvinceName(prov.name);
-                          setSelectedOriginDistrictName("");
                         }}
                       >
                         {prov.name}
@@ -413,7 +364,6 @@ export default function ShippingForm({
                             setOriginRegencySearch(reg.name);
                             setOriginDistrictSearch("");
                             setSelectedOriginRegencyName(reg.name);
-                            setSelectedDestRegencyName(reg.name);
                           }}
                         >
                           {reg.name}
@@ -461,7 +411,6 @@ export default function ShippingForm({
                           onClick={() => {
                             handleChange("originDistrict", String(dist.id));
                             setOriginDistrictSearch(dist.name);
-                            setSelectedOriginDistrictName(dist.name);
                           }}
                         >
                           {dist.name}
@@ -516,7 +465,6 @@ export default function ShippingForm({
                           setDestProvinceSearch(prov.name);
                           setDestRegencySearch("");
                           setDestDistrictSearch("");
-                          setSelectedDestProvinceName(prov.name);
                         }}
                       >
                         {prov.name}
@@ -567,7 +515,6 @@ export default function ShippingForm({
                             handleChange("destRegency", String(reg.id));
                             setDestRegencySearch(reg.name);
                             setDestDistrictSearch("");
-                            setSelectedDestRegencyName(reg.name);
                           }}
                         >
                           {reg.name}

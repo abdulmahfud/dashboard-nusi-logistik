@@ -16,11 +16,32 @@ type ApiErrorResult = { error: true; message?: string };
 
 type JntApiResult = {
   status: string;
+  message?: string;
   data?: {
     content?: string;
     is_success?: string;
     message?: string;
   };
+  shipping_costs_with_discount?: Array<{
+    cost: string;
+    name: string;
+    productType: string;
+    original_cost?: number;
+    final_cost?: number;
+    discount_info?: {
+      has_discount: boolean;
+      discount_applied: boolean;
+      discount_amount: number;
+      discounted_price: number;
+      final_cost: number;
+      original_price: number;
+      discount_percentage?: number | null;
+      discount_id?: number | null;
+      discount_description?: string | null;
+      discount_type?: string | null;
+      discount_value?: number | null;
+    };
+  }>;
 };
 
 type PaxelApiResult = {
@@ -116,8 +137,6 @@ export default function ShippingResults({
   const shippingOptions: ShippingOption[] = useMemo(() => {
     const apiResult = result as ApiResult;
 
-    console.log("🔍 ShippingResults - API result received:", apiResult);
-
     // Handle combined results from both APIs
     if (
       apiResult &&
@@ -127,13 +146,39 @@ export default function ShippingResults({
       "paxel" in apiResult.data
     ) {
       const combinedData = apiResult.data as CombinedApiResult["data"];
-      console.log("🔍 ShippingResults - Combined data:", combinedData);
       const options: ShippingOption[] = [];
 
       // Process JNT results
       if (combinedData.jnt && combinedData.jnt.status === "success") {
         const jntData = combinedData.jnt;
-        if (jntData.data && typeof jntData.data.content === "string") {
+        console.log("🔍 JNT Debug:", JSON.stringify(jntData, null, 2));
+
+        // Use shipping_costs_with_discount array if available
+        if (
+          jntData.shipping_costs_with_discount &&
+          Array.isArray(jntData.shipping_costs_with_discount) &&
+          jntData.shipping_costs_with_discount.length > 0
+        ) {
+          jntData.shipping_costs_with_discount.forEach((item, index) => {
+            // Use final_cost if available, otherwise fallback to cost or discount_info.final_cost
+            const priceValue =
+              item.final_cost ??
+              item.discount_info?.final_cost ??
+              Number(item.cost);
+            options.push({
+              id: `jnt-${item.productType.toLowerCase()}`,
+              name: `J&T ${item.name}`,
+              logo: "/images/jnt.png",
+              price: `Rp${priceValue.toLocaleString("id-ID")}`,
+              duration: "1-3 Hari",
+              available: true,
+              recommended: index === 0,
+              tags: [{ label: "Potensi retur Rendah", type: "info" }],
+            });
+          });
+        }
+        // Fallback to parsing content if shipping_costs_with_discount is not available
+        else if (jntData.data && typeof jntData.data.content === "string") {
           try {
             const contentArr = JSON.parse(jntData.data.content) as Array<{
               cost: string;
@@ -155,8 +200,8 @@ export default function ShippingResults({
                 });
               });
             }
-          } catch (error) {
-            console.error("❌ Error parsing JNT options:", error);
+          } catch {
+            // Silent error handling
           }
         }
       }
@@ -165,8 +210,6 @@ export default function ShippingResults({
       if (combinedData.paxel && combinedData.paxel.status === "success") {
         const paxelData = combinedData.paxel.data?.data;
         if (paxelData) {
-          console.log("🔍 Paxel data received:", paxelData);
-
           // Only show fixed_price option for Paxel
           if (paxelData.fixed_price && paxelData.fixed_price > 0) {
             options.push({
@@ -191,8 +234,6 @@ export default function ShippingResults({
           const estimatedDays = lionData.estimated_days || 5;
           const productName = lionData.product || "REGPACK";
 
-          console.log("🔍 Lion data received:", lionData);
-
           options.push({
             id: "lion-regular",
             name: `Lion Parcel ${productName}`,
@@ -214,8 +255,6 @@ export default function ShippingResults({
           const estimatedDays = sapData.estimated_days || 3;
           const serviceType = sapData.service_type || "REGULER";
 
-          console.log("🔍 SAP data received:", sapData);
-
           options.push({
             id: "sap-regular",
             name: `SAP ${serviceType}`,
@@ -229,39 +268,66 @@ export default function ShippingResults({
         }
       }
 
-      console.log("🚀 ShippingResults - Final options created:", options);
       return options;
     }
 
     // Fallback: Handle single API response (for backward compatibility)
-    if (
-      apiResult &&
-      apiResult.status === "success" &&
-      apiResult.data &&
-      "content" in apiResult.data &&
-      typeof apiResult.data.content === "string"
-    ) {
-      try {
-        const contentArr = JSON.parse(apiResult.data.content) as Array<{
-          cost: string;
-          name: string;
-          productType: string;
-        }>;
-        if (Array.isArray(contentArr) && contentArr.length > 0) {
-          // Map semua opsi dari API JNT Express
-          return contentArr.map((item, index) => ({
-            id: `jnt-${item.productType.toLowerCase()}`,
-            name: `J&T ${item.name}`,
-            logo: "/images/jnt.png",
-            price: `Rp${Number(item.cost).toLocaleString("id-ID")}`,
-            duration: "3-6 Hari",
-            available: true,
-            recommended: index === 0, // Opsi pertama sebagai rekomendasi
-            tags: [{ label: "Potensi retur Rendah", type: "info" }],
-          }));
+    const singleApiResult = apiResult as JntApiResult;
+    if (singleApiResult && singleApiResult.status === "success") {
+      // Use shipping_costs_with_discount array if available
+      if (
+        singleApiResult.shipping_costs_with_discount &&
+        Array.isArray(singleApiResult.shipping_costs_with_discount) &&
+        singleApiResult.shipping_costs_with_discount.length > 0
+      ) {
+        return singleApiResult.shipping_costs_with_discount.map(
+          (item, index) => {
+            // Use final_cost if available, otherwise fallback to cost or discount_info.final_cost
+            const priceValue =
+              item.final_cost ??
+              item.discount_info?.final_cost ??
+              Number(item.cost);
+            return {
+              id: `jnt-${item.productType.toLowerCase()}`,
+              name: `J&T ${item.name}`,
+              logo: "/images/jnt.png",
+              price: `Rp${priceValue.toLocaleString("id-ID")}`,
+              duration: "3-6 Hari",
+              available: true,
+              recommended: index === 0, // Opsi pertama sebagai rekomendasi
+              tags: [{ label: "Potensi retur Rendah", type: "info" }],
+            };
+          }
+        );
+      }
+      // Fallback to parsing content
+      if (
+        singleApiResult.data &&
+        "content" in singleApiResult.data &&
+        typeof singleApiResult.data.content === "string"
+      ) {
+        try {
+          const contentArr = JSON.parse(singleApiResult.data.content) as Array<{
+            cost: string;
+            name: string;
+            productType: string;
+          }>;
+          if (Array.isArray(contentArr) && contentArr.length > 0) {
+            // Map semua opsi dari API JNT Express
+            return contentArr.map((item, index) => ({
+              id: `jnt-${item.productType.toLowerCase()}`,
+              name: `J&T ${item.name}`,
+              logo: "/images/jnt.png",
+              price: `Rp${Number(item.cost).toLocaleString("id-ID")}`,
+              duration: "3-6 Hari",
+              available: true,
+              recommended: index === 0, // Opsi pertama sebagai rekomendasi
+              tags: [{ label: "Potensi retur Rendah", type: "info" }],
+            }));
+          }
+        } catch {
+          return [];
         }
-      } catch {
-        return [];
       }
     }
     return [];
@@ -306,8 +372,7 @@ export default function ShippingResults({
           [option.id]: null,
         }));
       }
-    } catch (error) {
-      console.error("Error fetching discount for option:", option.id, error);
+    } catch {
       setDiscountInfo((prev) => ({
         ...prev,
         [option.id]: null,

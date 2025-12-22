@@ -171,21 +171,21 @@ export const getDistricts = async (
 
 // ✅ Get JNT Express shipment cost
 export const getJntExpressShipmentCost = async ({
+  origin_name,
+  destination_name,
   weight,
-  sendSiteCode,
-  destAreaCode,
 }: {
+  origin_name: string;
+  destination_name: string;
   weight: string | number;
-  sendSiteCode: string;
-  destAreaCode: string;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk JNT API
+  // Konversi berat dari gram ke kilogram untuk JNT Express API
   const weightInKg = Number(weight) / 1000;
 
   const requestPayload = {
+    origin_name,
+    destination_name,
     weight: weightInKg.toString(),
-    sendSiteCode,
-    destAreaCode,
   };
 
   const res = await apiClient.post(
@@ -197,178 +197,73 @@ export const getJntExpressShipmentCost = async ({
 
 // ✅ Get Paxel shipment cost
 export const getPaxelShipmentCost = async ({
+  origin_name,
+  destination_name,
   weight,
-  origin,
-  destination,
-  dimension,
-  service_type,
 }: {
+  origin_name: string;
+  destination_name: string;
   weight: string | number;
-  origin: {
-    address: string;
-    province: string;
-    city: string;
-    district: string;
-    village?: string;
-    zip_code?: string;
-    longitude?: number;
-    latitude?: number;
-  };
-  destination: {
-    address: string;
-    province: string;
-    city: string;
-    district: string;
-    village?: string;
-    zip_code?: string;
-    longitude?: number;
-    latitude?: number;
-  };
-  dimension: string;
-  service_type?: string;
 }) => {
-  const requestPayload = {
-    weight: Number(weight),
-    origin,
-    destination,
-    dimension,
-    service_type: service_type || "REGULER",
-  };
+  // Konversi berat dari gram ke kilogram untuk Paxel API
+  const weightInKg = Number(weight) / 1000;
 
-  console.log("🚀 Paxel API request payload:", requestPayload);
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: weightInKg.toString(),
+  };
 
   const res = await apiClient.post(
     "/admin/expedition/paxel/shipment_cost",
     requestPayload
   );
-
-  console.log("🚀 Paxel API response:", res.data);
   return res.data;
 };
 
 // ✅ Get Lion Parcel shipment cost
 export const getLionShipmentCost = async ({
+  origin_name,
+  destination_name,
   weight,
-  origin,
-  destination,
-  commodity,
-  length,
-  width,
-  height,
 }: {
+  origin_name: string;
+  destination_name: string;
   weight: string | number;
-  origin: string;
-  destination: string;
-  commodity?: string;
-  length?: string | number;
-  width?: string | number;
-  height?: string | number;
 }) => {
-  // Build query parameters for GET request
-  // Note: Lion Parcel expects format "district, city" (not "city, province")
+  const requestPayload = {
+    origin_name,
+    destination_name,
+    weight: String(weight),
+  };
 
-  // Clean and format the origin and destination strings
-  // Lion Parcel expects format: "KEBON+JERUK, JAKARTA+BARAT" (with + for spaces, comma for separator)
-  const cleanOrigin = origin
-    .trim()
-    .replace(/\s*,\s*/g, ", ") // Normalize comma spacing
-    .replace(/\s+/g, "+") // Replace spaces with + for Lion Parcel format
-    .replace(/,\+/g, ", "); // Fix: comma should not be followed by +
-
-  const cleanDestination = destination
-    .trim()
-    .replace(/\s*,\s*/g, ", ") // Normalize comma spacing
-    .replace(/\s+/g, "+") // Replace spaces with + for Lion Parcel format
-    .replace(/,\+/g, ", "); // Fix: comma should not be followed by +
-
-  // Debug logging
-  console.log("🔍 Lion Parcel format conversion:", {
-    originalOrigin: origin,
-    cleanedOrigin: cleanOrigin,
-    originalDestination: destination,
-    cleanedDestination: cleanDestination,
-  });
-
-  // Convert weight from grams to kg for Lion Parcel API
-  const weightInKg = Number(weight) / 1000;
-
-  // Build query string manually with Lion Parcel format
-  const queryParts = [
-    `weight=${weightInKg.toFixed(2)}`, // Convert to kg with 2 decimal places
-    `origin=${cleanOrigin}`, // No encodeURIComponent needed, Lion Parcel format
-    `destination=${cleanDestination}`, // No encodeURIComponent needed, Lion Parcel format
-    `commodity=${commodity || "gen"}`,
-    ...(length ? [`length=${String(length)}`] : []),
-    ...(width ? [`width=${String(width)}`] : []),
-    ...(height ? [`height=${String(height)}`] : []),
-  ];
-
-  const queryString = queryParts.join("&");
-
-  console.log(
-    "🚀 Lion API request URL:",
-    `/admin/expedition/lion/shipment_cost?${queryString}`
+  const res = await apiClient.post(
+    "/admin/expedition/lion/shipment_cost",
+    requestPayload
   );
-
-  const res = await apiClient.get(
-    `/admin/expedition/lion/shipment_cost?${queryString}`
-  );
-
-  console.log("🚀 Lion API response:", res.data);
   return res.data;
 };
 
 // ✅ Get SAP shipment cost
 export const getSapShipmentCost = async ({
+  origin_name,
+  destination_name,
   weight,
-  origin,
-  destination,
-  customer_code,
-  packing_type_code,
-  volumetric,
-  item_value,
-  origin_district_code,
-  insurance_type_code,
-  shipment_type_code,
-  shipment_content_code,
 }: {
+  origin_name: string;
+  destination_name: string;
   weight: string | number;
-  origin: string;
-  destination: string;
-  customer_code: string;
-  packing_type_code: string;
-  volumetric: string;
-  item_value: string | number;
-  origin_district_code?: string;
-  insurance_type_code?: string;
-  shipment_type_code?: string;
-  shipment_content_code?: string;
 }) => {
-  // Convert weight from grams to kg for SAP API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin,
-    destination,
-    weight: weightInKg.toFixed(2),
-    customer_code,
-    packing_type_code,
-    volumetric,
-    item_value,
-    ...(origin_district_code && { origin_district_code }),
-    ...(insurance_type_code && { insurance_type_code }),
-    ...(shipment_type_code && { shipment_type_code }),
-    ...(shipment_content_code && { shipment_content_code }),
+    origin_name,
+    destination_name,
+    weight: String(weight),
   };
-
-  console.log("🚀 SAP API request payload:", requestPayload);
 
   const res = await apiClient.post(
     "/admin/expedition/sap/shipment_cost",
     requestPayload
   );
-
-  console.log("🚀 SAP API response:", res.data);
   return res.data;
 };
 
