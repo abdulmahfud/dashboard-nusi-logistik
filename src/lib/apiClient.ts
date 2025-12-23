@@ -231,10 +231,13 @@ export const getLionShipmentCost = async ({
   destination_name: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk Lion Parcel API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_name,
     destination_name,
-    weight: String(weight),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(
