@@ -68,12 +68,15 @@ export default function ShippingForm({
   const [loadingDestDistrict, setLoadingDestDistrict] = useState(false);
 
   // State untuk nama yang dipilih (untuk API)
+  const [selectedOriginProvinceName, setSelectedOriginProvinceName] =
+    useState("");
   const [selectedOriginRegencyName, setSelectedOriginRegencyName] =
     useState("");
+  const [selectedOriginDistrictName, setSelectedOriginDistrictName] =
+    useState("");
+  const [selectedDestProvinceName, setSelectedDestProvinceName] = useState("");
+  const [selectedDestRegencyName, setSelectedDestRegencyName] = useState("");
   const [selectedDestDistrictName, setSelectedDestDistrictName] = useState("");
-
-  // State untuk nama yang dipilih (untuk API)
-  // selectedOriginRegencyName dan selectedDestDistrictName sudah didefinisikan di atas
 
   const [formData, setFormData] = useState({
     originProvince: "",
@@ -203,89 +206,108 @@ export default function ShippingForm({
     // Validasi field wajib
     if (
       !formData.weight ||
+      !selectedOriginProvinceName ||
       !selectedOriginRegencyName ||
+      !selectedOriginDistrictName ||
+      !selectedDestProvinceName ||
+      !selectedDestRegencyName ||
       !selectedDestDistrictName
     ) {
+      const missingFields = [];
+      if (!formData.weight) missingFields.push("Berat");
+      if (!selectedOriginProvinceName) missingFields.push("Provinsi Asal");
+      if (!selectedOriginRegencyName) missingFields.push("Kota/Kabupaten Asal");
+      if (!selectedOriginDistrictName) missingFields.push("Kecamatan Asal");
+      if (!selectedDestProvinceName) missingFields.push("Provinsi Tujuan");
+      if (!selectedDestRegencyName) missingFields.push("Kota/Kabupaten Tujuan");
+      if (!selectedDestDistrictName) missingFields.push("Kecamatan Tujuan");
+
       onResult?.({
         error: true,
-        message: `Mohon lengkapi data berikut: ${!formData.weight ? "Berat" : ""} ${!selectedOriginRegencyName ? "Kota Asal" : ""} ${!selectedDestDistrictName ? "Kecamatan Tujuan" : ""}`,
+        message: `Mohon lengkapi data berikut: ${missingFields.join(", ")}`,
       });
       if (setIsSearching) setIsSearching(false);
       return;
     }
 
     try {
-      // Call all vendor APIs in parallel with simplified format
-      const [jntResult, paxelResult, lionResult, sapResult, posIndonesiaResult, jneResult, idexpressResult, anterajaResult] = await Promise.allSettled([
-        getJntExpressShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getPaxelShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getLionShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getSapShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getPosIndonesiaShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getJneShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getIdexpressShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
-        getAnterajaShipmentCost({
-          origin_name: selectedOriginRegencyName,
-          destination_name: selectedDestDistrictName,
-          weight: formData.weight,
-        }),
+      // Prepare common payload for all APIs
+      const shipmentPayload = {
+        origin_province: selectedOriginProvinceName,
+        origin_regencie: selectedOriginRegencyName,
+        origin_district: selectedOriginDistrictName,
+        destination_province: selectedDestProvinceName,
+        destination_regencie: selectedDestRegencyName,
+        destination_district: selectedDestDistrictName,
+        weight: formData.weight,
+      };
+
+      // Call all vendor APIs in parallel with new format
+      const [
+        jntResult,
+        paxelResult,
+        lionResult,
+        sapResult,
+        posIndonesiaResult,
+        jneResult,
+        idexpressResult,
+        anterajaResult,
+      ] = await Promise.allSettled([
+        getJntExpressShipmentCost(shipmentPayload),
+        getPaxelShipmentCost(shipmentPayload),
+        getLionShipmentCost(shipmentPayload),
+        getSapShipmentCost(shipmentPayload),
+        getPosIndonesiaShipmentCost(shipmentPayload),
+        getJneShipmentCost(shipmentPayload),
+        getIdexpressShipmentCost(shipmentPayload),
+        getAnterajaShipmentCost(shipmentPayload),
       ]);
 
       // Log errors for debugging
       if (paxelResult.status === "rejected") {
         console.error("❌ Paxel API Error:", paxelResult.reason);
-        console.error("❌ Paxel Error Response:", paxelResult.reason?.response?.data);
+        console.error(
+          "❌ Paxel Error Response:",
+          paxelResult.reason?.response?.data
+        );
       }
       if (jntResult.status === "rejected") {
         console.error("❌ JNT API Error:", jntResult.reason);
       }
       if (sapResult.status === "rejected") {
         console.error("❌ SAP API Error:", sapResult.reason);
-        console.error("❌ SAP Error Response:", sapResult.reason?.response?.data);
+        console.error(
+          "❌ SAP Error Response:",
+          sapResult.reason?.response?.data
+        );
       }
       if (posIndonesiaResult.status === "rejected") {
         console.error("❌ Pos Indonesia API Error:", posIndonesiaResult.reason);
-        console.error("❌ Pos Indonesia Error Response:", posIndonesiaResult.reason?.response?.data);
+        console.error(
+          "❌ Pos Indonesia Error Response:",
+          posIndonesiaResult.reason?.response?.data
+        );
       }
       if (jneResult.status === "rejected") {
         console.error("❌ JNE API Error:", jneResult.reason);
-        console.error("❌ JNE Error Response:", jneResult.reason?.response?.data);
+        console.error(
+          "❌ JNE Error Response:",
+          jneResult.reason?.response?.data
+        );
       }
       if (idexpressResult.status === "rejected") {
         console.error("❌ ID Express API Error:", idexpressResult.reason);
-        console.error("❌ ID Express Error Response:", idexpressResult.reason?.response?.data);
+        console.error(
+          "❌ ID Express Error Response:",
+          idexpressResult.reason?.response?.data
+        );
       }
       if (anterajaResult.status === "rejected") {
         console.error("❌ Anteraja API Error:", anterajaResult.reason);
-        console.error("❌ Anteraja Error Response:", anterajaResult.reason?.response?.data);
+        console.error(
+          "❌ Anteraja Error Response:",
+          anterajaResult.reason?.response?.data
+        );
       }
 
       // Combine results from all APIs with better error handling
@@ -296,10 +318,17 @@ export default function ShippingForm({
           paxel: paxelResult.status === "fulfilled" ? paxelResult.value : null,
           lion: lionResult.status === "fulfilled" ? lionResult.value : null,
           sap: sapResult.status === "fulfilled" ? sapResult.value : null,
-          posindonesia: posIndonesiaResult.status === "fulfilled" ? posIndonesiaResult.value : null,
+          posindonesia:
+            posIndonesiaResult.status === "fulfilled"
+              ? posIndonesiaResult.value
+              : null,
           jne: jneResult.status === "fulfilled" ? jneResult.value : null,
-          idexpress: idexpressResult.status === "fulfilled" ? idexpressResult.value : null,
-          anteraja: anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
+          idexpress:
+            idexpressResult.status === "fulfilled"
+              ? idexpressResult.value
+              : null,
+          anteraja:
+            anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
         },
       };
 
@@ -348,7 +377,9 @@ export default function ShippingForm({
                   handleChange("originProvince", "");
                   handleChange("originRegency", "");
                   handleChange("originDistrict", "");
+                  setSelectedOriginProvinceName("");
                   setSelectedOriginRegencyName("");
+                  setSelectedOriginDistrictName("");
                 }}
                 autoComplete="off"
                 className="bg-white"
@@ -367,7 +398,9 @@ export default function ShippingForm({
                           setOriginProvinceSearch(prov.name);
                           setOriginRegencySearch("");
                           setOriginDistrictSearch("");
+                          setSelectedOriginProvinceName(prov.name);
                           setSelectedOriginRegencyName("");
+                          setSelectedOriginDistrictName("");
                         }}
                       >
                         {prov.name}
@@ -396,6 +429,7 @@ export default function ShippingForm({
                   handleChange("originRegency", "");
                   handleChange("originDistrict", "");
                   setSelectedOriginRegencyName("");
+                  setSelectedOriginDistrictName("");
                 }}
                 disabled={!formData.originProvince}
                 autoComplete="off"
@@ -419,6 +453,7 @@ export default function ShippingForm({
                             setOriginRegencySearch(reg.name);
                             setOriginDistrictSearch("");
                             setSelectedOriginRegencyName(reg.name);
+                            setSelectedOriginDistrictName("");
                           }}
                         >
                           {reg.name}
@@ -445,6 +480,7 @@ export default function ShippingForm({
                 onChange={(e) => {
                   setOriginDistrictSearch(e.target.value);
                   handleChange("originDistrict", "");
+                  setSelectedOriginDistrictName("");
                 }}
                 disabled={!formData.originRegency}
                 autoComplete="off"
@@ -466,6 +502,7 @@ export default function ShippingForm({
                           onClick={() => {
                             handleChange("originDistrict", String(dist.id));
                             setOriginDistrictSearch(dist.name);
+                            setSelectedOriginDistrictName(dist.name);
                           }}
                         >
                           {dist.name}
@@ -501,6 +538,8 @@ export default function ShippingForm({
                   handleChange("destProvince", "");
                   handleChange("destRegency", "");
                   handleChange("destDistrict", "");
+                  setSelectedDestProvinceName("");
+                  setSelectedDestRegencyName("");
                   setSelectedDestDistrictName("");
                 }}
                 autoComplete="off"
@@ -520,6 +559,9 @@ export default function ShippingForm({
                           setDestProvinceSearch(prov.name);
                           setDestRegencySearch("");
                           setDestDistrictSearch("");
+                          setSelectedDestProvinceName(prov.name);
+                          setSelectedDestRegencyName("");
+                          setSelectedDestDistrictName("");
                         }}
                       >
                         {prov.name}
@@ -547,6 +589,7 @@ export default function ShippingForm({
                   setDestRegencySearch(e.target.value);
                   handleChange("destRegency", "");
                   handleChange("destDistrict", "");
+                  setSelectedDestRegencyName("");
                   setSelectedDestDistrictName("");
                 }}
                 disabled={!formData.destProvince}
@@ -570,6 +613,8 @@ export default function ShippingForm({
                             handleChange("destRegency", String(reg.id));
                             setDestRegencySearch(reg.name);
                             setDestDistrictSearch("");
+                            setSelectedDestRegencyName(reg.name);
+                            setSelectedDestDistrictName("");
                           }}
                         >
                           {reg.name}

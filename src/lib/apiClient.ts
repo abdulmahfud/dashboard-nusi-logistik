@@ -171,21 +171,30 @@ export const getDistricts = async (
 
 // ✅ Get JNT Express shipment cost
 export const getJntExpressShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk JNT Express API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin_name,
-    destination_name,
-    weight: weightInKg.toString(),
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -197,21 +206,30 @@ export const getJntExpressShipmentCost = async ({
 
 // ✅ Get Paxel shipment cost
 export const getPaxelShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Paxel API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin_name,
-    destination_name,
-    weight: weightInKg.toString(),
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -223,20 +241,32 @@ export const getPaxelShipmentCost = async ({
 
 // ✅ Get Lion Parcel shipment cost
 export const getLionShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
   // Konversi berat dari gram ke kilogram untuk Lion Parcel API
   const weightInKg = Number(weight) / 1000;
 
   const requestPayload = {
-    origin_name,
-    destination_name,
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
     weight: weightInKg.toString(),
   };
 
@@ -249,21 +279,30 @@ export const getLionShipmentCost = async ({
 
 // ✅ Get SAP shipment cost
 export const getSapShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk SAP API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin_name,
-    destination_name,
-    weight: weightInKg.toString(),
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -275,21 +314,30 @@ export const getSapShipmentCost = async ({
 
 // ✅ Get Pos Indonesia shipment cost
 export const getPosIndonesiaShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Pos Indonesia API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin_name,
-    destination_name,
-    weight: weightInKg.toString(),
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -301,20 +349,32 @@ export const getPosIndonesiaShipmentCost = async ({
 
 // ✅ Get JNE shipment cost
 export const getJneShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
   // Konversi berat dari gram ke kilogram untuk JNE API
   const weightInKg = Number(weight) / 1000;
 
   const requestPayload = {
-    origin_name,
-    destination_name,
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
     weight: weightInKg.toString(),
   };
 
@@ -327,21 +387,30 @@ export const getJneShipmentCost = async ({
 
 // ✅ Get ID Express shipment cost
 export const getIdexpressShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk ID Express API
-  const weightInKg = Number(weight) / 1000;
-
   const requestPayload = {
-    origin_name,
-    destination_name,
-    weight: weightInKg.toString(),
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -353,20 +422,32 @@ export const getIdexpressShipmentCost = async ({
 
 // ✅ Get Anteraja shipment cost
 export const getAnterajaShipmentCost = async ({
-  origin_name,
-  destination_name,
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
   weight,
 }: {
-  origin_name: string;
-  destination_name: string;
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
   weight: string | number;
 }) => {
   // Konversi berat dari gram ke kilogram untuk Anteraja API
   const weightInKg = Number(weight) / 1000;
 
   const requestPayload = {
-    origin_name,
-    destination_name,
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
     weight: weightInKg.toString(),
   };
 
