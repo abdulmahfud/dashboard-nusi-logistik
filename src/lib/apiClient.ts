@@ -187,6 +187,9 @@ export const getJntExpressShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk JNT Express API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -194,7 +197,7 @@ export const getJntExpressShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weight.toString(),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(
@@ -330,6 +333,9 @@ export const getPosIndonesiaShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk Pos Indonesia API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -337,7 +343,7 @@ export const getPosIndonesiaShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weight.toString(),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(

@@ -155,6 +155,8 @@ export default function RegularPackageForm({
   const [loadingDistrict, setLoadingDistrict] = useState(false);
   const [receiverId, setReceiverId] = useState<string | null>(null);
   const [selectedDistrictName, setSelectedDistrictName] = useState("");
+  const [selectedProvinceName, setSelectedProvinceName] = useState("");
+  const [selectedRegencyName, setSelectedRegencyName] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
@@ -405,25 +407,6 @@ export default function RegularPackageForm({
 
     if (setIsSearching) setIsSearching(true);
 
-    // Additional validation for location data
-    const isUsingExistingReceiver = !!receiverId;
-    const hasLocationData = isUsingExistingReceiver
-      ? selectedDistrictName && selectedBusiness?.regency
-      : selectedDistrictName && selectedBusiness?.regency && formData.district;
-
-    if (!hasLocationData) {
-      const errorMessage = isUsingExistingReceiver
-        ? "Alamat pengirim dan tujuan wajib diisi."
-        : "Alamat pengirim dan kecamatan tujuan wajib diisi.";
-
-      onResult?.({
-        error: true,
-        message: errorMessage,
-      });
-      if (setIsSearching) setIsSearching(false);
-      return;
-    }
-
     // Siapkan payload
     let payload: RegularPackagePayload = {
       ...formData,
@@ -461,27 +444,59 @@ export default function RegularPackageForm({
 
     // Ambil data untuk ongkir
     const weight = formData.weight;
-    // Format baru: origin_name (regency) dan destination_name (district)
-    const originName = selectedBusiness?.regency || "";
-    const destinationName = selectedDistrictName;
+
+    // Get origin data from selectedBusiness
+    const originProvince = selectedBusiness?.province || "";
+    const originRegency = selectedBusiness?.regency || "";
+    const originDistrict = selectedBusiness?.district || "";
+
+    // Get destination data based on receiverId or formData
+    let destProvince = "";
+    let destRegency = "";
+    let destDistrict = "";
+
+    if (receiverId) {
+      const selectedRecipient = businessRecipients.find(
+        (r) => String(r.id) === receiverId
+      );
+      if (selectedRecipient) {
+        destProvince = selectedRecipient.province || "";
+        destRegency = selectedRecipient.regency || "";
+        destDistrict = selectedRecipient.district || "";
+      }
+    } else {
+      destProvince = selectedProvinceName;
+      destRegency = selectedRegencyName;
+      destDistrict = selectedDistrictName;
+    }
 
     // Validate required parameters
-    if (!weight || !originName || !destinationName) {
+    if (
+      !weight ||
+      !originProvince ||
+      !originRegency ||
+      !originDistrict ||
+      !destProvince ||
+      !destRegency ||
+      !destDistrict
+    ) {
       const missingFields = [];
       if (!weight) missingFields.push("berat");
-      if (!originName)
-        missingFields.push(
-          "kota pengirim (data alamat pengirim tidak lengkap)"
-        );
-      if (!destinationName) missingFields.push("kecamatan tujuan");
+      if (!originProvince || !originRegency || !originDistrict)
+        missingFields.push("data alamat pengirim tidak lengkap");
+      if (!destProvince || !destRegency || !destDistrict)
+        missingFields.push("data alamat tujuan tidak lengkap");
 
       const errorMessage = `Data tidak lengkap: ${missingFields.join(", ")} wajib diisi`;
       console.error("❌ RegularPackageForm - Missing required fields:", {
         weight,
-        originName,
-        destinationName,
+        originProvince,
+        originRegency,
+        originDistrict,
+        destProvince,
+        destRegency,
+        destDistrict,
         selectedBusiness,
-        selectedDistrictName,
         missingFields,
       });
 
@@ -494,51 +509,24 @@ export default function RegularPackageForm({
     }
 
     try {
-      // Determine destination name based on receiverId or formData
-      let finalDestinationName = destinationName;
-      let paxelDestinationName = formData.district || "";
-      let lionDestinationName = `${formData.district}, ${formData.regency}`.trim();
-      let sapDestinationName = formData.regency;
+      // Prepare common payload for all APIs
+      const shipmentPayload = {
+        origin_province: originProvince,
+        origin_regencie: originRegency,
+        origin_district: originDistrict,
+        destination_province: destProvince,
+        destination_regencie: destRegency,
+        destination_district: destDistrict,
+        weight,
+      };
 
-      // For saved recipients, we need to get the actual location names
-      if (receiverId) {
-        const selectedRecipient = businessRecipients.find(
-          (r) => String(r.id) === receiverId
-        );
-        if (selectedRecipient) {
-          finalDestinationName = selectedRecipient.district || "";
-          paxelDestinationName = selectedRecipient.district || "";
-          lionDestinationName = `${selectedRecipient.district || ""}, ${selectedRecipient.regency || ""}`.trim();
-          sapDestinationName = selectedRecipient.regency || "";
-        }
-      }
-
-      // Prepare Lion Parcel origin (format: "district, regency")
-      const lionOriginName = `${selectedBusiness?.district || ""}, ${selectedBusiness?.regency || ""}`.trim();
-
-      // Call all four APIs in parallel with simplified format
+      // Call all four APIs in parallel with new format
       const [jntResult, paxelResult, lionResult, sapResult] =
         await Promise.allSettled([
-          getJntExpressShipmentCost({
-            origin_name: originName,
-            destination_name: finalDestinationName,
-            weight,
-          }),
-          getPaxelShipmentCost({
-            origin_name: originName,
-            destination_name: paxelDestinationName,
-            weight,
-          }),
-          getLionShipmentCost({
-            origin_name: lionOriginName,
-            destination_name: lionDestinationName,
-            weight,
-          }),
-          getSapShipmentCost({
-            origin_name: originName,
-            destination_name: sapDestinationName,
-            weight,
-          }),
+          getJntExpressShipmentCost(shipmentPayload),
+          getPaxelShipmentCost(shipmentPayload),
+          getLionShipmentCost(shipmentPayload),
+          getSapShipmentCost(shipmentPayload),
         ]);
 
       // Debug logging
@@ -837,6 +825,8 @@ export default function RegularPackageForm({
                     setProvinceSearch("");
                     setRegencySearch("");
                     setDistrictSearch("");
+                    setSelectedProvinceName("");
+                    setSelectedRegencyName("");
                     setSelectedDistrictName("");
                   }}
                 >
@@ -859,6 +849,9 @@ export default function RegularPackageForm({
                     handleChange("province", "");
                     handleChange("regency", "");
                     handleChange("district", "");
+                    setSelectedProvinceName("");
+                    setSelectedRegencyName("");
+                    setSelectedDistrictName("");
                     // Clear receiverId when manually editing
                     if (receiverId) {
                       setReceiverId(null);
@@ -891,6 +884,9 @@ export default function RegularPackageForm({
                               setProvinceSearch(prov.name);
                               setRegencySearch("");
                               setDistrictSearch("");
+                              setSelectedProvinceName(prov.name);
+                              setSelectedRegencyName("");
+                              setSelectedDistrictName("");
                             }}
                           >
                             {prov.name}
@@ -917,6 +913,7 @@ export default function RegularPackageForm({
                     setRegencySearch(e.target.value);
                     handleChange("regency", "");
                     handleChange("district", "");
+                    setSelectedRegencyName("");
                     setSelectedDistrictName("");
                     // Clear receiverId when manually editing
                     if (receiverId) {
@@ -950,6 +947,8 @@ export default function RegularPackageForm({
                             onClick={() => {
                               handleChange("regency", String(reg.id));
                               setRegencySearch(reg.name);
+                              setSelectedRegencyName(reg.name);
+                              setSelectedDistrictName("");
                             }}
                           >
                             {reg.name}
@@ -1090,7 +1089,9 @@ export default function RegularPackageForm({
                           setRegencySearch(recipient.regency || "");
                           setDistrictSearch(recipient.district || "");
 
-                          // Set district name for API (using the stored name)
+                          // Set location names for API (using the stored names)
+                          setSelectedProvinceName(recipient.province || "");
+                          setSelectedRegencyName(recipient.regency || "");
                           setSelectedDistrictName(recipient.district || "");
 
                           // Close the popover
