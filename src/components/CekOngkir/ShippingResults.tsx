@@ -128,20 +128,35 @@ type SapApiResult = {
 type PosIndonesiaApiResult = {
   status: string;
   message?: string;
-  data?: Array<{
-    insurance: string;
-    estimation: string;
-    insurancetax: string;
-    penyesuaian: string;
-    notes: string;
-    productid: string;
-    penyesuaianpersentase: string;
-    totalfee: string;
-    fee: string;
-    feetax: string;
-    productname: string;
-    discount: string;
-  }>;
+  data?:
+    | Array<{
+        insurance: string;
+        estimation: string;
+        insurancetax: string;
+        penyesuaian: string;
+        notes: string;
+        productid: string;
+        penyesuaianpersentase: string;
+        totalfee: string;
+        fee: string;
+        feetax: string;
+        productname: string;
+        discount: string;
+      }>
+    | {
+        serviceCode: number;
+        serviceName: string;
+        fee: number;
+        feeTax: number;
+        insurance: number;
+        insuranceTax: number;
+        totalFee: number;
+        notes: string;
+        estimation: string;
+        penyesuaian: number;
+        penyesuaianpersentase: number;
+        discount: number;
+      };
 };
 
 type JneApiResult = {
@@ -374,7 +389,37 @@ export default function ShippingResults({
         combinedData.posindonesia.status === "success"
       ) {
         const posData = combinedData.posindonesia.data;
-        if (posData && Array.isArray(posData) && posData.length > 0) {
+
+        // Handle new format (single object)
+        if (posData && !Array.isArray(posData) && typeof posData === "object") {
+          // Check if it's the new format with serviceName and totalFee
+          if ("serviceName" in posData && "totalFee" in posData) {
+            const newFormatData = posData as {
+              serviceName: string;
+              totalFee: number;
+              estimation: string;
+            };
+
+            // Filter hanya untuk "Pos Reguler"
+            if (
+              newFormatData.serviceName === "Pos Reguler" &&
+              newFormatData.totalFee > 0
+            ) {
+              options.push({
+                id: "posindonesia-reguler",
+                name: newFormatData.serviceName,
+                logo: "/images/pos.png",
+                price: `Rp${newFormatData.totalFee.toLocaleString("id-ID")}`,
+                duration: newFormatData.estimation || "2-4 Hari",
+                available: true,
+                recommended: false,
+                tags: [{ label: "Pos Indonesia", type: "info" }],
+              });
+            }
+          }
+        }
+        // Handle old format (array)
+        else if (posData && Array.isArray(posData) && posData.length > 0) {
           // Filter hanya untuk "Pos Reguler"
           const posReguler = posData.find(
             (item) => item.productname === "Pos Reguler"
@@ -449,15 +494,37 @@ export default function ShippingResults({
       // Process Anteraja results
       if (combinedData.anteraja && combinedData.anteraja.status === "success") {
         const anterajaData = combinedData.anteraja;
-        if (anterajaData.cost && anterajaData.cost > 0) {
-          const service = anterajaData.response?.content?.services?.[0];
+
+        // Get cost from either direct cost field or from services
+        let cost: number | null = null;
+        const service = anterajaData.response?.content?.services?.[0];
+
+        // Try to get cost from direct cost field first
+        if (anterajaData.cost) {
+          cost =
+            typeof anterajaData.cost === "string"
+              ? Number(anterajaData.cost)
+              : anterajaData.cost;
+        }
+
+        // Fallback to rates from service if cost is not available
+        if ((!cost || cost <= 0) && service?.rates) {
+          cost =
+            typeof service.rates === "string"
+              ? Number(service.rates)
+              : service.rates;
+        }
+
+        // Only add option if we have a valid cost
+        if (cost && cost > 0) {
           const etd = service?.etd || "5 - 9 Day";
+          const productName = service?.product_name || "Anteraja Regular";
 
           options.push({
             id: "anteraja-regular",
-            name: service?.product_name || "Anteraja Regular",
+            name: productName,
             logo: "/images/anteraja.png",
-            price: `Rp${anterajaData.cost.toLocaleString("id-ID")}`,
+            price: `Rp${cost.toLocaleString("id-ID")}`,
             duration: etd,
             available: true,
             recommended: false,

@@ -303,11 +303,23 @@ export default function ShippingForm({
         );
       }
       if (anterajaResult.status === "rejected") {
-        console.error("❌ Anteraja API Error:", anterajaResult.reason);
-        console.error(
-          "❌ Anteraja Error Response:",
-          anterajaResult.reason?.response?.data
-        );
+        const error = anterajaResult.reason;
+        console.error("❌ Anteraja API Error:", error);
+
+        // Check if it's a timeout error
+        if (
+          error?.code === "ECONNABORTED" ||
+          error?.message?.includes("timeout")
+        ) {
+          console.error(
+            "❌ Anteraja API Timeout: Request took longer than 60 seconds"
+          );
+        } else {
+          console.error(
+            "❌ Anteraja Error Response:",
+            error?.response?.data || error?.message
+          );
+        }
       }
 
       // Combine results from all APIs with better error handling

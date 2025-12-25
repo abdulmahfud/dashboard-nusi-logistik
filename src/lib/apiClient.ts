@@ -60,6 +60,7 @@ import type { ExpeditionDiscount } from "@/types/discount";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const API_TIMEOUT = 30000;
+const SHIPMENT_COST_TIMEOUT = 60000; // 60 seconds for shipping cost APIs (longer processing time)
 
 // Buat instance axios
 const apiClient: AxiosInstance = axios.create({
@@ -202,7 +203,10 @@ export const getJntExpressShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/jntexpress/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -237,7 +241,10 @@ export const getPaxelShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/paxel/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -275,7 +282,10 @@ export const getLionShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/lion/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -310,7 +320,10 @@ export const getSapShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/sap/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -348,7 +361,10 @@ export const getPosIndonesiaShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/posindonesia/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -386,7 +402,10 @@ export const getJneShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/jne/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -421,7 +440,10 @@ export const getIdexpressShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/idexpress/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
@@ -459,7 +481,10 @@ export const getAnterajaShipmentCost = async ({
 
   const res = await apiClient.post(
     "/admin/expedition/anteraja/shipment_cost",
-    requestPayload
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
   );
   return res.data;
 };
