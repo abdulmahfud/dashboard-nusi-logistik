@@ -22,6 +22,7 @@ import {
   getJneShipmentCost,
   getIdexpressShipmentCost,
   getAnterajaShipmentCost,
+  getNinjaShipmentCost,
 } from "@/lib/apiClient";
 
 interface ShippingFormProps {
@@ -252,6 +253,7 @@ export default function ShippingForm({
         jneResult,
         idexpressResult,
         anterajaResult,
+        ninjaResult,
       ] = await Promise.allSettled([
         getJntExpressShipmentCost(shipmentPayload),
         getPaxelShipmentCost(shipmentPayload),
@@ -261,6 +263,7 @@ export default function ShippingForm({
         getJneShipmentCost(shipmentPayload),
         getIdexpressShipmentCost(shipmentPayload),
         getAnterajaShipmentCost(shipmentPayload),
+        getNinjaShipmentCost(shipmentPayload),
       ]);
 
       // Log errors for debugging
@@ -321,6 +324,13 @@ export default function ShippingForm({
           );
         }
       }
+      if (ninjaResult.status === "rejected") {
+        console.error("❌ Ninja API Error:", ninjaResult.reason);
+        console.error(
+          "❌ Ninja Error Response:",
+          ninjaResult.reason?.response?.data
+        );
+      }
 
       // Combine results from all APIs with better error handling
       const combinedResult = {
@@ -341,6 +351,7 @@ export default function ShippingForm({
               : null,
           anteraja:
             anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
+          ninja: ninjaResult.status === "fulfilled" ? ninjaResult.value : null,
         },
       };
 

@@ -215,6 +215,23 @@ type AnterajaApiResult = {
   };
 };
 
+type NinjaApiResult = {
+  status: string;
+  message?: string;
+  data?: {
+    original_cost: number;
+    final_cost: number;
+    discount_applied: boolean;
+    discount_amount: number;
+    vendor_response?: {
+      data?: {
+        total_fee: number;
+      };
+    };
+    request_payload?: unknown;
+  };
+};
+
 type CombinedApiResult = {
   status: string;
   data: {
@@ -226,6 +243,7 @@ type CombinedApiResult = {
     jne: JneApiResult | null;
     idexpress: IdexpressApiResult | null;
     anteraja: AnterajaApiResult | null;
+    ninja: NinjaApiResult | null;
   };
 };
 
@@ -533,6 +551,23 @@ export default function ShippingResults({
         }
       }
 
+      // Process Ninja results
+      if (combinedData.ninja && combinedData.ninja.status === "success") {
+        const ninjaData = combinedData.ninja.data;
+        if (ninjaData?.final_cost && ninjaData.final_cost > 0) {
+          options.push({
+            id: "ninja-regular",
+            name: "Ninja Express",
+            logo: "/images/ninja.png",
+            price: `Rp${ninjaData.final_cost.toLocaleString("id-ID")}`,
+            duration: "2-4 Hari",
+            available: true,
+            recommended: false,
+            tags: [{ label: "Ninja Express", type: "info" }],
+          });
+        }
+      }
+
       return options;
     }
 
@@ -622,6 +657,8 @@ export default function ShippingResults({
         vendor = "IDEXPRESS";
       } else if (option.id.startsWith("anteraja")) {
         vendor = "ANTERAJA";
+      } else if (option.id.startsWith("ninja")) {
+        vendor = "NINJA";
       }
 
       // Get discount for the selected vendor

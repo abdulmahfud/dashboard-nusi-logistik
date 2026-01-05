@@ -489,6 +489,47 @@ export const getAnterajaShipmentCost = async ({
   return res.data;
 };
 
+// ✅ Get Ninja shipment cost
+export const getNinjaShipmentCost = async ({
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
+  weight,
+}: {
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
+  weight: string | number;
+}) => {
+  // Konversi berat dari gram ke kilogram untuk Ninja API
+  const weightInKg = Number(weight) / 1000;
+
+  const requestPayload = {
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weightInKg.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/ninja/shipment_cost",
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
+  );
+  return res.data;
+};
+
 // ✅ Receiver CRUD operations
 export const getReceiversData = async (
   search?: string,
