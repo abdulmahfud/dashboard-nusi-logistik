@@ -308,6 +308,9 @@ export const getSapShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk SAP API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -315,7 +318,7 @@ export const getSapShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weight.toString(),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(
@@ -428,6 +431,9 @@ export const getIdexpressShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
+  // Konversi berat dari gram ke kilogram untuk ID Express API
+  const weightInKg = Number(weight) / 1000;
+
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -435,7 +441,7 @@ export const getIdexpressShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weight.toString(),
+    weight: weightInKg.toString(),
   };
 
   const res = await apiClient.post(

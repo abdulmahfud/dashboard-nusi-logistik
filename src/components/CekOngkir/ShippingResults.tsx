@@ -192,6 +192,35 @@ type IdexpressApiResult = {
       maxSla: number;
     };
   };
+  shipping_costs_with_discount?: Array<{
+    expressType?: string;
+    publishRate?: number;
+    clientRate?: number;
+    canCOD?: number;
+    minSla?: number;
+    maxSla?: number;
+    original_cost?: number;
+    publish_rate?: number;
+    client_rate?: number;
+    can_cod?: number;
+    min_sla?: number;
+    max_sla?: number;
+    discount_info?: {
+      has_discount: boolean;
+      discount_applied: boolean;
+      discount_amount: number;
+      discounted_price: number;
+      final_cost: number;
+      original_price: number;
+      discount_percentage?: number | null;
+      discount_id?: number | null;
+      discount_description?: string | null;
+      discount_type?: string | null;
+      discount_value?: number | null;
+    };
+    final_cost?: number;
+    service_code?: string;
+  }>;
 };
 
 type AnterajaApiResult = {
@@ -491,9 +520,47 @@ export default function ShippingResults({
         combinedData.idexpress &&
         combinedData.idexpress.status === "success"
       ) {
-        const idexpressData = combinedData.idexpress.data;
-        if (idexpressData?.selected && idexpressData.selected.publishRate > 0) {
-          const selected = idexpressData.selected;
+        const idexpressData = combinedData.idexpress;
+
+        // Use shipping_costs_with_discount array if available
+        if (
+          idexpressData.shipping_costs_with_discount &&
+          Array.isArray(idexpressData.shipping_costs_with_discount) &&
+          idexpressData.shipping_costs_with_discount.length > 0
+        ) {
+          idexpressData.shipping_costs_with_discount.forEach((item, index) => {
+            // Use final_cost if available, otherwise fallback to publishRate or original_cost
+            const priceValue =
+              item.final_cost ??
+              item.discount_info?.final_cost ??
+              item.publishRate ??
+              item.original_cost ??
+              0;
+
+            if (priceValue > 0) {
+              const minSla = item.min_sla ?? item.minSla ?? 1;
+              const maxSla = item.max_sla ?? item.maxSla ?? 2;
+              const duration = `${minSla}-${maxSla} Hari`;
+
+              options.push({
+                id: `idexpress-${item.service_code?.toLowerCase() ?? "regular"}`,
+                name: "ID Express",
+                logo: "/images/idx.png",
+                price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                duration: duration,
+                available: true,
+                recommended: index === 0,
+                tags: [{ label: "ID Express", type: "info" }],
+              });
+            }
+          });
+        }
+        // Fallback to selected data if shipping_costs_with_discount is not available
+        else if (
+          idexpressData.data?.selected &&
+          idexpressData.data.selected.publishRate > 0
+        ) {
+          const selected = idexpressData.data.selected;
           const duration = `${selected.minSla}-${selected.maxSla} Hari`;
 
           options.push({
