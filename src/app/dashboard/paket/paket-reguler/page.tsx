@@ -35,7 +35,7 @@ const PaketReguler = () => {
       width: string;
       height: string;
       notes: string;
-      deliveryType: string;
+      deliveryType: "pickup" | "dropoff"; // Frontend format: "pickup" or "dropoff"
       paymentMethod: string;
     };
     businessData?: {
@@ -52,7 +52,6 @@ const PaketReguler = () => {
   }>({});
 
   useEffect(() => {
-    
     // This is just to ensure framer-motion is properly initialized
     const container = document.getElementById("app-container");
     if (container) {
@@ -69,12 +68,10 @@ const PaketReguler = () => {
   );
 
   const handleFormDataChange = useCallback((data: typeof formData) => {
-    
     setFormData(data);
   }, []);
 
   const handleResetForm = useCallback(() => {
-    
     setFormData({});
     setCalculationResult(undefined);
     // Form will be reset via prop passing

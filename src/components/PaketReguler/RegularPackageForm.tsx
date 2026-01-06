@@ -47,7 +47,13 @@ import {
   getPaxelShipmentCost,
   getLionShipmentCost,
   getSapShipmentCost,
+  getPosIndonesiaShipmentCost,
+  getJneShipmentCost,
+  getIdexpressShipmentCost,
+  getAnterajaShipmentCost,
+  getNinjaShipmentCost,
 } from "@/lib/apiClient";
+import { deliveryTypeToPickup, type DeliveryType } from "@/lib/utils";
 import type {
   Shipper,
   Receiver,
@@ -84,7 +90,7 @@ type RegularPackagePayload = {
   width?: string;
   height?: string;
   notes?: string;
-  deliveryType?: string;
+  deliveryType?: "pickup" | "dropoff"; // Frontend format: "pickup" or "dropoff"
   paymentMethod?: string;
   servicetype?: number; // Added servicetype
   [key: string]: string | number | boolean | ReceiverManual | undefined;
@@ -123,7 +129,7 @@ interface RegularPackageFormProps {
       width: string;
       height: string;
       notes: string;
-      deliveryType: string;
+      deliveryType: DeliveryType; // "pickup" or "dropoff"
       paymentMethod: string;
     };
     businessData?: Business | null;
@@ -159,7 +165,25 @@ export default function RegularPackageForm({
   const [selectedRegencyName, setSelectedRegencyName] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    receiverName: string;
+    receiverPhone: string;
+    province: string;
+    regency: string;
+    district: string;
+    receiverAddress: string;
+    itemContent: string;
+    itemType: string;
+    itemValue: string;
+    itemQuantity: string;
+    weight: string;
+    length: string;
+    width: string;
+    height: string;
+    notes: string;
+    deliveryType: DeliveryType;
+    paymentMethod: string;
+  }>({
     receiverName: "",
     receiverPhone: "",
     province: "",
@@ -412,8 +436,9 @@ export default function RegularPackageForm({
       ...formData,
     };
 
-    // Set servicetype sesuai deliveryType
-    payload.servicetype = formData.deliveryType === "pickup" ? 1 : 6;
+    // Set servicetype sesuai deliveryType - use utility function for consistency
+    // servicetype: 1 = Pickup, 6 = Drop Off
+    payload.servicetype = deliveryTypeToPickup(formData.deliveryType) ? 1 : 6;
 
     if (receiverId) {
       payload = {
@@ -488,17 +513,6 @@ export default function RegularPackageForm({
         missingFields.push("data alamat tujuan tidak lengkap");
 
       const errorMessage = `Data tidak lengkap: ${missingFields.join(", ")} wajib diisi`;
-      console.error("❌ RegularPackageForm - Missing required fields:", {
-        weight,
-        originProvince,
-        originRegency,
-        originDistrict,
-        destProvince,
-        destRegency,
-        destDistrict,
-        selectedBusiness,
-        missingFields,
-      });
 
       onResult?.({
         error: true,
@@ -520,36 +534,32 @@ export default function RegularPackageForm({
         weight,
       };
 
-      // Call all four APIs in parallel with new format
-      const [jntResult, paxelResult, lionResult, sapResult] =
-        await Promise.allSettled([
-          getJntExpressShipmentCost(shipmentPayload),
-          getPaxelShipmentCost(shipmentPayload),
-          getLionShipmentCost(shipmentPayload),
-          getSapShipmentCost(shipmentPayload),
-        ]);
+      // Call all vendor APIs in parallel - same as ShippingForm.tsx for consistency
+      const [
+        jntResult,
+        paxelResult,
+        lionResult,
+        sapResult,
+        posIndonesiaResult,
+        jneResult,
+        idexpressResult,
+        anterajaResult,
+        ninjaResult,
+      ] = await Promise.allSettled([
+        getJntExpressShipmentCost(shipmentPayload),
+        getPaxelShipmentCost(shipmentPayload),
+        getLionShipmentCost(shipmentPayload),
+        getSapShipmentCost(shipmentPayload),
+        getPosIndonesiaShipmentCost(shipmentPayload),
+        getJneShipmentCost(shipmentPayload),
+        getIdexpressShipmentCost(shipmentPayload),
+        getAnterajaShipmentCost(shipmentPayload),
+        getNinjaShipmentCost(shipmentPayload),
+      ]);
 
-      // Debug logging
-      console.log("🔍 JNT Result:", jntResult);
-      console.log("🔍 Paxel Result:", paxelResult);
-      console.log("🔍 Lion Result:", lionResult);
-      console.log("🔍 SAP Result:", sapResult);
+      // Handle individual API errors (silent - errors are handled by Promise.allSettled)
 
-      // Handle individual API errors
-      if (jntResult.status === "rejected") {
-        console.error("❌ JNT API failed:", jntResult.reason);
-      }
-      if (paxelResult.status === "rejected") {
-        console.error("❌ Paxel API failed:", paxelResult.reason);
-      }
-      if (lionResult.status === "rejected") {
-        console.error("❌ Lion API failed:", lionResult.reason);
-      }
-      if (sapResult.status === "rejected") {
-        console.error("❌ SAP API failed:", sapResult.reason);
-      }
-
-      // Combine results from all APIs
+      // Combine results from all APIs - same format as ShippingForm.tsx
       const combinedResult = {
         status: "success",
         data: {
@@ -557,12 +567,23 @@ export default function RegularPackageForm({
           paxel: paxelResult.status === "fulfilled" ? paxelResult.value : null,
           lion: lionResult.status === "fulfilled" ? lionResult.value : null,
           sap: sapResult.status === "fulfilled" ? sapResult.value : null,
+          posindonesia:
+            posIndonesiaResult.status === "fulfilled"
+              ? posIndonesiaResult.value
+              : null,
+          jne: jneResult.status === "fulfilled" ? jneResult.value : null,
+          idexpress:
+            idexpressResult.status === "fulfilled"
+              ? idexpressResult.value
+              : null,
+          anteraja:
+            anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
+          ninja: ninjaResult.status === "fulfilled" ? ninjaResult.value : null,
         },
       };
 
       onResult?.(combinedResult);
     } catch (err) {
-      console.error("❌ RegularPackageForm - API call failed:", err);
       const errorResult = {
         error: true,
         message:

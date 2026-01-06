@@ -7,39 +7,24 @@ export interface OrderItem {
 }
 
 export interface OrderDetail {
-  pieces: string;
-  weight: string;
-  remark: string;
-  item_value: string;
-  use_insurance: boolean;
-  insurance: string;
-  cod: string;
-  items: OrderItem[];
+  weight: number;
+  qty: number;
+  item_value: number;
+  cod: number;
+  goods_desc: string;
+  insurance: number;
+  instruction: string;
 }
 
+/**
+ * Order request format for backend API
+ * Matches the standardized format: { shipper_id, receiver_id, pickup, detail }
+ */
 export interface OrderRequest {
-  shipper_id?: number;
-  receiver_id?: number;
-  sender?: {
-    name: string;
-    phone: string;
-    address: string;
-    province: string;
-    regency: string;
-    district: string;
-  };
-  receiver?: {
-    name: string;
-    phone: string;
-    address: string;
-    province: string;
-    regency: string;
-    district: string;
-  };
-  service_code: string;
+  shipper_id: number;
+  receiver_id: number;
+  pickup: boolean; // true = Pickup, false = Drop Off
   detail: OrderDetail;
-  expresstype: string;
-  servicetype: string; // "1" = Pickup, "6" = Drop Off
 }
 
 export interface VendorResponse {
@@ -122,9 +107,9 @@ export interface OrderSubmissionData {
     width: string;
     height: string;
     notes: string;
-    deliveryType: string;
+    deliveryType: "pickup" | "dropoff"; // Frontend uses string: "pickup" or "dropoff"
     paymentMethod: string;
-    servicetype: number;
+    servicetype: number; // 1 = Pickup, 6 = Drop Off
   };
   businessData: {
     id: number;

@@ -27,6 +27,7 @@ import {
 } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
+import { deliveryTypeToPickup } from "@/lib/utils";
 
 import { CurrencyInput } from "@/components/ui/currency-input";
 
@@ -128,6 +129,11 @@ type CombinedApiResult = {
     paxel: PaxelApiResult | null;
     lion: LionApiResult | null;
     sap: SapApiResult | null;
+    posindonesia: Record<string, unknown> | null;
+    jne: Record<string, unknown> | null;
+    idexpress: Record<string, unknown> | null;
+    anteraja: Record<string, unknown> | null;
+    ninja: Record<string, unknown> | null;
   };
 };
 
@@ -315,13 +321,38 @@ export default function CalculationResults({
 
       // Process SAP results
       if (combinedData.sap && combinedData.sap.status === "success") {
-        const sapData = combinedData.sap.data;
-        if (sapData?.shipping_cost && sapData.shipping_cost > 0) {
-          const shippingCost = sapData.shipping_cost;
-          const estimatedDays = sapData.estimated_days || 3;
-          const serviceType = sapData.service_type || "REGULER";
-
-          console.log("🔍 SAP data received:", sapData);
+        const sapData = combinedData.sap.data as Record<string, unknown>;
+        if (
+          sapData?.services &&
+          Array.isArray(sapData.services) &&
+          sapData.services.length > 0
+        ) {
+          sapData.services.forEach(
+            (service: Record<string, unknown>, index: number) => {
+              if (service.total_cost && Number(service.total_cost) > 0) {
+                options.push({
+                  id: `sap-${String(service.service_type_code || "regular").toLowerCase()}`,
+                  name: `SAP ${String(service.service_type_name || "REGULER")}`,
+                  logo: "/images/sap-new.png",
+                  price: `Rp${Number(service.total_cost).toLocaleString("id-ID")}`,
+                  duration: String(service.sla || "2-4 Hari"),
+                  available: true,
+                  recommended: index === 0,
+                  tags: [
+                    { label: "Pengiriman Cepat", type: "success" as const },
+                  ],
+                });
+              }
+            }
+          );
+        } else if (
+          sapData?.shipping_cost &&
+          Number(sapData.shipping_cost) > 0
+        ) {
+          // Fallback to old format
+          const shippingCost = Number(sapData.shipping_cost);
+          const estimatedDays = Number(sapData.estimated_days) || 3;
+          const serviceType = String(sapData.service_type || "REGULER");
 
           options.push({
             id: "sap-regular",
@@ -335,6 +366,231 @@ export default function CalculationResults({
               { label: "Pengiriman Cepat", type: "success" as const },
               { label: serviceType, type: "info" as const },
             ],
+          });
+        }
+      }
+
+      // Process Pos Indonesia results
+      if (
+        combinedData.posindonesia &&
+        combinedData.posindonesia.status === "success"
+      ) {
+        const posData = combinedData.posindonesia.data as
+          | Record<string, unknown>
+          | Array<Record<string, unknown>>;
+
+        // Handle new format (single object)
+        if (posData && !Array.isArray(posData) && typeof posData === "object") {
+          if ("serviceName" in posData && "totalFee" in posData) {
+            const newFormatData = posData as {
+              serviceName: string;
+              totalFee: number;
+              estimation?: string;
+            };
+
+            if (
+              newFormatData.serviceName === "Pos Reguler" &&
+              newFormatData.totalFee > 0
+            ) {
+              options.push({
+                id: "posindonesia-reguler",
+                name: newFormatData.serviceName,
+                logo: "/images/pos.png",
+                price: `Rp${newFormatData.totalFee.toLocaleString("id-ID")}`,
+                duration: newFormatData.estimation || "2-4 Hari",
+                available: true,
+                recommended: false,
+                tags: [{ label: "Pos Indonesia", type: "info" as const }],
+              });
+            }
+          }
+        }
+        // Handle old format (array)
+        else if (posData && Array.isArray(posData) && posData.length > 0) {
+          const posReguler = posData.find(
+            (item: Record<string, unknown>) =>
+              item.productname === "Pos Reguler"
+          );
+          if (posReguler && posReguler.totalfee) {
+            options.push({
+              id: "posindonesia-reguler",
+              name: String(posReguler.productname || "Pos Reguler"),
+              logo: "/images/pos.png",
+              price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
+              duration: String(posReguler.estimation || "2-4 Hari"),
+              available: true,
+              recommended: false,
+              tags: [{ label: "Pos Indonesia", type: "info" as const }],
+            });
+          }
+        }
+      }
+
+      // Process JNE results
+      if (combinedData.jne && combinedData.jne.status === "success") {
+        const jneData = combinedData.jne.data as Record<string, unknown>;
+        if (
+          jneData?.price &&
+          Array.isArray(jneData.price) &&
+          jneData.price.length > 0
+        ) {
+          jneData.price.forEach(
+            (item: Record<string, unknown>, index: number) => {
+              if (item.price && Number(item.price) > 0) {
+                const etdFrom = String(item.etd_from || "2");
+                const etdThru = String(item.etd_thru || "3");
+                const duration = `${etdFrom}-${etdThru} Hari`;
+
+                options.push({
+                  id: `jne-${String(item.service_code || "regular").toLowerCase()}`,
+                  name: `JNE ${String(item.service_display || "REG")}`,
+                  logo: "/images/jne.png",
+                  price: `Rp${Number(item.price).toLocaleString("id-ID")}`,
+                  duration: duration,
+                  available: true,
+                  recommended: index === 0,
+                  tags: [{ label: "JNE Express", type: "info" as const }],
+                });
+              }
+            }
+          );
+        }
+      }
+
+      // Process ID Express results
+      if (
+        combinedData.idexpress &&
+        combinedData.idexpress.status === "success"
+      ) {
+        const idexpressData = combinedData.idexpress as Record<string, unknown>;
+
+        // Use shipping_costs_with_discount array if available
+        if (
+          idexpressData.shipping_costs_with_discount &&
+          Array.isArray(idexpressData.shipping_costs_with_discount) &&
+          idexpressData.shipping_costs_with_discount.length > 0
+        ) {
+          idexpressData.shipping_costs_with_discount.forEach(
+            (item: Record<string, unknown>, index: number) => {
+              const priceValue =
+                Number(item.final_cost) ||
+                Number(
+                  (item.discount_info as Record<string, unknown>)?.final_cost
+                ) ||
+                Number(item.publishRate) ||
+                Number(item.original_cost) ||
+                0;
+
+              if (priceValue > 0) {
+                const minSla = Number(item.min_sla || item.minSla || 1);
+                const maxSla = Number(item.max_sla || item.maxSla || 2);
+                const duration = `${minSla}-${maxSla} Hari`;
+
+                options.push({
+                  id: `idexpress-${String(item.service_code || "regular").toLowerCase()}`,
+                  name: "ID Express",
+                  logo: "/images/idx.png",
+                  price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                  duration: duration,
+                  available: true,
+                  recommended: index === 0,
+                  tags: [{ label: "ID Express", type: "info" as const }],
+                });
+              }
+            }
+          );
+        }
+        // Fallback to selected data if shipping_costs_with_discount is not available
+        else if (
+          idexpressData.data &&
+          typeof idexpressData.data === "object" &&
+          "selected" in idexpressData.data
+        ) {
+          const selected = (idexpressData.data as Record<string, unknown>)
+            .selected as Record<string, unknown>;
+          if (selected && Number(selected.publishRate) > 0) {
+            const duration = `${Number(selected.minSla) || 1}-${Number(selected.maxSla) || 2} Hari`;
+
+            options.push({
+              id: "idexpress-regular",
+              name: "ID Express",
+              logo: "/images/idx.png",
+              price: `Rp${Number(selected.publishRate).toLocaleString("id-ID")}`,
+              duration: duration,
+              available: true,
+              recommended: false,
+              tags: [{ label: "ID Express", type: "info" as const }],
+            });
+          }
+        }
+      }
+
+      // Process Anteraja results
+      if (combinedData.anteraja && combinedData.anteraja.status === "success") {
+        const anterajaData = combinedData.anteraja as Record<string, unknown>;
+
+        // Get cost from either direct cost field or from services
+        let cost: number | null = null;
+        const response = anterajaData.response as
+          | Record<string, unknown>
+          | undefined;
+        const content = response?.content as
+          | Record<string, unknown>
+          | undefined;
+        const services = content?.services as
+          | Array<Record<string, unknown>>
+          | undefined;
+        const service = services?.[0];
+
+        // Try to get cost from direct cost field first
+        if (anterajaData.cost) {
+          cost =
+            typeof anterajaData.cost === "string"
+              ? Number(anterajaData.cost)
+              : Number(anterajaData.cost);
+        }
+
+        // Fallback to rates from service if cost is not available
+        if ((!cost || cost <= 0) && service?.rates) {
+          cost =
+            typeof service.rates === "string"
+              ? Number(service.rates)
+              : Number(service.rates);
+        }
+
+        // Only add option if we have a valid cost
+        if (cost && cost > 0) {
+          const etd = String(service?.etd || "5 - 9 Day");
+          const productName = String(
+            service?.product_name || "Anteraja Regular"
+          );
+
+          options.push({
+            id: "anteraja-regular",
+            name: productName,
+            logo: "/images/anteraja.png",
+            price: `Rp${cost.toLocaleString("id-ID")}`,
+            duration: etd,
+            available: true,
+            recommended: false,
+            tags: [{ label: "Anteraja", type: "info" as const }],
+          });
+        }
+      }
+
+      // Process Ninja results
+      if (combinedData.ninja && combinedData.ninja.status === "success") {
+        const ninjaData = combinedData.ninja.data as Record<string, unknown>;
+        if (ninjaData?.final_cost && Number(ninjaData.final_cost) > 0) {
+          options.push({
+            id: "ninja-regular",
+            name: "Ninja Express",
+            logo: "/images/ninja.png",
+            price: `Rp${Number(ninjaData.final_cost).toLocaleString("id-ID")}`,
+            duration: "2-4 Hari",
+            available: true,
+            recommended: false,
+            tags: [{ label: "Ninja Express", type: "info" as const }],
           });
         }
       }
@@ -514,7 +770,7 @@ export default function CalculationResults({
       // Extract cost from price string
       const shippingCost = parseInt(option.price.replace(/[^\d]/g, ""));
 
-      // Determine vendor based on option ID
+      // Determine vendor based on option ID - support all vendors
       let vendor = "JNTEXPRESS";
       if (optionId.startsWith("paxel")) {
         vendor = "PAXEL";
@@ -522,6 +778,16 @@ export default function CalculationResults({
         vendor = "LION";
       } else if (optionId.startsWith("sap")) {
         vendor = "SAP";
+      } else if (optionId.startsWith("posindonesia")) {
+        vendor = "POSINDONESIA";
+      } else if (optionId.startsWith("jne")) {
+        vendor = "JNE";
+      } else if (optionId.startsWith("idexpress")) {
+        vendor = "IDEXPRESS";
+      } else if (optionId.startsWith("anteraja")) {
+        vendor = "ANTERAJA";
+      } else if (optionId.startsWith("ninja")) {
+        vendor = "NINJA";
       }
 
       // Get discount for the selected vendor
@@ -592,7 +858,7 @@ export default function CalculationResults({
     return isInsured ? Math.round(itemValue * 0.002) : 0;
   };
 
-  // Build shipping data for payment
+  // Build shipping data for payment - standardized format for all vendors
   const buildShippingData = () => {
     if (
       !selectedShippingOption ||
@@ -603,11 +869,11 @@ export default function CalculationResults({
     }
 
     // Calculate COD value properly - total amount charged to recipient
-    let codValue = "0";
+    let codValue = 0;
     if (formData.formData.paymentMethod === "cod") {
       if (customCODValue) {
         // Use custom COD value if provided
-        codValue = customCODValue.replace(/\./g, "");
+        codValue = parseInt(customCODValue.replace(/\./g, "")) || 0;
       } else {
         // Calculate total: Item Value + Shipping + COD Fee + Insurance
         const itemValue = getItemValue();
@@ -617,88 +883,109 @@ export default function CalculationResults({
         const codFee = getCODFee();
         const insuranceCost = getInsuranceCost();
 
-        codValue = (
-          itemValue +
-          shippingCost +
-          codFee +
-          insuranceCost
-        ).toString();
+        codValue = itemValue + shippingCost + codFee + insuranceCost;
       }
     }
 
-    // Build order data that will be used after payment
-    const shippingData: Record<string, unknown> = {
-      vendor: selectedOption?.startsWith("paxel")
-        ? "paxel"
-        : selectedOption?.startsWith("lion")
-          ? "lion"
-          : selectedOption?.startsWith("sap")
-            ? "sap"
-            : "jntexpress", // Determine vendor from selected option
-      service_code: "1", // Default service code
-      expresstype: "1",
-      servicetype: formData.formData.deliveryType === "pickup" ? "1" : "6",
+    // Calculate insurance value
+    const insuranceValue = isInsured
+      ? Math.round(parseInt(formData.formData.itemValue || "0") * 0.002)
+      : 0;
+
+    // Get weight in kg (convert from grams)
+    const weightInKg = parseInt(formData.formData.weight || "0") / 1000;
+
+    // Get quantity
+    const qty = parseInt(formData.formData.itemQuantity || "1");
+
+    // Get item value
+    const itemValue = parseInt(formData.formData.itemValue || "0");
+
+    // Get goods description
+    const goodsDesc = formData.formData.itemContent || "General Goods";
+
+    // Get instruction/notes
+    const instruction = formData.formData.notes || "Tolong hati-hati";
+
+    // Determine pickup status - use utility function for consistency
+    const pickup = deliveryTypeToPickup(formData.formData.deliveryType);
+
+    // Get shipper_id and receiver_id
+    const shipperId = formData.businessData.id;
+    const receiverId = formData.receiverId
+      ? parseInt(formData.receiverId)
+      : null;
+
+    // Validate that receiver_id is available
+    if (!receiverId) {
+      console.error("Receiver ID is required for order creation");
+      toast.error(
+        "Data penerima tidak lengkap. Silakan pilih atau buat data penerima terlebih dahulu."
+      );
+      return null;
+    }
+
+    // Determine vendor from selectedOption or selectedShippingOption.id
+    const optionId = selectedOption || selectedShippingOption?.id || "";
+    let vendor = "jntexpress"; // Default vendor
+
+    if (optionId.startsWith("paxel")) {
+      vendor = "paxel";
+    } else if (optionId.startsWith("lion")) {
+      vendor = "lion";
+    } else if (optionId.startsWith("sap")) {
+      vendor = "sap";
+    } else if (optionId.startsWith("posindonesia")) {
+      vendor = "posindonesia";
+    } else if (optionId.startsWith("jne")) {
+      vendor = "jne";
+    } else if (optionId.startsWith("idexpress")) {
+      vendor = "idexpress";
+    } else if (optionId.startsWith("anteraja")) {
+      vendor = "anteraja";
+    } else if (optionId.startsWith("ninja")) {
+      vendor = "ninja";
+    } else if (optionId.startsWith("jnt")) {
+      vendor = "jntexpress";
+    }
+
+    console.log("🔍 Determining vendor:", {
+      optionId,
+      vendor,
+      selectedOption,
+      selectedShippingOptionId: selectedShippingOption?.id,
+    });
+
+    // Build standardized order data format for all vendors
+    const shippingData: {
+      vendor: string;
+      shipper_id: number;
+      receiver_id: number;
+      pickup: boolean;
       detail: {
-        pieces: formData.formData.itemQuantity || "1",
-        weight: (parseInt(formData.formData.weight) / 1000).toString(), // Convert grams to kg
-        remark:
-          formData.formData.notes ||
-          formData.formData.itemContent ||
-          "GENERAL_GOODS",
-        item_value: formData.formData.itemValue || "0",
-        use_insurance: isInsured,
-        insurance: isInsured
-          ? Math.round(
-              parseInt(formData.formData.itemValue || "0") * 0.002
-            ).toString()
-          : "0",
-        cod: codValue, // Use calculated COD value
-        items: [
-          {
-            name: formData.formData.itemContent || "General Item",
-            quantity: parseInt(formData.formData.itemQuantity) || 1,
-            price: parseInt(formData.formData.itemValue) || 0,
-          },
-        ],
+        weight: number;
+        qty: number;
+        item_value: number;
+        cod: number;
+        goods_desc: string;
+        insurance: number;
+        instruction: string;
+      };
+    } = {
+      vendor: vendor,
+      shipper_id: shipperId,
+      receiver_id: receiverId,
+      pickup: pickup,
+      detail: {
+        weight: weightInKg,
+        qty: qty,
+        item_value: itemValue,
+        cod: codValue,
+        goods_desc: goodsDesc,
+        insurance: insuranceValue,
+        instruction: instruction,
       },
     };
-
-    // Add vendor-specific data
-    if (selectedOption?.startsWith("paxel")) {
-      shippingData.vendor = "paxel";
-      shippingData.service_code = selectedOption?.includes("same-day")
-        ? "SAMEDAY"
-        : "REGULER";
-    } else if (selectedOption?.startsWith("lion")) {
-      shippingData.vendor = "lion";
-      shippingData.service_code = "REGULER";
-    } else if (selectedOption?.startsWith("sap")) {
-      shippingData.vendor = "sap";
-      shippingData.service_code = "REGULER";
-    }
-
-    // Add sender/receiver data
-    if (formData.receiverId) {
-      shippingData.receiver_id = parseInt(formData.receiverId);
-      shippingData.shipper_id = formData.businessData.id;
-    } else {
-      shippingData.sender = {
-        name: formData.businessData.senderName,
-        phone: formData.businessData.contact,
-        address: formData.businessData.address,
-        province: formData.businessData.province || "",
-        regency: formData.businessData.regency || "",
-        district: formData.businessData.district || "",
-      };
-      shippingData.receiver = {
-        name: formData.formData.receiverName,
-        phone: formData.formData.receiverPhone,
-        address: formData.formData.receiverAddress,
-        province: formData.formData.province,
-        regency: formData.formData.regency,
-        district: formData.formData.district,
-      };
-    }
 
     return shippingData;
   };
