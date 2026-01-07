@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Truck, User, Image } from "lucide-react";
+import { Calendar, Truck, User, Image } from "lucide-react";
 import type { TrackingHistoryItem } from "@/types/tracking";
 
 interface TrackingHistoryCardProps {
