@@ -2,40 +2,57 @@
 
 import type { StandardizedTrackingResponse } from "@/types/tracking";
 import { OrderInfoCard } from "./OrderInfoCard";
-import { PackageInfoCard } from "./PackageInfoCard";
-import { CostDetailsCard } from "./CostDetailsCard";
+import { ShipmentInfoCard } from "./ShipmentInfoCard";
 import { AddressesCard } from "./AddressesCard";
 import { TrackingHistoryCard } from "./TrackingHistoryCard";
-import { JntTrackingContent } from "./vendors/JntTrackingContent";
-import { PaxelTrackingContent } from "./vendors/PaxelTrackingContent";
-import { LionTrackingContent } from "./vendors/LionTrackingContent";
+import { CurrentStatusCard } from "./CurrentStatusCard";
+import { DeliveryInfoCard } from "./DeliveryInfoCard";
+import { DriverInfoCard } from "./DriverInfoCard";
 
 interface TrackingDisplayProps {
   result: StandardizedTrackingResponse;
 }
 
 export const TrackingDisplay: React.FC<TrackingDisplayProps> = ({ result }) => {
-  const renderVendorSpecificContent = () => {
-    switch (result.vendor.toLowerCase()) {
-      case "jntexpress":
-        return <JntTrackingContent data={result.tracking_data} />;
-      case "paxel":
-        return <PaxelTrackingContent data={result.tracking_data} />;
-      case "lion":
-        return <LionTrackingContent result={result} />;
-      default:
-        return null;
-    }
-  };
+  const { tracking_data } = result;
 
   return (
     <div className="space-y-6">
       <OrderInfoCard orderInfo={result.order_info} />
-      <PackageInfoCard data={result.tracking_data.package_info} />
-      <CostDetailsCard data={result.tracking_data.cost_details} />
-      <AddressesCard data={result.tracking_data.addresses} />
-      <TrackingHistoryCard data={result.tracking_data.tracking_history} />
-      {renderVendorSpecificContent()}
+
+      {/* Current Status */}
+      {tracking_data.current_status && (
+        <CurrentStatusCard currentStatus={tracking_data.current_status} />
+      )}
+
+      {/* Shipment Info */}
+      {tracking_data.shipment && (
+        <ShipmentInfoCard shipment={tracking_data.shipment} />
+      )}
+
+      {/* Sender & Receiver */}
+      {(tracking_data.sender || tracking_data.receiver) && (
+        <AddressesCard
+          sender={tracking_data.sender}
+          receiver={tracking_data.receiver}
+        />
+      )}
+
+      {/* Tracking History */}
+      {tracking_data.tracking_history &&
+        tracking_data.tracking_history.length > 0 && (
+          <TrackingHistoryCard data={tracking_data.tracking_history} />
+        )}
+
+      {/* Delivery Info */}
+      {tracking_data.delivery && (
+        <DeliveryInfoCard delivery={tracking_data.delivery} />
+      )}
+
+      {/* Driver Info */}
+      {tracking_data.driver_info && (
+        <DriverInfoCard driverInfo={tracking_data.driver_info} />
+      )}
     </div>
   );
 };

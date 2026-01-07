@@ -40,11 +40,11 @@ export const OrderInfoCard: React.FC<OrderInfoCardProps> = ({ orderInfo }) => {
             <label className="text-sm font-medium text-gray-600">
               Vendor Expedisi
             </label>
-            <p className="font-semibold">
+            <div className="font-semibold">
               <Badge variant="outline" className="uppercase">
                 {orderInfo.vendor}
               </Badge>
-            </p>
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-600">
@@ -58,9 +58,9 @@ export const OrderInfoCard: React.FC<OrderInfoCardProps> = ({ orderInfo }) => {
             <label className="text-sm font-medium text-gray-600">
               Status Order
             </label>
-            <p className="font-semibold">
+            <div className="font-semibold">
               <Badge variant="outline">{orderInfo.status}</Badge>
-            </p>
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-600">

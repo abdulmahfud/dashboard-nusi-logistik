@@ -1016,7 +1016,17 @@ export const getLabelUrl = async (
   return res.data;
 };
 
-// ✅ Universal tracking function using reference_no (supports all vendors)
+// ✅ Universal tracking function using awb_no (supports all vendors)
+export const trackOrderByAwb = async (
+  awb_no: string
+): Promise<StandardizedTrackingResponse> => {
+  const res = await apiClient.get("/admin/tracking", {
+    params: { awb_no },
+  });
+  return res.data;
+};
+
+// ✅ Legacy function for backward compatibility (using reference_no)
 export const trackOrderByReference = async (
   reference_no: string
 ): Promise<StandardizedTrackingResponse> => {

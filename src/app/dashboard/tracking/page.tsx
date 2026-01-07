@@ -9,7 +9,7 @@ import TopNav from "@/components/top-nav";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { trackOrderByReference } from "@/lib/apiClient";
+import { trackOrderByAwb } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Search, Package } from "lucide-react";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
@@ -17,26 +17,29 @@ import { TrackingDisplay } from "@/components/tracking/TrackingDisplay";
 
 export default function TrackingPage() {
   const searchParams = useSearchParams();
-  const [referenceNo, setReferenceNo] = useState("");
+  const [awbNo, setAwbNo] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<StandardizedTrackingResponse | null>(
     null
   );
 
-  // Auto-fill reference_no from URL parameter and trigger tracking
+  // Auto-fill awb_no from URL parameter and trigger tracking
   useEffect(() => {
-    const refParam =
-      searchParams.get("ref") || searchParams.get("reference_no");
-    if (refParam) {
-      setReferenceNo(refParam);
-      // Auto-track jika ada parameter reference_no
-      handleTrackingRequest(refParam);
+    const awbParam =
+      searchParams.get("awb_no") ||
+      searchParams.get("awb") ||
+      searchParams.get("resi");
+    if (awbParam) {
+      setAwbNo(awbParam);
+      // Auto-track jika ada parameter awb_no
+      handleTrackingRequest(awbParam);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const handleTrackingRequest = async (refNumber: string) => {
-    if (!refNumber.trim()) {
-      toast.error("Masukkan nomor referensi terlebih dahulu");
+  const handleTrackingRequest = async (awbNumber: string) => {
+    if (!awbNumber.trim()) {
+      toast.error("Masukkan nomor resi (AWB) terlebih dahulu");
       return;
     }
 
@@ -44,15 +47,11 @@ export default function TrackingPage() {
     setLoading(true);
 
     try {
-      const response = await trackOrderByReference(refNumber.trim());
+      const response = await trackOrderByAwb(awbNumber.trim());
 
       if (response.success) {
         setResult(response);
-        if (!response.order_info.awb_no) {
-          toast.info("Order ditemukan, namun belum memiliki nomor resi");
-        } else {
-          toast.success("Data tracking berhasil ditemukan");
-        }
+        toast.success("Data tracking berhasil ditemukan");
       } else {
         toast.error("Data tracking tidak ditemukan");
       }
@@ -69,7 +68,7 @@ export default function TrackingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await handleTrackingRequest(referenceNo);
+    await handleTrackingRequest(awbNo);
   };
 
   return (
@@ -100,9 +99,9 @@ export default function TrackingPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="flex gap-2">
                 <Input
-                  placeholder="Masukkan nomor referensi (contoh: REF-250821103709996)"
-                  value={referenceNo}
-                  onChange={(e) => setReferenceNo(e.target.value)}
+                  placeholder="Masukkan nomor resi / AWB (contoh: 11000009393873)"
+                  value={awbNo}
+                  onChange={(e) => setAwbNo(e.target.value)}
                   className="flex-1"
                   required
                 />
@@ -115,8 +114,8 @@ export default function TrackingPage() {
                 </Button>
               </form>
               <p className="text-sm text-gray-600 mt-2">
-                Gunakan nomor referensi order untuk melacak paket dari semua
-                vendor expedisi
+                Gunakan nomor resi (AWB) untuk melacak paket dari semua vendor
+                expedisi
               </p>
             </CardContent>
           </Card>
@@ -124,35 +123,8 @@ export default function TrackingPage() {
           {/* Hasil Tracking */}
           {result && (
             <div className="space-y-6">
-              {/* No AWB case */}
-              {!result.order_info.awb_no && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Status Order
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center p-4">
-                      <p className="text-gray-600">
-                        Order belum memiliki nomor resi (AWB).
-                      </p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Status saat ini:{" "}
-                        <strong>{result.order_info.status}</strong>
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Nomor resi akan tersedia setelah order diproses ke
-                        expedisi
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* Tracking Display with standardized data */}
-              {result.order_info.awb_no && <TrackingDisplay result={result} />}
+              <TrackingDisplay result={result} />
             </div>
           )}
         </div>

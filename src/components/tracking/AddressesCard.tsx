@@ -2,13 +2,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, MapPin } from "lucide-react";
-import type { Addresses } from "@/types/tracking";
+import type { AddressInfo, ReceiverInfo } from "@/types/tracking";
 
 interface AddressesCardProps {
-  data: Addresses;
+  sender: AddressInfo;
+  receiver: ReceiverInfo;
 }
 
-export const AddressesCard: React.FC<AddressesCardProps> = ({ data }) => {
+export const AddressesCard: React.FC<AddressesCardProps> = ({ sender, receiver }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
@@ -20,42 +21,36 @@ export const AddressesCard: React.FC<AddressesCardProps> = ({ data }) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <p className="font-semibold">{data.sender.name || "N/A"}</p>
-            <p className="text-sm text-gray-600 flex items-start gap-2">
-              <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              {data.sender.address || "N/A"}
-            </p>
-            <p className="text-sm">
-              <strong>Kota:</strong> {data.sender.city || "N/A"}
-            </p>
-            {data.sender.province && (
-              <p className="text-sm">
-                <strong>Provinsi:</strong> {data.sender.province}
+            <p className="font-semibold">{sender.name || "N/A"}</p>
+            {sender.address && (
+              <p className="text-sm text-gray-600 flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                {sender.address}
               </p>
             )}
-            {data.sender.district && (
+            {sender.city && (
               <p className="text-sm">
-                <strong>Kecamatan:</strong> {data.sender.district}
+                <strong>Kota:</strong> {sender.city}
               </p>
             )}
-            {data.sender.zip_code && (
+            {sender.province && (
               <p className="text-sm">
-                <strong>Kode Pos:</strong> {data.sender.zip_code}
+                <strong>Provinsi:</strong> {sender.province}
               </p>
             )}
-            {data.sender.phone && (
+            {sender.district && (
               <p className="text-sm">
-                <strong>Telepon:</strong> {data.sender.phone}
+                <strong>Kecamatan:</strong> {sender.district}
               </p>
             )}
-            {data.sender.email && (
+            {(sender.postcode || sender.zipcode) && (
               <p className="text-sm">
-                <strong>Email:</strong> {data.sender.email}
+                <strong>Kode Pos:</strong> {sender.postcode || sender.zipcode}
               </p>
             )}
-            {data.sender.note && (
-              <p className="text-sm text-gray-600">
-                <strong>Catatan:</strong> {data.sender.note}
+            {sender.phone && (
+              <p className="text-sm">
+                <strong>Telepon:</strong> {sender.phone}
               </p>
             )}
           </div>
@@ -71,43 +66,48 @@ export const AddressesCard: React.FC<AddressesCardProps> = ({ data }) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <p className="font-semibold">{data.receiver.name || "N/A"}</p>
-            <p className="text-sm text-gray-600 flex items-start gap-2">
-              <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              {data.receiver.address || "N/A"}
-            </p>
-            <p className="text-sm">
-              <strong>Kota:</strong> {data.receiver.city || "N/A"}
-            </p>
-            {data.receiver.province && (
-              <p className="text-sm">
-                <strong>Provinsi:</strong> {data.receiver.province}
+            <p className="font-semibold">{receiver.name || "N/A"}</p>
+            {receiver.address && (
+              <p className="text-sm text-gray-600 flex items-start gap-2">
+                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                {receiver.address}
               </p>
             )}
-            {data.receiver.district && (
+            {receiver.city && (
               <p className="text-sm">
-                <strong>Kecamatan:</strong> {data.receiver.district}
+                <strong>Kota:</strong> {receiver.city}
               </p>
             )}
-            {data.receiver.zip_code && (
+            {receiver.province && (
               <p className="text-sm">
-                <strong>Kode Pos:</strong> {data.receiver.zip_code}
+                <strong>Provinsi:</strong> {receiver.province}
               </p>
             )}
-            {data.receiver.phone && (
+            {receiver.district && (
               <p className="text-sm">
-                <strong>Telepon:</strong> {data.receiver.phone}
+                <strong>Kecamatan:</strong> {receiver.district}
               </p>
             )}
-            {data.receiver.email && (
+            {(receiver.postcode || receiver.zipcode) && (
               <p className="text-sm">
-                <strong>Email:</strong> {data.receiver.email}
+                <strong>Kode Pos:</strong> {receiver.postcode || receiver.zipcode}
               </p>
             )}
-            {data.receiver.note && (
-              <p className="text-sm text-gray-600">
-                <strong>Catatan:</strong> {data.receiver.note}
+            {receiver.phone && (
+              <p className="text-sm">
+                <strong>Telepon:</strong> {receiver.phone}
               </p>
+            )}
+            {receiver.actual_receiver && (
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-sm font-medium text-gray-700">Penerima Aktual:</p>
+                <p className="text-sm text-gray-900">{receiver.actual_receiver.name}</p>
+                {receiver.actual_receiver.relationship && (
+                  <p className="text-xs text-gray-600">
+                    Hubungan: {receiver.actual_receiver.relationship}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </CardContent>

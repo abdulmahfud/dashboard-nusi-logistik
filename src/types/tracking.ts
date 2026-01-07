@@ -16,84 +16,111 @@ export interface OrderInfo {
 }
 
 export interface StandardizedTrackingData {
+  vendor: string;
+  vendor_name: string;
+  reference_no: string | null;
   awb_no: string | null;
-  invoice_number: string | null;
-  package_info: PackageInfo;
-  cost_details: CostDetails;
-  addresses: Addresses;
-  tracking_history: TrackingHistoryItem[];
-  estimated_times?: EstimatedTimes;
-  latest_status?: string | null;
-  delivery_datetime?: string | null;
-  photo_url?: string | null;
-  signature_url?: string | null;
-  cancellation_reason?: string | null;
-  driver_info?: DriverInfo;
-}
-
-export interface PackageInfo {
-  item_name: string | null;
-  weight: number | null;
-  quantity: number | null;
-  service_code?: string | null;
-  category?: string | null;
-  pickup_datetime?: string | null;
-  note?: string | null;
-}
-
-export interface CostDetails {
-  shipping_cost: number;
-  cod_value?: number;
-  insurance_cost?: number;
-  total_amount?: number;
-  invoice_value?: number;
-  payment_type?: string | null;
-}
-
-export interface Addresses {
+  waybill_no: string | null;
+  current_status: CurrentStatus;
+  shipment: Shipment;
   sender: AddressInfo;
-  receiver: AddressInfo;
+  receiver: ReceiverInfo;
+  tracking_history: TrackingHistoryItem[];
+  delivery: DeliveryInfo;
+  driver_info: DriverInfo;
+}
+
+export interface CurrentStatus {
+  code: string | null;
+  status: string | null;
+  description: string | null;
+  timestamp: string | null;
+  datetime: string | null;
+}
+
+export interface Shipment {
+  service_code: string | null;
+  service_name: string | null;
+  weight: number | null;
+  weight_unit: string;
+  pieces: number;
+  koli: number;
+  service_fee: number | null;
+  shipping_cost: number | null;
+  cod_value: number;
+  insurance_cost: number;
+  total_amount: number | null;
+  booking_id: string | null;
+  invoice_no: string | null;
+  shipped_date: string | null;
+  item_name: string | null;
+}
+
+export interface ReceiverInfo extends AddressInfo {
+  actual_receiver: {
+    name: string;
+    relationship: string | null;
+  } | null;
 }
 
 export interface AddressInfo {
   name: string | null;
+  phone: string | null;
   address: string | null;
+  postcode: string | null;
   city: string | null;
-  province?: string | null;
-  district?: string | null;
-  zip_code: string | null;
-  phone?: string | null;
-  email?: string | null;
-  note?: string | null;
+  province: string | null;
+  district: string | null;
+  zipcode: string | null;
 }
 
 export interface TrackingHistoryItem {
+  sequence: number;
+  timestamp: string | null;
   datetime: string | null;
-  city: string | null;
+  date_time: string | null;
+  status_code: string | null;
   status: string | null;
-  status_code?: number | null;
-  store_name?: string | null;
-  driver_name?: string | null;
-  driver_phone?: string | null;
-  note?: string | null;
-  next_site?: string | null;
-  name?: string | null;
-  address?: string | null;
-  province?: string | null;
-  district?: string | null;
+  status_name: string | null;
+  description: string | null;
+  message: string | null;
+  location: LocationInfo;
+  driver: DriverDetails;
+  recipient: {
+    name: string;
+    relationship: string | null;
+  } | null;
+  note: string | null;
+  image_url: string | null;
 }
 
-export interface EstimatedTimes {
-  pickup_date: string | null;
-  pickup_time_range: {
-    min: string | null;
-    max: string | null;
-  };
-  arrival_date: string | null;
-  arrival_time_range: {
-    min: string | null;
-    max: string | null;
-  };
+export interface LocationInfo {
+  hub_name: string | null;
+  city: string | null;
+  city_name: string | null;
+  province: string | null;
+  district: string | null;
+  branch_name: string | null;
+  store_name: string | null;
+  next_site: string | null;
+  next_branch: string | null;
+}
+
+export interface DeliveryInfo {
+  estimated_delivery: string | null;
+  delivered_at: string | null;
+  delivered_to: string | null;
+  delivery_relationship: string | null;
+  pod_status_code: string | null;
+  pod_status_name: string | null;
+  proof_of_delivery: ProofOfDelivery;
+}
+
+export interface ProofOfDelivery {
+  signature_url: string | null;
+  photo_url: string | null;
+  signature_pod: string[];
+  photo_pod: string[];
 }
 
 export interface DriverInfo {
