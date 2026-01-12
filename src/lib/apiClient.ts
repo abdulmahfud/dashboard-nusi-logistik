@@ -1016,6 +1016,30 @@ export const getLabelUrl = async (
   return res.data;
 };
 
+// ✅ Download/View label PDF for any order (universal)
+export const downloadOrderLabel = async (
+  orderId: number
+): Promise<Blob> => {
+  try {
+    const res = await apiClient.get(`/admin/orders/${orderId}/label`, {
+      responseType: "blob",
+    });
+    return res.data;
+  } catch (error: any) {
+    // Handle blob error response - try to parse error message from blob
+    if (error.response?.data instanceof Blob) {
+      const text = await error.response.data.text();
+      try {
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.message || "Failed to download label");
+      } catch {
+        throw new Error("Failed to download label");
+      }
+    }
+    throw error;
+  }
+};
+
 // ✅ Universal tracking function using awb_no (supports all vendors)
 export const trackOrderByAwb = async (
   awb_no: string

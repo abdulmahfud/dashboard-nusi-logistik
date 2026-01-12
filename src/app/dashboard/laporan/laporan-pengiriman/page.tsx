@@ -63,6 +63,7 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
   const createdAt = new Date(order.created_at).toISOString().split("T")[0];
 
   return {
+    orderId: order.id, // Add order ID for label download
     createdAt,
     shipmentNo: order.awb_no || order.reference_no,
     packageType,

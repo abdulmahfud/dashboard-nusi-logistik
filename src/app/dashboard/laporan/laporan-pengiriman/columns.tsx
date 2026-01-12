@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { DeliveryReport } from "@/types/laporanPengiriman";
-import { LabelUrlButton } from "@/components/Laporan/LabelUrlButton";
+import { PrintLabelButton } from "@/components/Laporan/PrintLabelButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, Clock, CreditCard } from "lucide-react";
@@ -166,13 +166,7 @@ export const columns: ColumnDef<DeliveryReport>[] = [
         );
       }
 
-      return (
-        <LabelUrlButton
-          awbNo={order.shipmentNo}
-          vendor={order.vendor}
-          className="w-32"
-        />
-      );
+      return <PrintLabelButton orderId={order.orderId} className="w-32" />;
     },
   },
 ];

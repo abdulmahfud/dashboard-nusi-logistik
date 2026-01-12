@@ -52,6 +52,7 @@ export interface OrderListResponse {
 
 // Table Display Types
 export interface DeliveryReport {
+  orderId: number; // Add order ID for label download
   createdAt: string;
   shipmentNo: string;
   packageType: "Paket Reguler" | "Paket Instant" | "COD";
