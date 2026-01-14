@@ -301,8 +301,6 @@ export default function CalculationResults({
           const estimatedDays = lionData.estimated_days || 5;
           const productName = lionData.product || "REGPACK";
 
-          console.log("🔍 Lion data received:", lionData);
-
           options.push({
             id: "lion-regular",
             name: `Lion Parcel ${productName}`,
@@ -594,8 +592,6 @@ export default function CalculationResults({
           });
         }
       }
-
-      console.log("🚀 Combined options created:", options);
       return options;
     }
 
@@ -948,13 +944,6 @@ export default function CalculationResults({
     } else if (optionId.startsWith("jnt")) {
       vendor = "jntexpress";
     }
-
-    console.log("🔍 Determining vendor:", {
-      optionId,
-      vendor,
-      selectedOption,
-      selectedShippingOptionId: selectedShippingOption?.id,
-    });
 
     // Build standardized order data format for all vendors
     const shippingData: {
