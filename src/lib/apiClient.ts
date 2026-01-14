@@ -1017,17 +1017,15 @@ export const getLabelUrl = async (
 };
 
 // ✅ Download/View label PDF for any order (universal)
-export const downloadOrderLabel = async (
-  orderId: number
-): Promise<Blob> => {
+export const downloadOrderLabel = async (orderId: number): Promise<Blob> => {
   try {
     const res = await apiClient.get(`/admin/orders/${orderId}/label`, {
       responseType: "blob",
     });
     return res.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle blob error response - try to parse error message from blob
-    if (error.response?.data instanceof Blob) {
+    if (error instanceof AxiosError && error.response?.data instanceof Blob) {
       const text = await error.response.data.text();
       try {
         const errorData = JSON.parse(text);

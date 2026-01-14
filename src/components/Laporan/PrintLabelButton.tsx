@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { downloadOrderLabel } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { FileText, Loader2 } from "lucide-react";
+import { AxiosError } from "axios";
 
 interface PrintLabelButtonProps {
   orderId: number;
@@ -39,16 +40,18 @@ export function PrintLabelButton({
       window.URL.revokeObjectURL(url);
 
       toast.success("Label opened successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error downloading label:", error);
       let errorMessage = "Failed to download label";
       
-      if (error.message) {
+      if (error instanceof Error) {
         errorMessage = error.message;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (typeof error.response?.data === "string") {
-        errorMessage = error.response.data;
+      } else if (error instanceof AxiosError) {
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (typeof error.response?.data === "string") {
+          errorMessage = error.response.data;
+        }
       }
       
       toast.error(errorMessage);
