@@ -75,12 +75,19 @@ export default function CancelOrderTable() {
       setLoading(true);
       const response = await getOrders();
 
-      // Transform orders to cancel order format - only show specific status orders
+      // Transform orders to cancel order format
+      // Filter: hanya order dengan status yang bisa dibatalkan dan memiliki AWB number
       const transformedData: CancelOrderData[] = response.data
-        .filter((order: Order) =>
-          // Only show orders with specific status that can be cancelled
-          ["proses_pengiriman"].includes(order.status)
-        )
+        .filter((order: Order) => {
+          // Hanya tampilkan order dengan status proses_pengiriman
+          // Order dengan status dibatalkan atau sampai_tujuan tidak dapat dibatalkan (sesuai dokumentasi)
+          const canBeCancelled = ["proses_pengiriman"].includes(order.status);
+          
+          // Order harus memiliki AWB number untuk dapat dibatalkan (sesuai dokumentasi)
+          const hasAwbNo = order.awb_no && order.awb_no.trim() !== "";
+          
+          return canBeCancelled && hasAwbNo;
+        })
         .map((order: Order) => ({
           id: order.id,
           vendor: order.vendor,
@@ -206,16 +213,39 @@ export default function CancelOrderTable() {
       header: "ACTION",
       cell: ({ row }) => {
         const vendorLower = row.original.vendor.toLowerCase();
-        const isCancelableVendor = ["jntexpress", "paxel", "anteraja"].includes(
-          vendorLower
-        );
+        
+        // Supported vendors sesuai dokumentasi API
+        const supportedVendors = [
+          "anteraja",
+          "jntexpress",
+          "paxel",
+          "posindonesia",
+          "jne",
+          "ninjaexpress",
+          "idexpress",
+          "jntcargo",
+          "gosend",
+          "lion",
+          "sap",
+        ];
+        
+        const isCancelableVendor = supportedVendors.includes(vendorLower);
+        const hasAwbNo = row.original.awb_no && row.original.awb_no.trim() !== "";
+        
         return (
           <Button
             variant="destructive"
             size="sm"
             onClick={() => handleCancelClick(row.original)}
-            disabled={!isCancelableVendor}
+            disabled={!isCancelableVendor || !hasAwbNo}
             className="gap-2"
+            title={
+              !hasAwbNo
+                ? "AWB number tidak tersedia"
+                : !isCancelableVendor
+                ? `Vendor ${row.original.vendor} tidak didukung`
+                : "Batalkan pesanan"
+            }
           >
             <Trash2 className="h-4 w-4" />
             Cancel

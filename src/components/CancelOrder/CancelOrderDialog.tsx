@@ -45,38 +45,50 @@ export default function CancelOrderDialog({
   onSuccess,
 }: CancelOrderDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [remark, setRemark] = useState("Canceled by E-Commerce");
+  const [remark, setRemark] = useState("Customer requested cancellation");
 
   const handleCancel = async () => {
     try {
       setIsLoading(true);
-      const vendorLower = order.vendor.toLowerCase();
-      let url = "";
-      let requestData: Record<string, string | number | boolean> = {};
+      
+      // Validasi AWB number
+      if (!order.awb_no || order.awb_no.trim() === "") {
+        throw new Error("AWB number tidak tersedia. Order tidak dapat dibatalkan.");
+      }
 
-      if (vendorLower === "jntexpress") {
-        // JNT Express expects orderid (reference_no) but our backend accepts AWB then converts
-        url = "/admin/expedition/jntexpress/cancel";
-        requestData = {
-          orderid: order.awb_no,
-          remark: remark.trim() || "Canceled by E-Commerce",
-        };
-      } else if (vendorLower === "paxel") {
-        // Paxel: allow airwaybill_code or order_id; prefer AWB if available
-        url = "/admin/expedition/paxel/cancel";
-        requestData = {
-          airwaybill_code: order.awb_no,
-          cancellation_reason: remark.trim() || "Canceled by E-Commerce",
-          order_id: order.id,
-        };
-      } else if (vendorLower === "anteraja") {
-        // Anteraja: expects awb_no
-        url = "/admin/expedition/anteraja/cancel";
-        requestData = {
-          awb_no: order.awb_no,
-        };
-      } else {
-        throw new Error("Vendor tidak didukung untuk cancel");
+      const vendorLower = order.vendor.toLowerCase();
+      
+      // Supported vendors sesuai dokumentasi
+      const supportedVendors = [
+        "anteraja",
+        "jntexpress",
+        "paxel",
+        "posindonesia",
+        "jne",
+        "ninjaexpress",
+        "idexpress",
+        "jntcargo",
+        "gosend",
+        "lion",
+        "sap",
+      ];
+
+      if (!supportedVendors.includes(vendorLower)) {
+        throw new Error(`Vendor ${order.vendor} tidak didukung untuk cancel`);
+      }
+
+      // Format standar sesuai dokumentasi: menggunakan awb_no untuk semua vendor
+      const url = `/admin/expedition/${vendorLower}/cancel`;
+      const requestData: {
+        awb_no: string;
+        remark?: string;
+      } = {
+        awb_no: order.awb_no,
+      };
+
+      // Tambahkan remark jika ada (optional)
+      if (remark.trim()) {
+        requestData.remark = remark.trim();
       }
 
       const response = await apiClient.post(url, requestData);
@@ -98,7 +110,7 @@ export default function CancelOrderDialog({
   };
 
   const handleClose = () => {
-    setRemark("Canceled by E-Commerce");
+    setRemark("Customer requested cancellation");
     onClose();
   };
 
@@ -181,12 +193,16 @@ export default function CancelOrderDialog({
             <Label htmlFor="remark">Remark (Opsional)</Label>
             <Textarea
               id="remark"
-              placeholder="Canceled by E-Commerce"
+              placeholder="Customer requested cancellation"
               value={remark}
               onChange={(e) => setRemark(e.target.value)}
               disabled={isLoading}
               rows={2}
+              maxLength={255}
             />
+            <p className="text-xs text-gray-500">
+              {remark.length}/255 karakter
+            </p>
           </div>
         </div>
 

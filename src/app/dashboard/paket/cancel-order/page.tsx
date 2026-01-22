@@ -49,7 +49,7 @@ export default function CancelOrderPage() {
                 <div>
                   <h1 className="text-2xl font-bold">Cancel Order</h1>
                   <p className="text-red-100">
-                    Batalkan pesanan yang sudah dibuat
+                    Batalkan pesanan dengan status proses pengiriman yang memiliki AWB number
                   </p>
                 </div>
               </div>
@@ -59,9 +59,16 @@ export default function CancelOrderPage() {
             <div className="flex-1 p-6">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-red-600" />
-                    <CardTitle>Daftar Order</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-red-600" />
+                      <CardTitle>Daftar Order yang Dapat Dibatalkan</CardTitle>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p className="text-xs">
+                        Hanya menampilkan order dengan status <span className="font-semibold">proses_pengiriman</span> dan memiliki AWB number
+                      </p>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
