@@ -69,6 +69,12 @@ export default function CancelOrderDialog({
           cancellation_reason: remark.trim() || "Canceled by E-Commerce",
           order_id: order.id,
         };
+      } else if (vendorLower === "anteraja") {
+        // Anteraja: expects awb_no
+        url = "/admin/expedition/anteraja/cancel";
+        requestData = {
+          awb_no: order.awb_no,
+        };
       } else {
         throw new Error("Vendor tidak didukung untuk cancel");
       }

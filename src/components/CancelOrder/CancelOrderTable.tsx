@@ -79,7 +79,7 @@ export default function CancelOrderTable() {
       const transformedData: CancelOrderData[] = response.data
         .filter((order: Order) =>
           // Only show orders with specific status that can be cancelled
-          ["belum_proses", "belum_di_expedisi"].includes(order.status)
+          ["proses_pengiriman"].includes(order.status)
         )
         .map((order: Order) => ({
           id: order.id,
@@ -206,7 +206,7 @@ export default function CancelOrderTable() {
       header: "ACTION",
       cell: ({ row }) => {
         const vendorLower = row.original.vendor.toLowerCase();
-        const isCancelableVendor = ["jntexpress", "paxel"].includes(
+        const isCancelableVendor = ["jntexpress", "paxel", "anteraja"].includes(
           vendorLower
         );
         return (
