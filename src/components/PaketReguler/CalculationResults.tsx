@@ -29,6 +29,28 @@ import {
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
+import type { OrderRequest, OrderResponse } from "@/types/order";
+
+// Interface for COD order response
+interface CODOrderResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    id: number;
+    reference_no: string;
+    awb_no: string;
+    [key: string]: unknown;
+  };
+  requires_payment?: boolean;
+  is_cod?: boolean;
+  status?: string;
+  order?: {
+    id: number;
+    reference_no: string;
+    awb_no: string;
+    [key: string]: unknown;
+  };
+}
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -1001,17 +1023,30 @@ export default function CalculationResults({
       if (isCOD) {
         // For COD: Create order directly without payment gateway
         // Format: { shipper_id, receiver_id, pickup, detail }
+        // Note: submitOrderToExpedition accepts ExpeditionVendor, but we support more vendors
+        // Using type assertion for vendor since backend supports all vendors
         const orderResponse = await submitOrderToExpedition(
-          vendor as any,
-          orderRequest as any
-        );
+          vendor as "jntexpress" | "lion" | "sap",
+          orderRequest as OrderRequest
+        ) as OrderResponse & CODOrderResponse;
 
         // Handle response format: { success: true, data: { id, reference_no, awb_no, ... }, requires_payment: false, is_cod: true }
-        if (orderResponse.status === "success" || (orderResponse as any).success === true) {
-          const responseData = (orderResponse as any).data || orderResponse.data;
-          const orderId = responseData?.id || 0;
-          const referenceNo = responseData?.reference_no || "";
-          const awbNo = responseData?.awb_no || "";
+        const isSuccess = orderResponse.status === "success" || orderResponse.success === true;
+        if (isSuccess) {
+          // Try COD response format first, then fallback to OrderResponse format
+          const codData = orderResponse.success === true ? orderResponse.data : null;
+          const orderData = orderResponse.order;
+          const vendorData = orderResponse.data;
+          
+          const orderId = codData && "id" in codData 
+            ? codData.id 
+            : (orderData?.id || 0);
+          const referenceNo = codData && "reference_no" in codData
+            ? codData.reference_no
+            : (orderData?.reference_no || vendorData?.awb_no || "");
+          const awbNo = codData && "awb_no" in codData
+            ? codData.awb_no
+            : (orderData?.awb_no || vendorData?.awb_no || "");
           
           handleOrderSuccessCOD({
             order_id: orderId,
@@ -1019,7 +1054,7 @@ export default function CalculationResults({
             awb_no: awbNo,
           });
         } else {
-          const errorMessage = (orderResponse as any).message || orderResponse.message || "Gagal membuat order COD";
+          const errorMessage = orderResponse.message || "Gagal membuat order COD";
           toast.error(errorMessage);
         }
       } else {
