@@ -24,12 +24,11 @@ import { useRouter } from "next/navigation";
 import {
   createOrderWithPendingPayment,
   getAvailableDiscounts,
+  submitOrderToExpedition,
 } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
-
-import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -988,28 +987,57 @@ export default function CalculationResults({
     }
 
     try {
-      // Create order directly with pending payment status
       const shippingData = buildShippingData();
-      const totalAmount = calculateTotal();
+      const isCOD = formData?.formData?.paymentMethod === "cod";
 
       if (!shippingData) {
         toast.error("Gagal membangun data pengiriman");
         return;
       }
 
-      // Call API to create order with pending payment status
-      const orderResponse = await createOrderWithPendingPayment({
-        shipping_data: shippingData,
-        amount: totalAmount,
-      });
+      // Extract vendor and create OrderRequest format
+      const { vendor, ...orderRequest } = shippingData;
 
-      if (orderResponse.success && orderResponse.data) {
-        handleOrderSuccess({
-          order_id: orderResponse.data.order_id,
-          reference_no: orderResponse.data.reference_no,
-        });
+      if (isCOD) {
+        // For COD: Create order directly without payment gateway
+        // Format: { shipper_id, receiver_id, pickup, detail }
+        const orderResponse = await submitOrderToExpedition(
+          vendor as any,
+          orderRequest as any
+        );
+
+        // Handle response format: { success: true, data: { id, reference_no, awb_no, ... }, requires_payment: false, is_cod: true }
+        if (orderResponse.status === "success" || (orderResponse as any).success === true) {
+          const responseData = (orderResponse as any).data || orderResponse.data;
+          const orderId = responseData?.id || 0;
+          const referenceNo = responseData?.reference_no || "";
+          const awbNo = responseData?.awb_no || "";
+          
+          handleOrderSuccessCOD({
+            order_id: orderId,
+            reference_no: referenceNo,
+            awb_no: awbNo,
+          });
+        } else {
+          const errorMessage = (orderResponse as any).message || orderResponse.message || "Gagal membuat order COD";
+          toast.error(errorMessage);
+        }
       } else {
-        toast.error(orderResponse.message || "Gagal membuat order");
+        // For non-COD: Create order with pending payment status
+        const totalAmount = calculateTotal();
+        const orderResponse = await createOrderWithPendingPayment({
+          shipping_data: shippingData,
+          amount: totalAmount,
+        });
+
+        if (orderResponse.success && orderResponse.data) {
+          handleOrderSuccess({
+            order_id: orderResponse.data.order_id,
+            reference_no: orderResponse.data.reference_no,
+          });
+        } else {
+          toast.error(orderResponse.message || "Gagal membuat order");
+        }
       }
     } catch (error) {
       console.error("Error creating order:", error);
@@ -1030,6 +1058,25 @@ export default function CalculationResults({
       success: true,
       message: "Order berhasil dibuat! Silakan lakukan pembayaran.",
       awb_no: undefined, // AWB will be available after payment and expedition processing
+      order_id: orderData.order_id,
+      reference_no: orderData.reference_no,
+    });
+
+    setShowSuccessDialog(true);
+  };
+
+  const handleOrderSuccessCOD = (orderData: {
+    order_id: number;
+    reference_no: string;
+    awb_no?: string;
+  }) => {
+    toast.success("Order COD berhasil dibuat! Tidak ada pembayaran yang diperlukan.");
+
+    // Set order result to show success with order ID
+    setOrderResult({
+      success: true,
+      message: "Order COD berhasil dibuat! Tidak ada pembayaran yang diperlukan.",
+      awb_no: orderData.awb_no,
       order_id: orderData.order_id,
       reference_no: orderData.reference_no,
     });
@@ -1289,10 +1336,10 @@ export default function CalculationResults({
                         Rp{getItemValue().toLocaleString("id-ID")}
                       </span>
                     </div>
-                    {/* Total Pembayaran untuk COD: hanya COD fee */}
-                    <div className="flex justify-between text-lg font-bold text-blue-600 mt-2 pt-2 border-t">
+                    {/* Total Pembayaran untuk COD: tidak ada pembayaran */}
+                    <div className="flex justify-between text-lg font-bold text-green-600 mt-2 pt-2 border-t">
                       <span>Total Pembayaran</span>
-                      <span>Rp{calculateTotal().toLocaleString("id-ID")}</span>
+                      <span>Rp 0 (Tidak ada pembayaran)</span>
                     </div>
                   </>
                 ) : (
@@ -1382,21 +1429,30 @@ export default function CalculationResults({
                     Reference: {orderResult.reference_no}
                   </div>
                 )}
+                {orderResult?.awb_no && (
+                  <div className="text-sm text-blue-600 mb-2">
+                    AWB: {orderResult.awb_no}
+                  </div>
+                )}
                 <div className="text-sm text-blue-700">
-                  Status: Menunggu Pembayaran
+                  {orderResult?.awb_no
+                    ? "Status: Order berhasil dibuat (COD - Tidak ada pembayaran)"
+                    : "Status: Menunggu Pembayaran"}
                 </div>
               </div>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            <Button
-              onClick={() => router.push("/dashboard/paket/pembayaran-paket")}
-              className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
-            >
-              <CreditCard className="h-4 w-4" />
-              Lakukan Pembayaran
-            </Button>
+          <div className={`grid gap-3 mt-6 ${orderResult?.awb_no ? "grid-cols-1" : "grid-cols-2"}`}>
+            {!orderResult?.awb_no && (
+              <Button
+                onClick={() => router.push("/dashboard/paket/pembayaran-paket")}
+                className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
+              >
+                <CreditCard className="h-4 w-4" />
+                Lakukan Pembayaran
+              </Button>
+            )}
 
             <Button
               onClick={handleCreateNewOrder}
