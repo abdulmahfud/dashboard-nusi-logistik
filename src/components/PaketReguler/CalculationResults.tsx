@@ -148,7 +148,6 @@ export default function CalculationResults({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isInsured, setIsInsured] = useState(false);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
-  const [customCODValue, setCustomCODValue] = useState<string>("");
 
   const [orderResult, setOrderResult] = useState<{
     success: boolean;
@@ -173,7 +172,6 @@ export default function CalculationResults({
     setShowPaymentSection(false);
     setDiscountInfo(null);
     setIsInsured(false);
-    setCustomCODValue("");
     setOrderResult(null);
     setShowSuccessDialog(false);
     setTermsAccepted(false);
@@ -822,16 +820,16 @@ export default function CalculationResults({
     const itemValue = parseInt(formData?.itemValue || "0");
     const isCOD = formData?.paymentMethod === "cod";
 
-    // COD fee: 4% of item value
-    const codFee = isCOD ? Math.round(itemValue * 0.04) : 0;
+    // COD fee: 3% of item value
+    const codFee = isCOD ? Math.round(itemValue * 0.03) : 0;
 
-    // Insurance: 0.2% of item value when checked
-    const insuranceCost = isInsured ? Math.round(itemValue * 0.002) : 0;
+    // Insurance: 0.5% of item value when checked
+    const insuranceCost = isInsured ? Math.round(itemValue * 0.005) : 0;
 
     if (isCOD) {
-      // For COD: User pays shipping + COD fee + insurance
-      // (Item value is collected from recipient via COD)
-      return shippingCost + codFee + insuranceCost;
+      // For COD: User pays COD fee (3%) only
+      // Shipment cost and insurance are paid by recipient, not included in total
+      return codFee;
     } else {
       // For non-COD: User pays shipping cost + insurance only
       // (Item value is paid directly to seller, not through shipping)
@@ -846,12 +844,14 @@ export default function CalculationResults({
   const getCODFee = () => {
     const itemValue = getItemValue();
     const isCOD = formData?.paymentMethod === "cod";
-    return isCOD ? Math.round(itemValue * 0.04) : 0;
+    // COD fee: 3% of item value
+    return isCOD ? Math.round(itemValue * 0.03) : 0;
   };
 
   const getInsuranceCost = () => {
     const itemValue = getItemValue();
-    return isInsured ? Math.round(itemValue * 0.002) : 0;
+    // Insurance: 0.5% of item value when checked
+    return isInsured ? Math.round(itemValue * 0.005) : 0;
   };
 
   // Build shipping data for payment - standardized format for all vendors
@@ -864,29 +864,17 @@ export default function CalculationResults({
       return null;
     }
 
-    // Calculate COD value properly - total amount charged to recipient
+    // Calculate COD value - if COD method selected, cod = item_value
     let codValue = 0;
     if (formData.formData.paymentMethod === "cod") {
-      if (customCODValue) {
-        // Use custom COD value if provided
-        codValue = parseInt(customCODValue.replace(/\./g, "")) || 0;
-      } else {
-        // Calculate total: Item Value + Shipping + COD Fee + Insurance
-        const itemValue = getItemValue();
-        const shippingCost = parseInt(
-          selectedShippingOption.price.replace(/[^\d]/g, "")
-        );
-        const codFee = getCODFee();
-        const insuranceCost = getInsuranceCost();
-
-        codValue = itemValue + shippingCost + codFee + insuranceCost;
-      }
+      // COD value should equal item_value when COD method is selected
+      const itemValue = getItemValue();
+      codValue = itemValue;
     }
 
-    // Calculate insurance value
-    const insuranceValue = isInsured
-      ? Math.round(parseInt(formData.formData.itemValue || "0") * 0.002)
-      : 0;
+    // Calculate insurance value for API
+    // API expects 1 if insurance is selected, 0 if not
+    const insuranceValue = isInsured ? 1 : 0;
 
     // Get weight in kg (convert from grams)
     const weightInKg = parseInt(formData.formData.weight || "0") / 1000;
@@ -1187,30 +1175,6 @@ export default function CalculationResults({
             </CardContent>
           </Card>
 
-          {/* Custom COD Section - only show if payment method is COD */}
-          {formData?.paymentMethod === "cod" && (
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="text-lg font-semibold mb-3">Custom COD</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  Ubah nilai COD yang ditagihkan ke penerima
-                </p>
-                <CurrencyInput
-                  placeholder="100.000"
-                  value={customCODValue.replace(/\./g, "")} // Remove dots for internal value
-                  onChange={(value) => {
-                    // Format for display with dots
-                    const formatted = value.replace(
-                      /\B(?=(\d{3})+(?!\d))/g,
-                      "."
-                    );
-                    setCustomCODValue(formatted);
-                  }}
-                  className="w-full"
-                />
-              </CardContent>
-            </Card>
-          )}
 
           {/* Promo Section */}
           <Card>
@@ -1301,33 +1265,22 @@ export default function CalculationResults({
                 {/* COD specific sections */}
                 {formData?.paymentMethod === "cod" ? (
                   <>
-                    {customCODValue ? (
-                      <div className="flex justify-between">
-                        <span className="text-blue-600 font-medium">
-                          Ditagihkan penerima
-                        </span>
-                        <span className="font-medium text-blue-600">
-                          Rp{customCODValue}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex justify-between">
-                        <span className="text-blue-600 font-medium">
-                          Ditagihkan penerima
-                        </span>
-                        <span className="font-medium text-blue-600">
-                          Rp
-                          {(
-                            getItemValue() +
-                            parseInt(
-                              selectedShippingOption.price.replace(/[^\d]/g, "")
-                            ) +
-                            getCODFee() +
-                            getInsuranceCost()
-                          ).toLocaleString("id-ID")}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="text-blue-600 font-medium">
+                        Ditagihkan penerima
+                      </span>
+                      <span className="font-medium text-blue-600">
+                        Rp
+                        {(
+                          getItemValue() +
+                          parseInt(
+                            selectedShippingOption.price.replace(/[^\d]/g, "")
+                          ) +
+                          getCODFee() +
+                          getInsuranceCost()
+                        ).toLocaleString("id-ID")}
+                      </span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-green-600 font-medium">
                         Nilai Pencairan
@@ -1335,6 +1288,11 @@ export default function CalculationResults({
                       <span className="font-medium text-green-600">
                         Rp{getItemValue().toLocaleString("id-ID")}
                       </span>
+                    </div>
+                    {/* Total Pembayaran untuk COD: hanya COD fee */}
+                    <div className="flex justify-between text-lg font-bold text-blue-600 mt-2 pt-2 border-t">
+                      <span>Total Pembayaran</span>
+                      <span>Rp{calculateTotal().toLocaleString("id-ID")}</span>
                     </div>
                   </>
                 ) : (
