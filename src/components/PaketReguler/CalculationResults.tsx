@@ -19,6 +19,7 @@ import {
   Package,
   CreditCard,
   Tag,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -185,6 +186,7 @@ export default function CalculationResults({
     null
   );
   const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   // Reset selection state when form data or result changes
   useEffect(() => {
@@ -1008,6 +1010,7 @@ export default function CalculationResults({
       return;
     }
 
+    setIsSubmittingOrder(true);
     try {
       const shippingData = buildShippingData();
       const isCOD = formData?.formData?.paymentMethod === "cod";
@@ -1077,6 +1080,8 @@ export default function CalculationResults({
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Terjadi kesalahan saat membuat order");
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -1407,12 +1412,21 @@ export default function CalculationResults({
 
               <div className="flex space-x-3">
                 <Button
-                  className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out"
+                  className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleSubmitOrder}
-                  disabled={!termsAccepted}
+                  disabled={!termsAccepted || isSubmittingOrder}
                 >
-                  <CirclePlus className="w-4 h-4" />
-                  Buat Order
+                  {isSubmittingOrder ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Menunggu proses...
+                    </>
+                  ) : (
+                    <>
+                      <CirclePlus className="w-4 h-4" />
+                      Buat Order
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

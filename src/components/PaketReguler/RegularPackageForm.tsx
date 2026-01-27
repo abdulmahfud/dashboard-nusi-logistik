@@ -35,6 +35,7 @@ import {
   Send,
   User,
   CircleChevronRight,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -158,6 +159,7 @@ export default function RegularPackageForm({
   const [districtSearch, setDistrictSearch] = useState("");
   const [loadingProvince, setLoadingProvince] = useState(false);
   const [loadingRegency, setLoadingRegency] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingDistrict, setLoadingDistrict] = useState(false);
   const [receiverId, setReceiverId] = useState<string | null>(null);
   const [selectedDistrictName, setSelectedDistrictName] = useState("");
@@ -429,6 +431,7 @@ export default function RegularPackageForm({
       return;
     }
 
+    setIsSubmitting(true);
     if (setIsSearching) setIsSearching(true);
 
     // Siapkan payload
@@ -518,6 +521,7 @@ export default function RegularPackageForm({
         error: true,
         message: errorMessage,
       });
+      setIsSubmitting(false);
       if (setIsSearching) setIsSearching(false);
       return;
     }
@@ -594,6 +598,7 @@ export default function RegularPackageForm({
 
       onResult?.(errorResult);
     } finally {
+      setIsSubmitting(false);
       if (setIsSearching) setIsSearching(false);
     }
   };
@@ -1317,10 +1322,20 @@ export default function RegularPackageForm({
 
             <Button
               type="submit"
-              className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out"
+              className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
             >
-              <CircleChevronRight className="w-4 h-4" />
-              Pilih Expedisi
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Menunggu list harga pengiriman...
+                </>
+              ) : (
+                <>
+                  <CircleChevronRight className="w-4 h-4" />
+                  Pilih Expedisi
+                </>
+              )}
             </Button>
           </div>
         </Card>
