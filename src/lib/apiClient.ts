@@ -754,6 +754,33 @@ export const searchAddress = async (
   return res.data;
 };
 
+// ✅ New search address API (returns results with full_address)
+export const searchAddressNew = async (
+  query: string
+): Promise<{
+  results: Array<{
+    type: "postal_code" | "subdistrict";
+    id: number;
+    name: string | number;
+    full_address: string;
+    code?: number | null;
+    province: string;
+    regency: string;
+    district: string;
+    subdistrict: string;
+    province_id: number;
+    regency_id: number;
+    district_id: number;
+    subdistrict_id: number;
+  }>;
+  count: number;
+}> => {
+  const res = await apiClient.get(
+    `/public/search-address?query=${encodeURIComponent(query)}`
+  );
+  return res.data;
+};
+
 // ✅ User registration
 export const registerUser = async (data: {
   name: string;

@@ -10,9 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import React, { useState, useEffect } from "react";
-import { getProvinces, getRegencies, getDistricts } from "@/lib/apiClient";
-import type { Province, Regency, District } from "@/types/dataRegulerForm";
+import React, { useState, useEffect, useRef } from "react";
+import { Search, Loader2 } from "lucide-react";
 import {
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
@@ -23,6 +22,7 @@ import {
   getIdexpressShipmentCost,
   getAnterajaShipmentCost,
   getNinjaShipmentCost,
+  searchAddressNew,
 } from "@/lib/apiClient";
 
 interface ShippingFormProps {
@@ -30,62 +30,40 @@ interface ShippingFormProps {
   setIsSearching?: (isSearching: boolean) => void;
 }
 
+interface AddressResult {
+  type: "postal_code" | "subdistrict";
+  id: number;
+  name: string | number;
+  full_address: string;
+  code?: number | null;
+  province: string;
+  regency: string;
+  district: string;
+  subdistrict: string;
+  province_id: number;
+  regency_id: number;
+  district_id: number;
+  subdistrict_id: number;
+}
+
 export default function ShippingForm({
   onResult,
   setIsSearching,
 }: ShippingFormProps) {
-  // State untuk dropdown pencarian
-  const [originProvinceOptions, setOriginProvinceOptions] = useState<
-    Province[]
-  >([]);
-  const [originRegencyOptions, setOriginRegencyOptions] = useState<Regency[]>(
-    []
+  const [originQuery, setOriginQuery] = useState("");
+  const [destQuery, setDestQuery] = useState("");
+  const [originResults, setOriginResults] = useState<AddressResult[]>([]);
+  const [destResults, setDestResults] = useState<AddressResult[]>([]);
+  const [loadingOrigin, setLoadingOrigin] = useState(false);
+  const [loadingDest, setLoadingDest] = useState(false);
+  const [showOriginResults, setShowOriginResults] = useState(false);
+  const [showDestResults, setShowDestResults] = useState(false);
+  const [selectedOrigin, setSelectedOrigin] = useState<AddressResult | null>(
+    null
   );
-  const [originDistrictOptions, setOriginDistrictOptions] = useState<
-    District[]
-  >([]);
-  const [destProvinceOptions, setDestProvinceOptions] = useState<Province[]>(
-    []
-  );
-  const [destRegencyOptions, setDestRegencyOptions] = useState<Regency[]>([]);
-  const [destDistrictOptions, setDestDistrictOptions] = useState<District[]>(
-    []
-  );
-
-  // State untuk pencarian input
-  const [originProvinceSearch, setOriginProvinceSearch] = useState("");
-  const [originRegencySearch, setOriginRegencySearch] = useState("");
-  const [originDistrictSearch, setOriginDistrictSearch] = useState("");
-  const [destProvinceSearch, setDestProvinceSearch] = useState("");
-  const [destRegencySearch, setDestRegencySearch] = useState("");
-  const [destDistrictSearch, setDestDistrictSearch] = useState("");
-
-  // State untuk loading
-  const [loadingOriginProvince, setLoadingOriginProvince] = useState(false);
-  const [loadingOriginRegency, setLoadingOriginRegency] = useState(false);
-  const [loadingOriginDistrict, setLoadingOriginDistrict] = useState(false);
-  const [loadingDestProvince, setLoadingDestProvince] = useState(false);
-  const [loadingDestRegency, setLoadingDestRegency] = useState(false);
-  const [loadingDestDistrict, setLoadingDestDistrict] = useState(false);
-
-  // State untuk nama yang dipilih (untuk API)
-  const [selectedOriginProvinceName, setSelectedOriginProvinceName] =
-    useState("");
-  const [selectedOriginRegencyName, setSelectedOriginRegencyName] =
-    useState("");
-  const [selectedOriginDistrictName, setSelectedOriginDistrictName] =
-    useState("");
-  const [selectedDestProvinceName, setSelectedDestProvinceName] = useState("");
-  const [selectedDestRegencyName, setSelectedDestRegencyName] = useState("");
-  const [selectedDestDistrictName, setSelectedDestDistrictName] = useState("");
+  const [selectedDest, setSelectedDest] = useState<AddressResult | null>(null);
 
   const [formData, setFormData] = useState({
-    originProvince: "",
-    originRegency: "",
-    originDistrict: "",
-    destProvince: "",
-    destRegency: "",
-    destDistrict: "",
     weight: "",
     length: "",
     width: "",
@@ -94,110 +72,98 @@ export default function ShippingForm({
     useInsurance: false,
   });
 
-  // Origin Province search and fetch
-  useEffect(() => {
-    if (originProvinceSearch.length >= 3) {
-      setLoadingOriginProvince(true);
-      getProvinces().then((res) => {
-        setOriginProvinceOptions(
-          res.data.filter((prov) =>
-            prov.name.toLowerCase().includes(originProvinceSearch.toLowerCase())
-          )
-        );
-        setLoadingOriginProvince(false);
-      });
-    } else {
-      setOriginProvinceOptions([]);
-    }
-  }, [originProvinceSearch]);
+  const originInputRef = useRef<HTMLDivElement>(null);
+  const destInputRef = useRef<HTMLDivElement>(null);
 
-  // Origin Regency search and fetch
+  // Close dropdown when clicking outside
   useEffect(() => {
-    if (formData.originProvince && originRegencySearch.length >= 3) {
-      setLoadingOriginRegency(true);
-      getRegencies(Number(formData.originProvince)).then((res) => {
-        setOriginRegencyOptions(
-          res.data.filter((reg) =>
-            reg.name.toLowerCase().includes(originRegencySearch.toLowerCase())
-          )
-        );
-        setLoadingOriginRegency(false);
-      });
-    } else {
-      setOriginRegencyOptions([]);
-    }
-  }, [formData.originProvince, originRegencySearch]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        originInputRef.current &&
+        !originInputRef.current.contains(event.target as Node)
+      ) {
+        setShowOriginResults(false);
+      }
+      if (
+        destInputRef.current &&
+        !destInputRef.current.contains(event.target as Node)
+      ) {
+        setShowDestResults(false);
+      }
+    };
 
-  // Origin District search and fetch
-  useEffect(() => {
-    if (formData.originRegency && originDistrictSearch.length >= 3) {
-      setLoadingOriginDistrict(true);
-      getDistricts(Number(formData.originRegency)).then((res) => {
-        setOriginDistrictOptions(
-          res.data.filter((dist) =>
-            dist.name.toLowerCase().includes(originDistrictSearch.toLowerCase())
-          )
-        );
-        setLoadingOriginDistrict(false);
-      });
-    } else {
-      setOriginDistrictOptions([]);
-    }
-  }, [formData.originRegency, originDistrictSearch]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-  // Destination Province search and fetch
+  // Search origin address
   useEffect(() => {
-    if (destProvinceSearch.length >= 3) {
-      setLoadingDestProvince(true);
-      getProvinces().then((res) => {
-        setDestProvinceOptions(
-          res.data.filter((prov) =>
-            prov.name.toLowerCase().includes(destProvinceSearch.toLowerCase())
-          )
-        );
-        setLoadingDestProvince(false);
-      });
-    } else {
-      setDestProvinceOptions([]);
-    }
-  }, [destProvinceSearch]);
+    if (originQuery.length >= 3) {
+      setLoadingOrigin(true);
+      const timeoutId = setTimeout(() => {
+        searchAddressNew(originQuery)
+          .then((response) => {
+            setOriginResults(response.results);
+            setShowOriginResults(true);
+          })
+          .catch((error) => {
+            console.error("Error searching origin address:", error);
+            setOriginResults([]);
+          })
+          .finally(() => {
+            setLoadingOrigin(false);
+          });
+      }, 300); // Debounce 300ms
 
-  // Destination Regency search and fetch
-  useEffect(() => {
-    if (formData.destProvince && destRegencySearch.length >= 3) {
-      setLoadingDestRegency(true);
-      getRegencies(Number(formData.destProvince)).then((res) => {
-        setDestRegencyOptions(
-          res.data.filter((reg) =>
-            reg.name.toLowerCase().includes(destRegencySearch.toLowerCase())
-          )
-        );
-        setLoadingDestRegency(false);
-      });
+      return () => clearTimeout(timeoutId);
     } else {
-      setDestRegencyOptions([]);
+      setOriginResults([]);
+      setShowOriginResults(false);
     }
-  }, [formData.destProvince, destRegencySearch]);
+  }, [originQuery]);
 
-  // Destination District search and fetch
+  // Search destination address
   useEffect(() => {
-    if (formData.destRegency && destDistrictSearch.length >= 3) {
-      setLoadingDestDistrict(true);
-      getDistricts(Number(formData.destRegency)).then((res) => {
-        setDestDistrictOptions(
-          res.data.filter((dist) =>
-            dist.name.toLowerCase().includes(destDistrictSearch.toLowerCase())
-          )
-        );
-        setLoadingDestDistrict(false);
-      });
+    if (destQuery.length >= 3) {
+      setLoadingDest(true);
+      const timeoutId = setTimeout(() => {
+        searchAddressNew(destQuery)
+          .then((response) => {
+            setDestResults(response.results);
+            setShowDestResults(true);
+          })
+          .catch((error) => {
+            console.error("Error searching destination address:", error);
+            setDestResults([]);
+          })
+          .finally(() => {
+            setLoadingDest(false);
+          });
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(timeoutId);
     } else {
-      setDestDistrictOptions([]);
+      setDestResults([]);
+      setShowDestResults(false);
     }
-  }, [formData.destRegency, destDistrictSearch]);
+  }, [destQuery]);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSelectOrigin = (result: AddressResult) => {
+    setSelectedOrigin(result);
+    setOriginQuery(result.full_address);
+    setShowOriginResults(false);
+  };
+
+  const handleSelectDest = (result: AddressResult) => {
+    setSelectedDest(result);
+    setDestQuery(result.full_address);
+    setShowDestResults(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -205,23 +171,11 @@ export default function ShippingForm({
     if (setIsSearching) setIsSearching(true);
 
     // Validasi field wajib
-    if (
-      !formData.weight ||
-      !selectedOriginProvinceName ||
-      !selectedOriginRegencyName ||
-      !selectedOriginDistrictName ||
-      !selectedDestProvinceName ||
-      !selectedDestRegencyName ||
-      !selectedDestDistrictName
-    ) {
+    if (!formData.weight || !selectedOrigin || !selectedDest) {
       const missingFields = [];
       if (!formData.weight) missingFields.push("Berat");
-      if (!selectedOriginProvinceName) missingFields.push("Provinsi Asal");
-      if (!selectedOriginRegencyName) missingFields.push("Kota/Kabupaten Asal");
-      if (!selectedOriginDistrictName) missingFields.push("Kecamatan Asal");
-      if (!selectedDestProvinceName) missingFields.push("Provinsi Tujuan");
-      if (!selectedDestRegencyName) missingFields.push("Kota/Kabupaten Tujuan");
-      if (!selectedDestDistrictName) missingFields.push("Kecamatan Tujuan");
+      if (!selectedOrigin) missingFields.push("Alamat Asal");
+      if (!selectedDest) missingFields.push("Alamat Tujuan");
 
       onResult?.({
         error: true,
@@ -234,16 +188,16 @@ export default function ShippingForm({
     try {
       // Prepare common payload for all APIs
       const shipmentPayload = {
-        origin_province: selectedOriginProvinceName,
-        origin_regencie: selectedOriginRegencyName,
-        origin_district: selectedOriginDistrictName,
-        destination_province: selectedDestProvinceName,
-        destination_regencie: selectedDestRegencyName,
-        destination_district: selectedDestDistrictName,
+        origin_province: selectedOrigin.province,
+        origin_regencie: selectedOrigin.regency,
+        origin_district: selectedOrigin.district,
+        destination_province: selectedDest.province,
+        destination_regencie: selectedDest.regency,
+        destination_district: selectedDest.district,
         weight: formData.weight,
       };
 
-      // Call all vendor APIs in parallel with new format
+      // Call all vendor APIs in parallel
       const [
         jntResult,
         paxelResult,
@@ -266,73 +220,7 @@ export default function ShippingForm({
         getNinjaShipmentCost(shipmentPayload),
       ]);
 
-      // Log errors for debugging
-      if (paxelResult.status === "rejected") {
-        console.error("❌ Paxel API Error:", paxelResult.reason);
-        console.error(
-          "❌ Paxel Error Response:",
-          paxelResult.reason?.response?.data
-        );
-      }
-      if (jntResult.status === "rejected") {
-        console.error("❌ JNT API Error:", jntResult.reason);
-      }
-      if (sapResult.status === "rejected") {
-        console.error("❌ SAP API Error:", sapResult.reason);
-        console.error(
-          "❌ SAP Error Response:",
-          sapResult.reason?.response?.data
-        );
-      }
-      if (posIndonesiaResult.status === "rejected") {
-        console.error("❌ Pos Indonesia API Error:", posIndonesiaResult.reason);
-        console.error(
-          "❌ Pos Indonesia Error Response:",
-          posIndonesiaResult.reason?.response?.data
-        );
-      }
-      if (jneResult.status === "rejected") {
-        console.error("❌ JNE API Error:", jneResult.reason);
-        console.error(
-          "❌ JNE Error Response:",
-          jneResult.reason?.response?.data
-        );
-      }
-      if (idexpressResult.status === "rejected") {
-        console.error("❌ ID Express API Error:", idexpressResult.reason);
-        console.error(
-          "❌ ID Express Error Response:",
-          idexpressResult.reason?.response?.data
-        );
-      }
-      if (anterajaResult.status === "rejected") {
-        const error = anterajaResult.reason;
-        console.error("❌ Anteraja API Error:", error);
-
-        // Check if it's a timeout error
-        if (
-          error?.code === "ECONNABORTED" ||
-          error?.message?.includes("timeout")
-        ) {
-          console.error(
-            "❌ Anteraja API Timeout: Request took longer than 60 seconds"
-          );
-        } else {
-          console.error(
-            "❌ Anteraja Error Response:",
-            error?.response?.data || error?.message
-          );
-        }
-      }
-      if (ninjaResult.status === "rejected") {
-        console.error("❌ Ninja API Error:", ninjaResult.reason);
-        console.error(
-          "❌ Ninja Error Response:",
-          ninjaResult.reason?.response?.data
-        );
-      }
-
-      // Combine results from all APIs with better error handling
+      // Combine results from all APIs
       const combinedResult = {
         status: "success",
         data: {
@@ -357,7 +245,6 @@ export default function ShippingForm({
 
       onResult?.(combinedResult);
     } catch (err) {
-      console.error("API Error:", err);
       const errorResult = {
         error: true,
         message:
@@ -365,6 +252,7 @@ export default function ShippingForm({
             ? (err as { message?: string }).message || "Gagal cek ongkir"
             : "Gagal cek ongkir",
       };
+
       onResult?.(errorResult);
     } finally {
       if (setIsSearching) setIsSearching(false);
@@ -385,159 +273,54 @@ export default function ShippingForm({
             <Label className="text-shipping-label">
               Area Asal<span className="text-red-500">*</span>
             </Label>
-
-            {/* Origin Province */}
-            <div className="relative">
-              <Label htmlFor="originProvince" className="text-sm">
-                Provinsi
-              </Label>
-              <Input
-                id="originProvince"
-                placeholder="Cari provinsi asal..."
-                value={originProvinceSearch}
-                onChange={(e) => {
-                  setOriginProvinceSearch(e.target.value);
-                  handleChange("originProvince", "");
-                  handleChange("originRegency", "");
-                  handleChange("originDistrict", "");
-                  setSelectedOriginProvinceName("");
-                  setSelectedOriginRegencyName("");
-                  setSelectedOriginDistrictName("");
-                }}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {originProvinceSearch.length >= 3 && !formData.originProvince && (
-                <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                  {loadingOriginProvince ? (
-                    <div className="p-2 text-sm text-gray-500">Loading...</div>
-                  ) : originProvinceOptions.length > 0 ? (
-                    originProvinceOptions.map((prov) => (
+            <div className="relative" ref={originInputRef}>
+              <div className="relative">
+                <Input
+                  placeholder="Cari alamat asal (minimal 3 huruf)..."
+                  value={originQuery}
+                  onChange={(e) => {
+                    setOriginQuery(e.target.value);
+                    setSelectedOrigin(null);
+                  }}
+                  autoComplete="off"
+                  className="bg-white pr-10"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {loadingOrigin ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  ) : (
+                    <Search className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {showOriginResults && originQuery.length >= 3 && (
+                <div className="border rounded-md bg-white max-h-60 overflow-y-auto absolute z-20 w-full mt-1 shadow-lg">
+                  {loadingOrigin ? (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Mencari...
+                    </div>
+                  ) : originResults.length > 0 ? (
+                    originResults.map((result) => (
                       <div
-                        key={prov.id}
-                        className="p-2 hover:bg-blue-100 cursor-pointer"
-                        onClick={() => {
-                          handleChange("originProvince", String(prov.id));
-                          setOriginProvinceSearch(prov.name);
-                          setOriginRegencySearch("");
-                          setOriginDistrictSearch("");
-                          setSelectedOriginProvinceName(prov.name);
-                          setSelectedOriginRegencyName("");
-                          setSelectedOriginDistrictName("");
-                        }}
+                        key={`${result.type}-${result.id}`}
+                        className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                        onClick={() => handleSelectOrigin(result)}
                       >
-                        {prov.name}
+                        <div className="text-sm font-medium text-gray-900">
+                          {result.full_address}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {result.province} → {result.regency} → {result.district}
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-2 text-sm text-gray-500">
+                    <div className="p-3 text-sm text-gray-500 text-center">
                       Tidak ada hasil
                     </div>
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Origin Regency */}
-            <div className="relative">
-              <Label htmlFor="originRegency" className="text-sm">
-                Kota/Kabupaten
-              </Label>
-              <Input
-                id="originRegency"
-                placeholder="Cari kota/kabupaten asal..."
-                value={originRegencySearch}
-                onChange={(e) => {
-                  setOriginRegencySearch(e.target.value);
-                  handleChange("originRegency", "");
-                  handleChange("originDistrict", "");
-                  setSelectedOriginRegencyName("");
-                  setSelectedOriginDistrictName("");
-                }}
-                disabled={!formData.originProvince}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {formData.originProvince &&
-                originRegencySearch.length >= 3 &&
-                !formData.originRegency && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingOriginRegency ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : originRegencyOptions.length > 0 ? (
-                      originRegencyOptions.map((reg) => (
-                        <div
-                          key={reg.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("originRegency", String(reg.id));
-                            setOriginRegencySearch(reg.name);
-                            setOriginDistrictSearch("");
-                            setSelectedOriginRegencyName(reg.name);
-                            setSelectedOriginDistrictName("");
-                          }}
-                        >
-                          {reg.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
-
-            {/* Origin District */}
-            <div className="relative">
-              <Label htmlFor="originDistrict" className="text-sm">
-                Kecamatan
-              </Label>
-              <Input
-                id="originDistrict"
-                placeholder="Cari kecamatan asal..."
-                value={originDistrictSearch}
-                onChange={(e) => {
-                  setOriginDistrictSearch(e.target.value);
-                  handleChange("originDistrict", "");
-                  setSelectedOriginDistrictName("");
-                }}
-                disabled={!formData.originRegency}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {formData.originRegency &&
-                originDistrictSearch.length >= 3 &&
-                !formData.originDistrict && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingOriginDistrict ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : originDistrictOptions.length > 0 ? (
-                      originDistrictOptions.map((dist) => (
-                        <div
-                          key={dist.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("originDistrict", String(dist.id));
-                            setOriginDistrictSearch(dist.name);
-                            setSelectedOriginDistrictName(dist.name);
-                          }}
-                        >
-                          {dist.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
-                  </div>
-                )}
             </div>
           </div>
 
@@ -546,159 +329,54 @@ export default function ShippingForm({
             <Label className="text-shipping-label">
               Area Tujuan<span className="text-red-500">*</span>
             </Label>
-
-            {/* Destination Province */}
-            <div className="relative">
-              <Label htmlFor="destProvince" className="text-sm">
-                Provinsi
-              </Label>
-              <Input
-                id="destProvince"
-                placeholder="Cari provinsi tujuan..."
-                value={destProvinceSearch}
-                onChange={(e) => {
-                  setDestProvinceSearch(e.target.value);
-                  handleChange("destProvince", "");
-                  handleChange("destRegency", "");
-                  handleChange("destDistrict", "");
-                  setSelectedDestProvinceName("");
-                  setSelectedDestRegencyName("");
-                  setSelectedDestDistrictName("");
-                }}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {destProvinceSearch.length >= 3 && !formData.destProvince && (
-                <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                  {loadingDestProvince ? (
-                    <div className="p-2 text-sm text-gray-500">Loading...</div>
-                  ) : destProvinceOptions.length > 0 ? (
-                    destProvinceOptions.map((prov) => (
+            <div className="relative" ref={destInputRef}>
+              <div className="relative">
+                <Input
+                  placeholder="Cari alamat tujuan (minimal 3 huruf)..."
+                  value={destQuery}
+                  onChange={(e) => {
+                    setDestQuery(e.target.value);
+                    setSelectedDest(null);
+                  }}
+                  autoComplete="off"
+                  className="bg-white pr-10"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {loadingDest ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  ) : (
+                    <Search className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {showDestResults && destQuery.length >= 3 && (
+                <div className="border rounded-md bg-white max-h-60 overflow-y-auto absolute z-20 w-full mt-1 shadow-lg">
+                  {loadingDest ? (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Mencari...
+                    </div>
+                  ) : destResults.length > 0 ? (
+                    destResults.map((result) => (
                       <div
-                        key={prov.id}
-                        className="p-2 hover:bg-blue-100 cursor-pointer"
-                        onClick={() => {
-                          handleChange("destProvince", String(prov.id));
-                          setDestProvinceSearch(prov.name);
-                          setDestRegencySearch("");
-                          setDestDistrictSearch("");
-                          setSelectedDestProvinceName(prov.name);
-                          setSelectedDestRegencyName("");
-                          setSelectedDestDistrictName("");
-                        }}
+                        key={`${result.type}-${result.id}`}
+                        className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                        onClick={() => handleSelectDest(result)}
                       >
-                        {prov.name}
+                        <div className="text-sm font-medium text-gray-900">
+                          {result.full_address}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {result.province} → {result.regency} → {result.district}
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-2 text-sm text-gray-500">
+                    <div className="p-3 text-sm text-gray-500 text-center">
                       Tidak ada hasil
                     </div>
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Destination Regency */}
-            <div className="relative">
-              <Label htmlFor="destRegency" className="text-sm">
-                Kota/Kabupaten
-              </Label>
-              <Input
-                id="destRegency"
-                placeholder="Cari kota/kabupaten tujuan..."
-                value={destRegencySearch}
-                onChange={(e) => {
-                  setDestRegencySearch(e.target.value);
-                  handleChange("destRegency", "");
-                  handleChange("destDistrict", "");
-                  setSelectedDestRegencyName("");
-                  setSelectedDestDistrictName("");
-                }}
-                disabled={!formData.destProvince}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {formData.destProvince &&
-                destRegencySearch.length >= 3 &&
-                !formData.destRegency && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingDestRegency ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : destRegencyOptions.length > 0 ? (
-                      destRegencyOptions.map((reg) => (
-                        <div
-                          key={reg.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("destRegency", String(reg.id));
-                            setDestRegencySearch(reg.name);
-                            setDestDistrictSearch("");
-                            setSelectedDestRegencyName(reg.name);
-                            setSelectedDestDistrictName("");
-                          }}
-                        >
-                          {reg.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
-
-            {/* Destination District */}
-            <div className="relative">
-              <Label htmlFor="destDistrict" className="text-sm">
-                Kecamatan
-              </Label>
-              <Input
-                id="destDistrict"
-                placeholder="Cari kecamatan tujuan..."
-                value={destDistrictSearch}
-                onChange={(e) => {
-                  setDestDistrictSearch(e.target.value);
-                  handleChange("destDistrict", "");
-                  setSelectedDestDistrictName("");
-                }}
-                disabled={!formData.destRegency}
-                autoComplete="off"
-                className="bg-white"
-              />
-              {formData.destRegency &&
-                destDistrictSearch.length >= 3 &&
-                !formData.destDistrict && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingDestDistrict ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : destDistrictOptions.length > 0 ? (
-                      destDistrictOptions.map((dist) => (
-                        <div
-                          key={dist.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("destDistrict", String(dist.id));
-                            setDestDistrictSearch(dist.name);
-                            setSelectedDestDistrictName(dist.name);
-                          }}
-                        >
-                          {dist.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
-                  </div>
-                )}
             </div>
           </div>
 

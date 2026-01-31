@@ -47,4 +47,26 @@ export interface SearchResult {
   province?: Province;
   postal_code: PostalCode;
 }
+
+// New address search response format
+export interface AddressSearchResult {
+  type: "postal_code" | "subdistrict";
+  id: number;
+  name: string | number;
+  full_address: string;
+  code?: number | null;
+  province: string;
+  regency: string;
+  district: string;
+  subdistrict: string;
+  province_id: number;
+  regency_id: number;
+  district_id: number;
+  subdistrict_id: number;
+}
+
+export interface NewAddressSearchResponse {
+  results: AddressSearchResult[];
+  count: number;
+}
  

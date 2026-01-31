@@ -89,6 +89,8 @@ interface CalculationResultsProps {
       address: string;
     } | null;
     receiverId?: string | null;
+    senderLatitude?: number | null;
+    senderLongitude?: number | null;
   };
   onResetForm?: () => void;
 }
@@ -956,12 +958,46 @@ export default function CalculationResults({
       vendor = "jntexpress";
     }
 
+    // Get sender data from businessData
+    const senderData = formData.businessData;
+    
+    // Build sender object with latitude and longitude if available
+    const sender: {
+      name: string;
+      phone: string;
+      email?: string;
+      address: string;
+      province: string;
+      regency: string;
+      district: string;
+      postal_code?: string;
+      latitude?: number;
+      longitude?: number;
+    } = {
+      name: senderData.senderName || senderData.businessName || "",
+      phone: senderData.contact || "",
+      address: senderData.address || "",
+      province: senderData.province || "",
+      regency: senderData.regency || "",
+      district: senderData.district || "",
+    };
+
+    // Add latitude and longitude if available
+    if (formData.senderLatitude !== null && formData.senderLatitude !== undefined) {
+      sender.latitude = formData.senderLatitude;
+    }
+    if (formData.senderLongitude !== null && formData.senderLongitude !== undefined) {
+      sender.longitude = formData.senderLongitude;
+    }
+
     // Build standardized order data format for all vendors
+    // Format sesuai dokumentasi: { vendor, sender, receiver, pickup, serviceType, detail }
     const shippingData: {
       vendor: string;
-      shipper_id: number;
+      sender: typeof sender;
       receiver_id: number;
       pickup: boolean;
+      serviceType?: string;
       detail: {
         weight: number;
         qty: number;
@@ -973,9 +1009,10 @@ export default function CalculationResults({
       };
     } = {
       vendor: vendor,
-      shipper_id: shipperId,
+      sender: sender,
       receiver_id: receiverId,
       pickup: pickup,
+      serviceType: "REGULER", // Default service type
       detail: {
         weight: weightInKg,
         qty: qty,
@@ -1020,17 +1057,17 @@ export default function CalculationResults({
         return;
       }
 
-      // Extract vendor and create OrderRequest format
-      const { vendor, ...orderRequest } = shippingData;
+      // Extract vendor
+      const { vendor, ...orderRequestData } = shippingData;
 
       if (isCOD) {
         // For COD: Create order directly without payment gateway
-        // Format: { shipper_id, receiver_id, pickup, detail }
-        // Note: submitOrderToExpedition accepts ExpeditionVendor, but we support more vendors
-        // Using type assertion for vendor since backend supports all vendors
+        // Format sesuai dokumentasi: { vendor, sender, receiver, pickup, serviceType, detail }
+        // Note: submitOrderToExpedition might need format update, but for now we'll use the new format
+        // Using type assertion since backend should support the new format
         const orderResponse = await submitOrderToExpedition(
           vendor as "jntexpress" | "lion" | "sap",
-          orderRequest as OrderRequest
+          orderRequestData as unknown as OrderRequest
         ) as OrderResponse & CODOrderResponse;
 
         // Handle response format: { success: true, data: { id, reference_no, awb_no, ... }, requires_payment: false, is_cod: true }

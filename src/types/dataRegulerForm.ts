@@ -55,13 +55,18 @@ export interface ReceiverListResponse {
 }
 
 export const itemTypes = [
-  "Elektronik",
-  "Fashion",
-  "Buku",
-  "Makanan",
-  "Kosmetik",
-  "Aksesoris",
-  "Lainnya",
+  "DOKUMEN",
+  "BARANG BERHARGA",
+  "ELEKTRONIK",
+  "FASHION & AKSESORIS",
+  "MAKANAN & MINUMAN",
+  "OTOMOTIF",
+  "RUMAH TANGGA",
+  "PERABOTAN",
+  "ALAT TULIS & KANTOR",
+  "MAINAN & HOBI",
+  "KESEHATAN & KECANTIKAN",
+  "LAINNYA",
 ];
 
 export interface Province {

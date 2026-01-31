@@ -37,13 +37,11 @@ import {
   CircleChevronRight,
   Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import GoogleMapPicker from "@/components/GoogleMapPicker";
 import {
   getShippers,
   getReceivers,
-  getProvinces,
-  getRegencies,
-  getDistricts,
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
   getLionShipmentCost,
@@ -53,16 +51,30 @@ import {
   getIdexpressShipmentCost,
   getAnterajaShipmentCost,
   getNinjaShipmentCost,
+  searchAddressNew,
 } from "@/lib/apiClient";
 import { deliveryTypeToPickup, type DeliveryType } from "@/lib/utils";
 import type {
   Shipper,
   Receiver,
-  Province,
-  Regency,
-  District,
 } from "@/types/dataRegulerForm";
 import { itemTypes } from "@/types/dataRegulerForm";
+
+interface AddressResult {
+  type: "postal_code" | "subdistrict";
+  id: number;
+  name: string | number;
+  full_address: string;
+  code?: number | null;
+  province: string;
+  regency: string;
+  district: string;
+  subdistrict: string;
+  province_id: number;
+  regency_id: number;
+  district_id: number;
+  subdistrict_id: number;
+}
 
 type ReceiverManual = {
   name: string;
@@ -135,6 +147,8 @@ interface RegularPackageFormProps {
     };
     businessData?: Business | null;
     receiverId?: string | null;
+    senderLatitude?: number | null;
+    senderLongitude?: number | null;
   }) => void;
 }
 
@@ -144,28 +158,47 @@ export default function RegularPackageForm({
   onFormDataChange,
 }: RegularPackageFormProps) {
   const [businessData, setBusinessData] = useState<Business[]>([]);
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(
-    null
-  );
   const [open, setOpen] = useState(false);
   const [openRecipient, setOpenRecipient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [businessRecipients, setBusinessRecipients] = useState<Receiver[]>([]);
-  const [provinceOptions, setProvinceOptions] = useState<Province[]>([]);
-  const [regencyOptions, setRegencyOptions] = useState<Regency[]>([]);
-  const [districtOptions, setDistrictOptions] = useState<District[]>([]);
-  const [provinceSearch, setProvinceSearch] = useState("");
-  const [regencySearch, setRegencySearch] = useState("");
-  const [districtSearch, setDistrictSearch] = useState("");
-  const [loadingProvince, setLoadingProvince] = useState(false);
-  const [loadingRegency, setLoadingRegency] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingDistrict, setLoadingDistrict] = useState(false);
   const [receiverId, setReceiverId] = useState<string | null>(null);
-  const [selectedDistrictName, setSelectedDistrictName] = useState("");
-  const [selectedProvinceName, setSelectedProvinceName] = useState("");
-  const [selectedRegencyName, setSelectedRegencyName] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  // Receiver address search state
+  const [receiverAddressQuery, setReceiverAddressQuery] = useState("");
+  const [receiverAddressResults, setReceiverAddressResults] = useState<AddressResult[]>([]);
+  const [loadingReceiverAddress, setLoadingReceiverAddress] = useState(false);
+  const [showReceiverAddressResults, setShowReceiverAddressResults] = useState(false);
+  const [selectedReceiverAddress, setSelectedReceiverAddress] = useState<AddressResult | null>(null);
+  const receiverAddressInputRef = useRef<HTMLDivElement>(null);
+
+  // Sender address search state
+  const [senderAddressQuery, setSenderAddressQuery] = useState("");
+  const [senderAddressResults, setSenderAddressResults] = useState<AddressResult[]>([]);
+  const [loadingSenderAddress, setLoadingSenderAddress] = useState(false);
+  const [showSenderAddressResults, setShowSenderAddressResults] = useState(false);
+  const [selectedSenderAddress, setSelectedSenderAddress] = useState<AddressResult | null>(null);
+  const senderAddressInputRef = useRef<HTMLDivElement>(null);
+
+  // Sender location (latitude and longitude)
+  const [senderLatitude, setSenderLatitude] = useState<number | null>(null);
+  const [senderLongitude, setSenderLongitude] = useState<number | null>(null);
+
+  // Address untuk geocoding di map
+  const [senderAddressForGeocode, setSenderAddressForGeocode] = useState<string>("");
+
+  // Sender data state - langsung editable, default kosong
+  const [senderData, setSenderData] = useState({
+    businessName: "",
+    senderName: "",
+    contact: "",
+    address: "",
+    province: "",
+    regency: "",
+    district: "",
+  });
 
   const [formData, setFormData] = useState<{
     receiverName: string;
@@ -220,7 +253,7 @@ export default function RegularPackageForm({
         address: shipper.address,
       }));
       setBusinessData(mapped);
-      setSelectedBusiness(mapped[0] || null);
+      // Tidak auto-select business pertama, biarkan kosong
     });
 
     getReceivers().then((res) => {
@@ -231,72 +264,193 @@ export default function RegularPackageForm({
   // Notify parent of initial form data
   useEffect(() => {
     if (onFormDataChange) {
+      // Buat businessData dari senderData
+      const businessDataForParent = {
+        id: 0, // Temporary ID
+        businessName: senderData.businessName,
+        senderName: senderData.senderName,
+        contact: senderData.contact,
+        province: senderData.province,
+        regency: senderData.regency,
+        district: senderData.district,
+        address: senderData.address,
+      };
+
       const notificationData = {
         itemValue: formData.itemValue,
         paymentMethod: formData.paymentMethod,
         formData: formData,
-        businessData: selectedBusiness,
+        businessData: businessDataForParent,
         receiverId: receiverId,
+        senderLatitude: senderLatitude,
+        senderLongitude: senderLongitude,
       };
 
       onFormDataChange(notificationData);
     }
-  }, [formData, selectedBusiness, receiverId, onFormDataChange]);
+  }, [
+    formData,
+    receiverId,
+    senderLatitude,
+    senderLongitude,
+    senderData,
+    onFormDataChange,
+  ]);
 
-  // Province search and fetch
+  // Close dropdown when clicking outside
   useEffect(() => {
-    if (provinceSearch.length >= 3) {
-      setLoadingProvince(true);
-      getProvinces().then((res) => {
-        setProvinceOptions(
-          res.data.filter((prov) =>
-            prov.name.toLowerCase().includes(provinceSearch.toLowerCase())
-          )
-        );
-        setLoadingProvince(false);
-      });
-    } else {
-      setProvinceOptions([]);
-    }
-  }, [provinceSearch]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        receiverAddressInputRef.current &&
+        !receiverAddressInputRef.current.contains(event.target as Node)
+      ) {
+        setShowReceiverAddressResults(false);
+      }
+      if (
+        senderAddressInputRef.current &&
+        !senderAddressInputRef.current.contains(event.target as Node)
+      ) {
+        setShowSenderAddressResults(false);
+      }
+    };
 
-  // Regency search and fetch
-  useEffect(() => {
-    if (formData.province && regencySearch.length >= 3) {
-      setLoadingRegency(true);
-      getRegencies(Number(formData.province)).then((res) => {
-        setRegencyOptions(
-          res.data.filter((reg) =>
-            reg.name.toLowerCase().includes(regencySearch.toLowerCase())
-          )
-        );
-        setLoadingRegency(false);
-      });
-    } else {
-      setRegencyOptions([]);
-    }
-  }, [formData.province, regencySearch]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-  // District search and fetch
+  // Receiver address search
   useEffect(() => {
-    if (formData.regency && districtSearch.length >= 3) {
-      setLoadingDistrict(true);
-      getDistricts(Number(formData.regency)).then((res) => {
-        setDistrictOptions(
-          res.data.filter((dist) =>
-            dist.name.toLowerCase().includes(districtSearch.toLowerCase())
-          )
-        );
-        setLoadingDistrict(false);
-      });
+    if (receiverAddressQuery.length >= 3 && !receiverId) {
+      setLoadingReceiverAddress(true);
+      const timeoutId = setTimeout(() => {
+        searchAddressNew(receiverAddressQuery)
+          .then((response) => {
+            setReceiverAddressResults(response.results);
+            setShowReceiverAddressResults(true);
+          })
+          .catch((error) => {
+            console.error("Error searching address:", error);
+            setReceiverAddressResults([]);
+          })
+          .finally(() => {
+            setLoadingReceiverAddress(false);
+          });
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(timeoutId);
     } else {
-      setDistrictOptions([]);
+      setReceiverAddressResults([]);
+      setShowReceiverAddressResults(false);
     }
-  }, [formData.regency, districtSearch]);
+  }, [receiverAddressQuery, receiverId]);
+
+  // Sender address search
+  useEffect(() => {
+    if (senderAddressQuery.length >= 3) {
+      setLoadingSenderAddress(true);
+      const timeoutId = setTimeout(() => {
+        searchAddressNew(senderAddressQuery)
+          .then((response) => {
+            setSenderAddressResults(response.results);
+            setShowSenderAddressResults(true);
+          })
+          .catch((error) => {
+            console.error("Error searching address:", error);
+            setSenderAddressResults([]);
+          })
+          .finally(() => {
+            setLoadingSenderAddress(false);
+          });
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSenderAddressResults([]);
+      setShowSenderAddressResults(false);
+    }
+  }, [senderAddressQuery]);
+
+  const handleSelectReceiverAddress = (result: AddressResult) => {
+    setSelectedReceiverAddress(result);
+    setReceiverAddressQuery(result.full_address);
+    setShowReceiverAddressResults(false);
+    
+    // Update formData with selected address
+    handleChange("province", result.province);
+    handleChange("regency", result.regency);
+    handleChange("district", result.district);
+    
+    // Clear receiverId when manually editing
+    if (receiverId) {
+      setReceiverId(null);
+    }
+  };
+
+  const handleSelectSenderAddress = (result: AddressResult) => {
+    setSelectedSenderAddress(result);
+    setSenderAddressQuery(result.full_address);
+    setShowSenderAddressResults(false);
+    
+    // Update senderData dengan area yang dipilih
+    setSenderData({
+      ...senderData,
+      province: result.province,
+      regency: result.regency,
+      district: result.district,
+    });
+    
+    // Trigger geocoding di GoogleMapPicker dengan full_address
+    // Gabungkan detail address jika ada untuk hasil lebih akurat
+    const addressForGeocode = senderData.address 
+      ? `${senderData.address}, ${result.full_address}`
+      : result.full_address;
+    setSenderAddressForGeocode(addressForGeocode);
+  };
 
   const handleSelectAddress = (business: Business) => {
-    setSelectedBusiness(business);
     setOpen(false);
+    
+    // Isi senderData dengan data dari business yang dipilih
+    setSenderData({
+      businessName: business.businessName,
+      senderName: business.senderName,
+      contact: business.contact,
+      address: business.address,
+      province: business.province || "",
+      regency: business.regency || "",
+      district: business.district || "",
+    });
+    
+    // Set sender address query to show the location
+    const fullAddress = `${business.district || ""}, ${business.regency || ""}, ${business.province || ""}`;
+    setSenderAddressQuery(fullAddress.trim());
+    
+    // Create AddressResult-like object for selected business
+    const addressResult: AddressResult = {
+      type: "subdistrict",
+      id: 0,
+      name: business.district || "",
+      full_address: fullAddress.trim(),
+      code: null,
+      province: business.province || "",
+      regency: business.regency || "",
+      district: business.district || "",
+      subdistrict: business.district || "",
+      province_id: 0,
+      regency_id: 0,
+      district_id: 0,
+      subdistrict_id: 0,
+    };
+    setSelectedSenderAddress(addressResult);
+    
+    // Trigger geocoding dengan full address untuk center map
+    // Gabungkan detail address dengan area untuk hasil lebih akurat
+    const addressForGeocode = business.address 
+      ? `${business.address}, ${fullAddress.trim()}`
+      : fullAddress.trim();
+    setSenderAddressForGeocode(addressForGeocode);
   };
 
   const validateField = (field: string, value: string): string => {
@@ -352,16 +506,8 @@ export default function RegularPackageForm({
 
     // Check if using saved receiver but still need location validation
     if (!receiverId) {
-      if (!formData.province) {
-        newErrors.province = "Provinsi wajib dipilih";
-        hasErrors = true;
-      }
-      if (!formData.regency) {
-        newErrors.regency = "Kota/Kabupaten wajib dipilih";
-        hasErrors = true;
-      }
-      if (!formData.district) {
-        newErrors.district = "Kecamatan wajib dipilih";
+      if (!selectedReceiverAddress) {
+        newErrors.province = "Area tujuan wajib dipilih";
         hasErrors = true;
       }
     }
@@ -376,10 +522,18 @@ export default function RegularPackageForm({
       }
     });
 
-    // Check if business is selected
-    if (!selectedBusiness) {
+    // Validasi sender data
+    if (!senderData.businessName || !senderData.senderName || !senderData.contact) {
       hasErrors = true;
-      alert("Silakan pilih alamat pengirim terlebih dahulu");
+      newErrors.sender = "Data pengirim tidak lengkap";
+    }
+    if (!senderData.province || !senderData.regency || !senderData.district) {
+      hasErrors = true;
+      newErrors.sender = "Area asal pengirim wajib dipilih";
+    }
+    if (!senderData.address) {
+      hasErrors = true;
+      newErrors.sender = "Detail alamat pengirim wajib diisi";
     }
 
     setFormErrors(newErrors);
@@ -402,12 +556,26 @@ export default function RegularPackageForm({
       (field === "itemValue" || field === "paymentMethod") &&
       onFormDataChange
     ) {
+      // Buat businessData dari senderData
+      const businessDataForParent = {
+        id: 0,
+        businessName: senderData.businessName,
+        senderName: senderData.senderName,
+        contact: senderData.contact,
+        province: senderData.province,
+        regency: senderData.regency,
+        district: senderData.district,
+        address: senderData.address,
+      };
+
       const changeData = {
         itemValue: newData.itemValue,
         paymentMethod: newData.paymentMethod,
         formData: newData,
-        businessData: selectedBusiness,
+        businessData: businessDataForParent,
         receiverId: receiverId,
+        senderLatitude: senderLatitude,
+        senderLongitude: senderLongitude,
       };
 
       onFormDataChange(changeData);
@@ -457,15 +625,20 @@ export default function RegularPackageForm({
       delete payload.receiverAddress;
     } else {
       // Kirim object receiver manual
+      // Use selectedReceiverAddress if available, otherwise use formData
+      const province = selectedReceiverAddress?.province || formData.province;
+      const regency = selectedReceiverAddress?.regency || formData.regency;
+      const district = selectedReceiverAddress?.district || formData.district;
+      
       payload = {
         ...payload,
         receiver: {
           name: formData.receiverName,
           phone: formData.receiverPhone,
           address: formData.receiverAddress,
-          province: formData.province,
-          regency: formData.regency,
-          district: formData.district,
+          province: province,
+          regency: regency,
+          district: district,
         },
       };
     }
@@ -473,10 +646,10 @@ export default function RegularPackageForm({
     // Ambil data untuk ongkir
     const weight = formData.weight;
 
-    // Get origin data from selectedBusiness
-    const originProvince = selectedBusiness?.province || "";
-    const originRegency = selectedBusiness?.regency || "";
-    const originDistrict = selectedBusiness?.district || "";
+    // Get origin data from senderData
+    const originProvince = senderData.province || "";
+    const originRegency = senderData.regency || "";
+    const originDistrict = senderData.district || "";
 
     // Get destination data based on receiverId or formData
     let destProvince = "";
@@ -493,9 +666,16 @@ export default function RegularPackageForm({
         destDistrict = selectedRecipient.district || "";
       }
     } else {
-      destProvince = selectedProvinceName;
-      destRegency = selectedRegencyName;
-      destDistrict = selectedDistrictName;
+      // Use selectedReceiverAddress if available
+      if (selectedReceiverAddress) {
+        destProvince = selectedReceiverAddress.province;
+        destRegency = selectedReceiverAddress.regency;
+        destDistrict = selectedReceiverAddress.district;
+      } else {
+        destProvince = formData.province;
+        destRegency = formData.regency;
+        destDistrict = formData.district;
+      }
     }
 
     // Validate required parameters
@@ -731,11 +911,7 @@ export default function RegularPackageForm({
                   {businessData.map((business) => (
                     <div
                       key={business.id}
-                      className={`p-3 border rounded-lg cursor-pointer ${
-                        selectedBusiness && selectedBusiness.id === business.id
-                          ? "border-primary"
-                          : "border-gray-300"
-                      }`}
+                      className="p-3 border rounded-lg cursor-pointer border-gray-300 hover:border-primary"
                       onClick={() => handleSelectAddress(business)}
                     >
                       <p className="font-medium">{business.businessName}</p>
@@ -745,46 +921,181 @@ export default function RegularPackageForm({
                     </div>
                   ))}
                 </div>
-
-                {/* Button untuk tambah alamat */}
-                {/* <Button variant="outline" className="w-full mt-3">
-                  Tambah Alamat Baru
-                </Button> */}
               </DialogContent>
             </Dialog>
           </div>
 
           <div className="space-y-4">
+            {/* Error display */}
+            {formErrors.sender && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+                {formErrors.sender}
+              </div>
+            )}
+            
+            {/* Semua field langsung editable */}
             <div>
-              <Label>Nama Usaha</Label>
-              <Input value={selectedBusiness?.businessName || ""} readOnly />
+              <Label htmlFor="senderBusinessName">
+                Nama Usaha <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="senderBusinessName"
+                placeholder="Nama usaha pengirim"
+                value={senderData.businessName}
+                onChange={(e) =>
+                  setSenderData({
+                    ...senderData,
+                    businessName: e.target.value,
+                  })
+                }
+                className={formErrors.sender ? "border-red-500" : ""}
+              />
             </div>
             <div>
-              <Label>Nama Pengirim</Label>
-              <Input value={selectedBusiness?.senderName || ""} readOnly />
+              <Label htmlFor="senderName">
+                Nama Pengirim <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="senderName"
+                placeholder="Nama lengkap pengirim"
+                value={senderData.senderName}
+                onChange={(e) =>
+                  setSenderData({
+                    ...senderData,
+                    senderName: e.target.value,
+                  })
+                }
+                className={formErrors.sender ? "border-red-500" : ""}
+              />
             </div>
             <div>
-              <Label>Kontak</Label>
-              <Input value={selectedBusiness?.contact || ""} readOnly />
+              <Label htmlFor="senderContact">
+                Kontak <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="senderContact"
+                placeholder="08XXXXXXXXXX"
+                value={senderData.contact}
+                onChange={(e) =>
+                  setSenderData({
+                    ...senderData,
+                    contact: e.target.value,
+                  })
+                }
+                className={formErrors.sender ? "border-red-500" : ""}
+              />
+            </div>
+            {/* Area Asal - Single Search Input */}
+            <div className="relative" ref={senderAddressInputRef}>
+              <Label htmlFor="senderAddressSearch">
+                Alamat <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="senderAddressSearch"
+                  placeholder="Cari area asal (minimal 3 huruf)..."
+                  value={senderAddressQuery}
+                  onChange={(e) => {
+                    setSenderAddressQuery(e.target.value);
+                    setSelectedSenderAddress(null);
+                    setSenderData({
+                      ...senderData,
+                      province: "",
+                      regency: "",
+                      district: "",
+                    });
+                  }}
+                  autoComplete="off"
+                  className={
+                    !senderData.province &&
+                    senderAddressQuery.length >= 3 &&
+                    !selectedSenderAddress
+                      ? "border-yellow-500"
+                      : formErrors.sender
+                      ? "border-red-500"
+                      : ""
+                  }
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {loadingSenderAddress ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  ) : (
+                    <Search className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {!senderData.province &&
+                senderAddressQuery.length >= 3 &&
+                !selectedSenderAddress && (
+                  <p className="text-sm text-yellow-600 mt-1">
+                    Silakan pilih area asal dari hasil pencarian
+                  </p>
+                )}
+              {/* Dropdown hasil pencarian */}
+              {showSenderAddressResults && senderAddressQuery.length >= 3 && (
+                <div className="absolute w-full bg-white border border-gray-300 mt-2 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                  {loadingSenderAddress ? (
+                    <div className="p-3 text-center">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500 mr-2" />
+                        <span className="text-gray-500">Mencari...</span>
+                      </div>
+                    </div>
+                  ) : senderAddressResults.length > 0 ? (
+                    <ul>
+                      {senderAddressResults.map((result, index) => (
+                        <li
+                          key={`${result.type}-${result.id}-${index}`}
+                          className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                          onClick={() => handleSelectSenderAddress(result)}
+                        >
+                          <div className="text-sm font-medium text-gray-900">
+                            {result.full_address}
+                          </div>
+                          {result.code && (
+                            <div className="text-xs text-blue-600 mt-1 font-semibold">
+                              Kode Pos: {result.code}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Tidak ada hasil
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
-              <Label>Provinsi</Label>
-              <Input value={selectedBusiness?.province || ""} readOnly />
-            </div>
-            <div>
-              <Label>Kota</Label>
-              <Input value={selectedBusiness?.regency || ""} readOnly />
-            </div>
-            <div>
-              <Label>Kecamatan</Label>
-              <Input value={selectedBusiness?.district || ""} readOnly />
-            </div>
-            <div>
-              <Label>Alamat</Label>
+              <Label htmlFor="senderAddress">
+                Detail Alamat <span className="text-red-500">*</span>
+              </Label>
               <Textarea
-                className="min-h-[100px]"
-                value={selectedBusiness?.address || ""}
-                readOnly
+                id="senderAddress"
+                className={`min-h-[100px] ${formErrors.sender ? "border-red-500" : ""}`}
+                placeholder="Masukkan alamat lengkap"
+                value={senderData.address}
+                onChange={(e) =>
+                  setSenderData({
+                    ...senderData,
+                    address: e.target.value,
+                  })
+                }
+              />
+            </div>
+            {/* Google Maps Picker for Sender Location */}
+            <div>
+              <GoogleMapPicker
+                onLocationChange={(lat, lng) => {
+                  setSenderLatitude(lat);
+                  setSenderLongitude(lng);
+                }}
+                initialLat={senderLatitude || undefined}
+                initialLng={senderLongitude || undefined}
+                height="400px"
+                addressToGeocode={senderAddressForGeocode}
               />
             </div>
           </div>
@@ -848,211 +1159,94 @@ export default function RegularPackageForm({
                   size="sm"
                   onClick={() => {
                     setReceiverId(null);
-                    setProvinceSearch("");
-                    setRegencySearch("");
-                    setDistrictSearch("");
-                    setSelectedProvinceName("");
-                    setSelectedRegencyName("");
-                    setSelectedDistrictName("");
+                    setReceiverAddressQuery("");
+                    setSelectedReceiverAddress(null);
                   }}
                 >
                   Edit Alamat
                 </Button>
               </div>
             )}
-            <div className="grid grid-cols-1 gap-4 relative">
-              {/* Province Dropdown */}
+            {/* Area Tujuan - Single Search Input */}
+            <div className="relative" ref={receiverAddressInputRef}>
+              <Label htmlFor="receiverAddressSearch">
+                Alamat <span className="text-red-500">*</span>
+              </Label>
               <div className="relative">
-                <Label htmlFor="province">
-                  Provinsi <span className="text-red-500">*</span>
-                </Label>
                 <Input
-                  id="province"
-                  placeholder="Cari provinsi..."
-                  value={provinceSearch}
+                  id="receiverAddressSearch"
+                  placeholder="Cari area tujuan (minimal 3 huruf)..."
+                  value={receiverAddressQuery}
                   onChange={(e) => {
-                    setProvinceSearch(e.target.value);
+                    setReceiverAddressQuery(e.target.value);
+                    setSelectedReceiverAddress(null);
                     handleChange("province", "");
                     handleChange("regency", "");
                     handleChange("district", "");
-                    setSelectedProvinceName("");
-                    setSelectedRegencyName("");
-                    setSelectedDistrictName("");
                     // Clear receiverId when manually editing
                     if (receiverId) {
                       setReceiverId(null);
                     }
                   }}
                   autoComplete="off"
-                  readOnly={!!receiverId} // Make read-only if using saved recipient
+                  readOnly={!!receiverId}
                   className={formErrors.province ? "border-red-500" : ""}
                 />
-                {formErrors.province && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {formErrors.province}
-                  </p>
-                )}
-                {!receiverId &&
-                  provinceSearch.length >= 3 &&
-                  !formData.province && (
-                    <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                      {loadingProvince ? (
-                        <div className="p-2 text-sm text-gray-500">
-                          Loading...
-                        </div>
-                      ) : provinceOptions.length > 0 ? (
-                        provinceOptions.map((prov) => (
-                          <div
-                            key={prov.id}
-                            className="p-2 hover:bg-blue-100 cursor-pointer"
-                            onClick={() => {
-                              handleChange("province", String(prov.id));
-                              setProvinceSearch(prov.name);
-                              setRegencySearch("");
-                              setDistrictSearch("");
-                              setSelectedProvinceName(prov.name);
-                              setSelectedRegencyName("");
-                              setSelectedDistrictName("");
-                            }}
-                          >
-                            {prov.name}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {loadingReceiverAddress ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  ) : (
+                    <Search className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
+              {formErrors.province && (
+                <p className="text-sm text-red-500 mt-1">
+                  {formErrors.province}
+                </p>
+              )}
+              {/* Dropdown hasil pencarian */}
+              {showReceiverAddressResults && receiverAddressQuery.length >= 3 && !receiverId && (
+                <div className="absolute w-full bg-white border border-gray-300 mt-2 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                  {loadingReceiverAddress ? (
+                    <div className="p-3 text-center">
+                      <div className="flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500 mr-2" />
+                        <span className="text-gray-500">Mencari...</span>
+                      </div>
+                    </div>
+                  ) : receiverAddressResults.length > 0 ? (
+                    <ul>
+                      {receiverAddressResults.map((result, index) => (
+                        <li
+                          key={`${result.type}-${result.id}-${index}`}
+                          className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                          onClick={() => handleSelectReceiverAddress(result)}
+                        >
+                          <div className="text-sm font-medium text-gray-900">
+                            {result.full_address}
                           </div>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-gray-500">
-                          Tidak ada hasil
-                        </div>
-                      )}
+                          {result.code && (
+                            <div className="text-xs text-blue-600 mt-1 font-semibold">
+                              Kode Pos: {result.code}
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Tidak ada hasil
                     </div>
                   )}
-              </div>
-              {/* Regency Dropdown */}
-              <div className="relative">
-                <Label htmlFor="regency">
-                  Kota/Kabupaten <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="regency"
-                  placeholder="Cari kota/kabupaten..."
-                  value={regencySearch}
-                  onChange={(e) => {
-                    setRegencySearch(e.target.value);
-                    handleChange("regency", "");
-                    handleChange("district", "");
-                    setSelectedRegencyName("");
-                    setSelectedDistrictName("");
-                    // Clear receiverId when manually editing
-                    if (receiverId) {
-                      setReceiverId(null);
-                    }
-                  }}
-                  disabled={!formData.province && !receiverId}
-                  autoComplete="off"
-                  readOnly={!!receiverId} // Make read-only if using saved recipient
-                  className={formErrors.regency ? "border-red-500" : ""}
-                />
-                {formErrors.regency && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {formErrors.regency}
-                  </p>
-                )}
-                {!receiverId &&
-                  formData.province &&
-                  regencySearch.length >= 3 &&
-                  !formData.regency && (
-                    <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                      {loadingRegency ? (
-                        <div className="p-2 text-sm text-gray-500">
-                          Loading...
-                        </div>
-                      ) : regencyOptions.length > 0 ? (
-                        regencyOptions.map((reg) => (
-                          <div
-                            key={reg.id}
-                            className="p-2 hover:bg-blue-100 cursor-pointer"
-                            onClick={() => {
-                              handleChange("regency", String(reg.id));
-                              setRegencySearch(reg.name);
-                              setSelectedRegencyName(reg.name);
-                              setSelectedDistrictName("");
-                            }}
-                          >
-                            {reg.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-gray-500">
-                          Tidak ada hasil
-                        </div>
-                      )}
-                    </div>
-                  )}
-              </div>
-              {/* District Dropdown */}
-              <div className="relative">
-                <Label htmlFor="district">
-                  Kecamatan <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="district"
-                  placeholder="Cari kecamatan..."
-                  value={districtSearch}
-                  onChange={(e) => {
-                    setDistrictSearch(e.target.value);
-                    handleChange("district", "");
-                    setSelectedDistrictName("");
-                    // Clear receiverId when manually editing
-                    if (receiverId) {
-                      setReceiverId(null);
-                    }
-                  }}
-                  disabled={!formData.regency && !receiverId}
-                  autoComplete="off"
-                  readOnly={!!receiverId} // Make read-only if using saved recipient
-                  className={formErrors.district ? "border-red-500" : ""}
-                />
-                {formErrors.district && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {formErrors.district}
-                  </p>
-                )}
-                {!receiverId &&
-                  formData.regency &&
-                  districtSearch.length >= 3 &&
-                  !formData.district && (
-                    <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                      {loadingDistrict ? (
-                        <div className="p-2 text-sm text-gray-500">
-                          Loading...
-                        </div>
-                      ) : districtOptions.length > 0 ? (
-                        districtOptions.map((dist) => (
-                          <div
-                            key={dist.id}
-                            className="p-2 hover:bg-blue-100 cursor-pointer"
-                            onClick={() => {
-                              handleChange("district", String(dist.id));
-                              setDistrictSearch(dist.name);
-                              setSelectedDistrictName(dist.name);
-                            }}
-                          >
-                            {dist.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-2 text-sm text-gray-500">
-                          Tidak ada hasil
-                        </div>
-                      )}
-                    </div>
-                  )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Detail Alamat Lengkap */}
             <div>
               <Label htmlFor="receiverAddress">
-                Detail Alamat Lengkap <span className="text-red-500">*</span>
+                Detail Alamat <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="receiverAddress"
@@ -1110,15 +1304,27 @@ export default function RegularPackageForm({
                             district: recipient.district || "",
                           }));
 
-                          // Set the search fields to show the location names (auto-complete effect)
-                          setProvinceSearch(recipient.province || "");
-                          setRegencySearch(recipient.regency || "");
-                          setDistrictSearch(recipient.district || "");
-
-                          // Set location names for API (using the stored names)
-                          setSelectedProvinceName(recipient.province || "");
-                          setSelectedRegencyName(recipient.regency || "");
-                          setSelectedDistrictName(recipient.district || "");
+                          // Set receiver address query to show the location
+                          const fullAddress = `${recipient.district || ""}, ${recipient.regency || ""}, ${recipient.province || ""}`;
+                          setReceiverAddressQuery(fullAddress.trim());
+                          
+                          // Create AddressResult-like object for saved recipient
+                          const addressResult: AddressResult = {
+                            type: "subdistrict",
+                            id: 0,
+                            name: recipient.district || "",
+                            full_address: fullAddress.trim(),
+                            code: null,
+                            province: recipient.province || "",
+                            regency: recipient.regency || "",
+                            district: recipient.district || "",
+                            subdistrict: recipient.district || "",
+                            province_id: 0,
+                            regency_id: 0,
+                            district_id: 0,
+                            subdistrict_id: 0,
+                          };
+                          setSelectedReceiverAddress(addressResult);
 
                           // Close the popover
                           setOpenRecipient(false);
