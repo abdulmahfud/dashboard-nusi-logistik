@@ -10,7 +10,8 @@ import { ApiService } from "@/lib/ApiService";
 import { setCookie } from "cookies-next";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
-import Link from "next/link"
+import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 
 // Check if the environment is production or development
 const isDev = process.env.NODE_ENV === "development";
@@ -21,6 +22,7 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"form">) {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -128,14 +130,28 @@ export function LoginForm({
               Lupa kata sandi?
             </a>
           </div>
-          <Input
-            id="password"
-            type="password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className={errors.password ? "border-red-500" : ""}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              required
+              value={formData.password}
+              onChange={handleChange}
+              className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
           {errors.password && (
             <p className="text-sm text-red-500">{errors.password}</p>
           )}
