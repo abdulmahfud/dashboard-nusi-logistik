@@ -38,7 +38,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import GoogleMapPicker from "@/components/GoogleMapPicker";
+import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicker";
 import {
   getShippers,
   getReceivers,
@@ -181,10 +181,12 @@ export default function RegularPackageForm({
   const [showSenderAddressResults, setShowSenderAddressResults] = useState(false);
   const [selectedSenderAddress, setSelectedSenderAddress] = useState<AddressResult | null>(null);
   const senderAddressInputRef = useRef<HTMLDivElement>(null);
+  const mapPickerRef = useRef<GoogleMapPickerRef>(null);
 
   // Sender location (latitude and longitude)
   const [senderLatitude, setSenderLatitude] = useState<number | null>(null);
   const [senderLongitude, setSenderLongitude] = useState<number | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   // Address untuk geocoding di map
   const [senderAddressForGeocode, setSenderAddressForGeocode] = useState<string>("");
@@ -276,11 +278,35 @@ export default function RegularPackageForm({
         address: senderData.address,
       };
 
+      // Use selectedReceiverAddress if available, otherwise use formData
+      // This ensures province, regency, and district are always set when address is selected
+      const receiverProvince = selectedReceiverAddress?.province || formData.province;
+      const receiverRegency = selectedReceiverAddress?.regency || formData.regency;
+      const receiverDistrict = selectedReceiverAddress?.district || formData.district;
+      const receiverPostalCode = selectedReceiverAddress?.code 
+        ? String(selectedReceiverAddress.code) 
+        : "";
+
+      // Get sender postal code from selectedSenderAddress
+      const senderPostalCode = selectedSenderAddress?.code 
+        ? String(selectedSenderAddress.code) 
+        : "";
+
       const notificationData = {
         itemValue: formData.itemValue,
         paymentMethod: formData.paymentMethod,
-        formData: formData,
-        businessData: businessDataForParent,
+        formData: {
+          ...formData,
+          // Override with selectedReceiverAddress data if available
+          province: receiverProvince,
+          regency: receiverRegency,
+          district: receiverDistrict,
+          postal_code: receiverPostalCode, // Add postal_code from selectedReceiverAddress
+        },
+        businessData: {
+          ...businessDataForParent,
+          postal_code: senderPostalCode, // Add postal_code to businessData
+        },
         receiverId: receiverId,
         senderLatitude: senderLatitude,
         senderLongitude: senderLongitude,
@@ -294,6 +320,8 @@ export default function RegularPackageForm({
     senderLatitude,
     senderLongitude,
     senderData,
+    selectedReceiverAddress, // Add selectedReceiverAddress to dependencies
+    selectedSenderAddress, // Add selectedSenderAddress to dependencies for postal_code
     onFormDataChange,
   ]);
 
@@ -523,7 +551,7 @@ export default function RegularPackageForm({
     });
 
     // Validasi sender data
-    if (!senderData.businessName || !senderData.senderName || !senderData.contact) {
+    if (!senderData.senderName || !senderData.contact) {
       hasErrors = true;
       newErrors.sender = "Data pengirim tidak lengkap";
     }
@@ -895,7 +923,7 @@ export default function RegularPackageForm({
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
-                  <PenLine size={16} /> Pilih Alamat
+                  <PenLine size={16} /> Pilih List Pengirim
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -934,23 +962,6 @@ export default function RegularPackageForm({
             )}
             
             {/* Semua field langsung editable */}
-            <div>
-              <Label htmlFor="senderBusinessName">
-                Nama Usaha <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="senderBusinessName"
-                placeholder="Nama usaha pengirim"
-                value={senderData.businessName}
-                onChange={(e) =>
-                  setSenderData({
-                    ...senderData,
-                    businessName: e.target.value,
-                  })
-                }
-                className={formErrors.sender ? "border-red-500" : ""}
-              />
-            </div>
             <div>
               <Label htmlFor="senderName">
                 Nama Pengirim <span className="text-red-500">*</span>
@@ -1067,6 +1078,30 @@ export default function RegularPackageForm({
                   )}
                 </div>
               )}
+              {/* Tombol Ambil Lokasi Saya */}
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (mapPickerRef.current) {
+                      mapPickerRef.current.getCurrentLocation();
+                    }
+                  }}
+                  disabled={isGettingLocation}
+                  className="text-xs w-full sm:w-auto"
+                >
+                  {isGettingLocation ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Mengambil lokasi...
+                    </>
+                  ) : (
+                    "📍 Ambil Lokasi Saya"
+                  )}
+                </Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="senderAddress">
@@ -1088,24 +1123,111 @@ export default function RegularPackageForm({
             {/* Google Maps Picker for Sender Location */}
             <div>
               <GoogleMapPicker
+                ref={mapPickerRef}
                 onLocationChange={(lat, lng) => {
                   setSenderLatitude(lat);
                   setSenderLongitude(lng);
+                  // The useEffect will automatically notify parent when senderLatitude/senderLongitude changes
                 }}
                 initialLat={senderLatitude || undefined}
                 initialLng={senderLongitude || undefined}
                 height="400px"
                 addressToGeocode={senderAddressForGeocode}
+                onGettingLocationChange={setIsGettingLocation}
               />
             </div>
           </div>
         </Card>
         {/* Section List Penerima */}
         <Card className="p-6 mb-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <User className="h-5 w-5" />
-            Penerima
-          </h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Penerima
+            </h2>
+            {/* Button untuk membuka popup list penerima */}
+            <Popover open={openRecipient} onOpenChange={setOpenRecipient}>
+              <PopoverTrigger asChild>
+                <Button className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
+                  <PenLine size={16} /> Pilih List Penerima
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 p-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Search className="w-4 h-4" />
+                  Cari Penerima
+                </Label>
+                <Input
+                  placeholder="Cari nama penerima..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mb-3"
+                />
+                <div className="max-h-40 overflow-y-auto space-y-2">
+                  {filteredRecipients.length > 0 ? (
+                    filteredRecipients.map((recipient) => (
+                      <div
+                        key={recipient.id}
+                        className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100"
+                        onClick={() => {
+                          // Set receiver ID first to indicate this is from saved list
+                          setReceiverId(String(recipient.id));
+
+                          // Update form data directly without triggering receiverId reset
+                          setFormData((prev) => ({
+                            ...prev,
+                            receiverName: recipient.name,
+                            receiverPhone: recipient.phone || "",
+                            receiverAddress: recipient.address || "",
+                            // For saved recipients, we need to get the actual location data
+                            // Since Receiver stores names, we'll use them directly
+                            province: recipient.province || "",
+                            regency: recipient.regency || "",
+                            district: recipient.district || "",
+                          }));
+
+                          // Set receiver address query to show the location
+                          const fullAddress = `${recipient.district || ""}, ${recipient.regency || ""}, ${recipient.province || ""}`;
+                          setReceiverAddressQuery(fullAddress.trim());
+                          
+                          // Create AddressResult-like object for saved recipient
+                          const addressResult: AddressResult = {
+                            type: "subdistrict",
+                            id: 0,
+                            name: recipient.district || "",
+                            full_address: fullAddress.trim(),
+                            province: recipient.province || "",
+                            regency: recipient.regency || "",
+                            district: recipient.district || "",
+                            subdistrict: "",
+                            province_id: 0,
+                            regency_id: 0,
+                            district_id: 0,
+                            subdistrict_id: 0,
+                          };
+                          setSelectedReceiverAddress(addressResult);
+                          
+                          setOpenRecipient(false);
+                        }}
+                      >
+                        <p className="font-medium">{recipient.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {recipient.phone || "No phone"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {recipient.address || "No address"}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Tidak ada penerima ditemukan
+                    </p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           <div className="space-y-4">
             {/* Nama & Nomor Telepon */}
@@ -1263,87 +1385,6 @@ export default function RegularPackageForm({
                 </p>
               )}
             </div>
-
-            <Popover open={openRecipient} onOpenChange={setOpenRecipient}>
-              <PopoverTrigger asChild>
-                <Button className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
-                  <PenLine size={16} className="mr-2" /> Pilih List Penerima
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-96 p-4">
-                <Label className="flex items-center gap-2 mb-2">
-                  <Search className="w-4 h-4" />
-                  Cari Penerima
-                </Label>
-                <Input
-                  placeholder="Cari nama penerima..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="mb-3"
-                />
-                <div className="max-h-40 overflow-y-auto space-y-2">
-                  {filteredRecipients.length > 0 ? (
-                    filteredRecipients.map((recipient) => (
-                      <div
-                        key={recipient.id}
-                        className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100"
-                        onClick={() => {
-                          // Set receiver ID first to indicate this is from saved list
-                          setReceiverId(String(recipient.id));
-
-                          // Update form data directly without triggering receiverId reset
-                          setFormData((prev) => ({
-                            ...prev,
-                            receiverName: recipient.name,
-                            receiverPhone: recipient.phone || "",
-                            receiverAddress: recipient.address || "",
-                            // For saved recipients, we need to get the actual location data
-                            // Since Receiver stores names, we'll use them directly
-                            province: recipient.province || "",
-                            regency: recipient.regency || "",
-                            district: recipient.district || "",
-                          }));
-
-                          // Set receiver address query to show the location
-                          const fullAddress = `${recipient.district || ""}, ${recipient.regency || ""}, ${recipient.province || ""}`;
-                          setReceiverAddressQuery(fullAddress.trim());
-                          
-                          // Create AddressResult-like object for saved recipient
-                          const addressResult: AddressResult = {
-                            type: "subdistrict",
-                            id: 0,
-                            name: recipient.district || "",
-                            full_address: fullAddress.trim(),
-                            code: null,
-                            province: recipient.province || "",
-                            regency: recipient.regency || "",
-                            district: recipient.district || "",
-                            subdistrict: recipient.district || "",
-                            province_id: 0,
-                            regency_id: 0,
-                            district_id: 0,
-                            subdistrict_id: 0,
-                          };
-                          setSelectedReceiverAddress(addressResult);
-
-                          // Close the popover
-                          setOpenRecipient(false);
-                        }}
-                      >
-                        <p className="font-medium">{recipient.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {recipient.phone}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      Tidak ada hasil ditemukan
-                    </p>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
           </div>
         </Card>
         {/* Section Detail Product */}

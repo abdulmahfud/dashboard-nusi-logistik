@@ -25,33 +25,10 @@ import { useRouter } from "next/navigation";
 import {
   createOrderWithPendingPayment,
   getAvailableDiscounts,
-  submitOrderToExpedition,
 } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
-import type { OrderRequest, OrderResponse } from "@/types/order";
-
-// Interface for COD order response
-interface CODOrderResponse {
-  success: boolean;
-  message?: string;
-  data?: {
-    id: number;
-    reference_no: string;
-    awb_no: string;
-    [key: string]: unknown;
-  };
-  requires_payment?: boolean;
-  is_cod?: boolean;
-  status?: string;
-  order?: {
-    id: number;
-    reference_no: string;
-    awb_no: string;
-    [key: string]: unknown;
-  };
-}
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -66,6 +43,7 @@ interface CalculationResultsProps {
       regency: string;
       district: string;
       receiverAddress: string;
+      postal_code?: string;
       itemContent: string;
       itemType: string;
       itemValue: string;
@@ -87,6 +65,7 @@ interface CalculationResultsProps {
       regency: string | null;
       district: string | null;
       address: string;
+      postal_code?: string | null;
     } | null;
     receiverId?: string | null;
     senderLatitude?: number | null;
@@ -919,19 +898,55 @@ export default function CalculationResults({
     // Determine pickup status - use utility function for consistency
     const pickup = deliveryTypeToPickup(formData.formData.deliveryType);
 
-    // Get shipper_id and receiver_id
-    const shipperId = formData.businessData.id;
-    const receiverId = formData.receiverId
-      ? parseInt(formData.receiverId)
-      : null;
-
-    // Validate that receiver_id is available
-    if (!receiverId) {
-      console.error("Receiver ID is required for order creation");
+    // Build receiver object - always send receiver object (not receiver_id) as per documentation
+    // Backend will create receiver if it doesn't exist
+    const receiverFormData = formData.formData;
+    
+    if (!receiverFormData.receiverName || !receiverFormData.receiverPhone || !receiverFormData.receiverAddress) {
       toast.error(
-        "Data penerima tidak lengkap. Silakan pilih atau buat data penerima terlebih dahulu."
+        "Data penerima tidak lengkap. Silakan lengkapi nama, nomor telepon, dan alamat penerima."
       );
       return null;
+    }
+    // Validate province, regency, and district are available (check for empty strings too)
+    if (
+      !receiverFormData.province || 
+      receiverFormData.province.trim() === "" ||
+      !receiverFormData.regency || 
+      receiverFormData.regency.trim() === "" ||
+      !receiverFormData.district || 
+      receiverFormData.district.trim() === ""
+    ) {
+      toast.error(
+        "Data lokasi penerima tidak lengkap. Silakan pilih provinsi, kota, dan kecamatan penerima."
+      );
+      return null;
+    }
+
+    // Build receiver object according to documentation format
+    const receiver: {
+      name: string;
+      phone: string;
+      email?: string;
+      address: string;
+      province: string;
+      regency: string;
+      district: string;
+      postal_code?: string;
+      latitude?: number;
+      longitude?: number;
+    } = {
+      name: receiverFormData.receiverName,
+      phone: receiverFormData.receiverPhone,
+      address: receiverFormData.receiverAddress,
+      province: receiverFormData.province,
+      regency: receiverFormData.regency,
+      district: receiverFormData.district,
+    };
+
+    // Add optional fields if available
+    if (receiverFormData.postal_code && receiverFormData.postal_code.trim() !== "") {
+      receiver.postal_code = receiverFormData.postal_code;
     }
 
     // Determine vendor from selectedOption or selectedShippingOption.id
@@ -982,7 +997,10 @@ export default function CalculationResults({
       district: senderData.district || "",
     };
 
-    // Add latitude and longitude if available
+    // Add optional fields if available
+    if (senderData.postal_code && senderData.postal_code.trim() !== "") {
+      sender.postal_code = senderData.postal_code;
+    }
     if (formData.senderLatitude !== null && formData.senderLatitude !== undefined) {
       sender.latitude = formData.senderLatitude;
     }
@@ -990,12 +1008,21 @@ export default function CalculationResults({
       sender.longitude = formData.senderLongitude;
     }
 
-    // Build standardized order data format for all vendors
-    // Format sesuai dokumentasi: { vendor, sender, receiver, pickup, serviceType, detail }
+    // Get dimensions from formData (in cm)
+    const length = parseInt(formData.formData.length || "0");
+    const width = parseInt(formData.formData.width || "0");
+    const height = parseInt(formData.formData.height || "0");
+
+    // Get item type/category
+    const itemType = formData.formData.itemType || "";
+
+    // Build standardized order data format according to documentation
+    // Format: { vendor, sender, receiver, pickup, serviceType, detail }
+    // Detail includes: weight, qty, item_value, cod, goods_desc, category (optional), insurance, instruction, panjang (optional), lebar (optional), tinggi (optional)
     const shippingData: {
       vendor: string;
       sender: typeof sender;
-      receiver_id: number;
+      receiver: typeof receiver;
       pickup: boolean;
       serviceType?: string;
       detail: {
@@ -1004,13 +1031,17 @@ export default function CalculationResults({
         item_value: number;
         cod: number;
         goods_desc: string;
+        category?: string;
         insurance: number;
         instruction: string;
+        panjang?: number;
+        lebar?: number;
+        tinggi?: number;
       };
     } = {
       vendor: vendor,
       sender: sender,
-      receiver_id: receiverId,
+      receiver: receiver,
       pickup: pickup,
       serviceType: "REGULER", // Default service type
       detail: {
@@ -1023,6 +1054,20 @@ export default function CalculationResults({
         instruction: instruction,
       },
     };
+
+    // Add optional fields to detail if available
+    if (itemType) {
+      shippingData.detail.category = itemType.toUpperCase();
+    }
+    if (length > 0) {
+      shippingData.detail.panjang = length;
+    }
+    if (width > 0) {
+      shippingData.detail.lebar = width;
+    }
+    if (height > 0) {
+      shippingData.detail.tinggi = height;
+    }
 
     return shippingData;
   };
@@ -1057,36 +1102,27 @@ export default function CalculationResults({
         return;
       }
 
-      // Extract vendor
-      const { vendor, ...orderRequestData } = shippingData;
-
       if (isCOD) {
         // For COD: Create order directly without payment gateway
-        // Format sesuai dokumentasi: { vendor, sender, receiver, pickup, serviceType, detail }
-        // Note: submitOrderToExpedition might need format update, but for now we'll use the new format
-        // Using type assertion since backend should support the new format
-        const orderResponse = await submitOrderToExpedition(
-          vendor as "jntexpress" | "lion" | "sap",
-          orderRequestData as unknown as OrderRequest
-        ) as OrderResponse & CODOrderResponse;
+        // Format sesuai dokumentasi: { shipping_data: { vendor, sender, receiver, pickup, serviceType, detail }, amount: 0 }
+        const orderResponse = await createOrderWithPendingPayment({
+          shipping_data: shippingData,
+          amount: 0, // COD orders don't require upfront payment
+        });
 
-        // Handle response format: { success: true, data: { id, reference_no, awb_no, ... }, requires_payment: false, is_cod: true }
-        const isSuccess = orderResponse.status === "success" || orderResponse.success === true;
-        if (isSuccess) {
-          // Try COD response format first, then fallback to OrderResponse format
-          const codData = orderResponse.success === true ? orderResponse.data : null;
-          const orderData = orderResponse.order;
-          const vendorData = orderResponse.data;
+        // Handle response format from createOrderWithPendingPayment
+        // Response format: { success: true, message: "...", data: { order_id, reference_no, status, amount } }
+        // For COD, backend should return additional fields like awb_no in the response
+        if (orderResponse.success && orderResponse.data) {
+          // For COD orders, backend should process immediately and return awb_no
+          // If awb_no is not in data, it might be in a nested order object
+          const orderId = orderResponse.data.order_id || 0;
+          const referenceNo = orderResponse.data.reference_no || "";
           
-          const orderId = codData && "id" in codData 
-            ? codData.id 
-            : (orderData?.id || 0);
-          const referenceNo = codData && "reference_no" in codData
-            ? codData.reference_no
-            : (orderData?.reference_no || vendorData?.awb_no || "");
-          const awbNo = codData && "awb_no" in codData
-            ? codData.awb_no
-            : (orderData?.awb_no || vendorData?.awb_no || "");
+          // Try to get awb_no from response (might be in data or nested)
+          const awbNo = (orderResponse.data && typeof orderResponse.data === 'object' && 'awb_no' in orderResponse.data)
+            ? String((orderResponse.data as { awb_no?: string | number }).awb_no || "")
+            : "";
           
           handleOrderSuccessCOD({
             order_id: orderId,
@@ -1503,27 +1539,29 @@ export default function CalculationResults({
             <DialogTitle className="text-xl font-bold text-green-600">
               Order Berhasil Dibuat!
             </DialogTitle>
-            <DialogDescription className="text-base">
-              <div className="bg-blue-50 p-3 rounded-lg mt-4">
-                {orderResult?.order_id && (
-                  <div className="text-sm text-blue-600 mb-2">
-                    Order ID: #{orderResult.order_id}
+            <DialogDescription asChild>
+              <div className="text-base">
+                <div className="bg-blue-50 p-3 rounded-lg mt-4">
+                  {orderResult?.order_id && (
+                    <div className="text-sm text-blue-600 mb-2">
+                      Order ID: #{orderResult.order_id}
+                    </div>
+                  )}
+                  {orderResult?.reference_no && (
+                    <div className="text-sm text-blue-600 mb-2">
+                      Reference: {orderResult.reference_no}
+                    </div>
+                  )}
+                  {orderResult?.awb_no && (
+                    <div className="text-sm text-blue-600 mb-2">
+                      AWB: {orderResult.awb_no}
+                    </div>
+                  )}
+                  <div className="text-sm text-blue-700">
+                    {orderResult?.awb_no
+                      ? "Status: Order berhasil dibuat (COD - Tidak ada pembayaran)"
+                      : "Status: Menunggu Pembayaran"}
                   </div>
-                )}
-                {orderResult?.reference_no && (
-                  <div className="text-sm text-blue-600 mb-2">
-                    Reference: {orderResult.reference_no}
-                  </div>
-                )}
-                {orderResult?.awb_no && (
-                  <div className="text-sm text-blue-600 mb-2">
-                    AWB: {orderResult.awb_no}
-                  </div>
-                )}
-                <div className="text-sm text-blue-700">
-                  {orderResult?.awb_no
-                    ? "Status: Order berhasil dibuat (COD - Tidak ada pembayaran)"
-                    : "Status: Menunggu Pembayaran"}
                 </div>
               </div>
             </DialogDescription>

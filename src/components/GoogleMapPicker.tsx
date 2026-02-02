@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { MapPin, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
@@ -12,25 +11,66 @@ interface GoogleMapPickerProps {
   initialLng?: number;
   height?: string;
   addressToGeocode?: string; // Alamat untuk di-geocode dan center map
+  onGettingLocationChange?: (isGetting: boolean) => void; // Callback untuk update loading state di parent
 }
 
+export interface GoogleMapPickerRef {
+  getCurrentLocation: () => void;
+}
+
+// Type definitions for Google Maps
 declare global {
   interface Window {
-    google: typeof google;
+    google: {
+      maps: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Map: new (element: HTMLElement, options?: any) => any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        Marker: new (options?: any) => any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        LatLng: new (lat: number, lng: number) => any;
+        Geocoder: new () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          geocode: (request: any, callback: (results: any, status: any) => void) => void;
+        };
+        GeocoderStatus: {
+          OK: string;
+          ERROR: string;
+          INVALID_REQUEST: string;
+          OVER_QUERY_LIMIT: string;
+          REQUEST_DENIED: string;
+          UNKNOWN_ERROR: string;
+          ZERO_RESULTS: string;
+        };
+        Animation: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          DROP: any;
+        };
+        MapMouseEvent: {
+          latLng: {
+            lat: () => number;
+            lng: () => number;
+          };
+        };
+      };
+    };
     initMap: () => void;
   }
 }
 
-export default function GoogleMapPicker({
+const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
   onLocationChange,
   initialLat,
   initialLng,
   height = "400px",
   addressToGeocode,
-}: GoogleMapPickerProps) {
+  onGettingLocationChange,
+}, ref) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [map, setMap] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [marker, setMarker] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +132,7 @@ export default function GoogleMapPicker({
     return () => {
       // Cleanup: don't remove script as it might be used elsewhere
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initialize map when Google Maps is loaded
@@ -120,7 +161,8 @@ export default function GoogleMapPicker({
     });
 
     // Update position when marker is dragged
-    markerInstance.addListener("dragend", (event: google.maps.MapMouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    markerInstance.addListener("dragend", (event: any) => {
       if (event.latLng) {
         const lat = event.latLng.lat();
         const lng = event.latLng.lng();
@@ -130,7 +172,8 @@ export default function GoogleMapPicker({
     });
 
     // Update position when map is clicked
-    mapInstance.addListener("click", (event: google.maps.MapMouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.addListener("click", (event: any) => {
       if (event.latLng) {
         const lat = event.latLng.lat();
         const lng = event.latLng.lng();
@@ -162,7 +205,7 @@ export default function GoogleMapPicker({
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
-        if (map && marker) {
+        if (map && marker && window.google) {
           const newPosition = new window.google.maps.LatLng(lat, lng);
           map.setCenter(newPosition);
           map.setZoom(17);
@@ -199,6 +242,18 @@ export default function GoogleMapPicker({
     );
   };
 
+  // Expose getCurrentLocation via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentLocation,
+  }));
+
+  // Update parent when isGettingLocation changes
+  useEffect(() => {
+    if (onGettingLocationChange) {
+      onGettingLocationChange(isGettingLocation);
+    }
+  }, [isGettingLocation, onGettingLocationChange]);
+
   // Update marker position when initial position changes
   useEffect(() => {
     if (marker && initialLat && initialLng) {
@@ -230,7 +285,8 @@ export default function GoogleMapPicker({
           address: addressToGeocode,
           region: "ID", // Prioritize Indonesia addresses
         },
-        (results, status) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (results: any, status: any) => {
           setIsLoading(false);
           
           if (status === "OK" && results && results[0]) {
@@ -260,30 +316,11 @@ export default function GoogleMapPicker({
 
   return (
     <Card className="p-4">
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-blue-500" />
-          <Label className="text-sm font-semibold">
-            Pilih Lokasi Pengirim di Peta
-          </Label>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={getCurrentLocation}
-          disabled={isGettingLocation || isLoading}
-          className="text-xs"
-        >
-          {isGettingLocation ? (
-            <>
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-              Mengambil lokasi...
-            </>
-          ) : (
-            "📍 Ambil Lokasi Saya"
-          )}
-        </Button>
+      <div className="flex items-center gap-2 mb-3">
+        <MapPin className="w-5 h-5 text-blue-500" />
+        <Label className="text-sm font-semibold">
+          Pilih Lokasi Pengirim di Peta
+        </Label>
       </div>
 
       {error && (
@@ -322,4 +359,8 @@ export default function GoogleMapPicker({
       )}
     </Card>
   );
-}
+});
+
+GoogleMapPicker.displayName = "GoogleMapPicker";
+
+export default GoogleMapPicker;
