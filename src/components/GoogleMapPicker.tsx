@@ -164,10 +164,12 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     markerInstance.addListener("dragend", (event: any) => {
       if (event.latLng) {
-        const lat = event.latLng.lat();
-        const lng = event.latLng.lng();
-        setCurrentPosition({ lat, lng });
-        onLocationChange(lat, lng);
+        const lat = Number(event.latLng.lat());
+        const lng = Number(event.latLng.lng());
+        if (!isNaN(lat) && !isNaN(lng)) {
+          setCurrentPosition({ lat, lng });
+          onLocationChange(lat, lng);
+        }
       }
     });
 
@@ -175,11 +177,13 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mapInstance.addListener("click", (event: any) => {
       if (event.latLng) {
-        const lat = event.latLng.lat();
-        const lng = event.latLng.lng();
-        markerInstance.setPosition({ lat, lng });
-        setCurrentPosition({ lat, lng });
-        onLocationChange(lat, lng);
+        const lat = Number(event.latLng.lat());
+        const lng = Number(event.latLng.lng());
+        if (!isNaN(lat) && !isNaN(lng)) {
+          markerInstance.setPosition({ lat, lng });
+          setCurrentPosition({ lat, lng });
+          onLocationChange(lat, lng);
+        }
       }
     });
 
@@ -202,19 +206,21 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
 
-        if (map && marker && window.google) {
-          const newPosition = new window.google.maps.LatLng(lat, lng);
-          map.setCenter(newPosition);
-          map.setZoom(17);
-          marker.setPosition(newPosition);
-          setCurrentPosition({ lat, lng });
-          onLocationChange(lat, lng);
-        } else {
-          // If map not ready, store position for later
-          setCurrentPosition({ lat, lng });
+        if (!isNaN(lat) && !isNaN(lng)) {
+          if (map && marker && window.google) {
+            const newPosition = new window.google.maps.LatLng(lat, lng);
+            map.setCenter(newPosition);
+            map.setZoom(17);
+            marker.setPosition(newPosition);
+            setCurrentPosition({ lat, lng });
+            onLocationChange(lat, lng);
+          } else {
+            // If map not ready, store position for later
+            setCurrentPosition({ lat, lng });
+          }
         }
         setIsGettingLocation(false);
       },
@@ -256,13 +262,15 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
 
   // Update marker position when initial position changes
   useEffect(() => {
-    if (marker && initialLat && initialLng) {
-      const newPosition = new window.google.maps.LatLng(initialLat, initialLng);
+    if (marker && typeof initialLat === 'number' && typeof initialLng === 'number') {
+      const lat = Number(initialLat);
+      const lng = Number(initialLng);
+      const newPosition = new window.google.maps.LatLng(lat, lng);
       marker.setPosition(newPosition);
       if (map) {
         map.setCenter(newPosition);
       }
-      setCurrentPosition({ lat: initialLat, lng: initialLng });
+      setCurrentPosition({ lat, lng });
     }
   }, [initialLat, initialLng, marker, map]);
 
@@ -291,20 +299,22 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
           
           if (status === "OK" && results && results[0]) {
             const location = results[0].geometry.location;
-            const lat = location.lat();
-            const lng = location.lng();
+            const lat = Number(location.lat());
+            const lng = Number(location.lng());
             
-            // Update map center and marker (hanya initial positioning)
-            const newPosition = new window.google.maps.LatLng(lat, lng);
-            map.setCenter(newPosition);
-            map.setZoom(17); // Zoom lebih dekat untuk akurasi
-            marker.setPosition(newPosition);
-            setCurrentPosition({ lat, lng });
-            onLocationChange(lat, lng);
-            setError(null);
-            
-            // Simpan alamat yang sudah di-geocode
-            geocodedAddressRef.current = addressToGeocode;
+            if (!isNaN(lat) && !isNaN(lng)) {
+              // Update map center and marker (hanya initial positioning)
+              const newPosition = new window.google.maps.LatLng(lat, lng);
+              map.setCenter(newPosition);
+              map.setZoom(17); // Zoom lebih dekat untuk akurasi
+              marker.setPosition(newPosition);
+              setCurrentPosition({ lat, lng });
+              onLocationChange(lat, lng);
+              setError(null);
+              
+              // Simpan alamat yang sudah di-geocode
+              geocodedAddressRef.current = addressToGeocode;
+            }
           } else {
             console.warn("Geocoding failed:", status);
             setError("Gagal menemukan lokasi alamat. Silakan gunakan 'Ambil Lokasi Saya' atau drag marker.");
@@ -345,12 +355,14 @@ const GoogleMapPicker = forwardRef<GoogleMapPickerRef, GoogleMapPickerProps>(({
         />
       </div>
 
-      {currentPosition && (
+      {currentPosition && 
+       typeof currentPosition.lat === 'number' && 
+       typeof currentPosition.lng === 'number' && (
         <div className="mt-3 p-2 bg-blue-50 rounded text-xs">
           <p className="font-semibold text-blue-900">Koordinat Lokasi:</p>
           <p className="text-blue-700">
-            Latitude: {currentPosition.lat.toFixed(6)}, Longitude:{" "}
-            {currentPosition.lng.toFixed(6)}
+            Latitude: {Number(currentPosition.lat).toFixed(6)}, Longitude:{" "}
+            {Number(currentPosition.lng).toFixed(6)}
           </p>
           <p className="text-blue-600 text-xs mt-1">
             💡 Drag marker atau klik peta untuk mengubah lokasi

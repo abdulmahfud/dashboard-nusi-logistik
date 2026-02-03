@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,43 +13,73 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import {
-  getProvinces,
-  getRegencies,
-  getDistricts,
   createShipper,
+  updateShipper,
+  searchAddressNew,
 } from "@/lib/apiClient";
 import type {
-  Province,
-  Regency,
-  District,
+  Shipper,
   ShipperFormData,
   ShipperFormErrors,
 } from "@/types/dataPengirim";
 import { useAuth } from "@/context/AuthContext";
+import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicker";
+
+interface AddressResult {
+  type: "postal_code" | "subdistrict";
+  id: number;
+  name: string | number;
+  full_address: string;
+  code?: number | null;
+  province: string;
+  regency: string;
+  district: string;
+  subdistrict: string;
+  province_id: number;
+  regency_id: number;
+  district_id: number;
+  subdistrict_id: number;
+}
 
 interface InputFormPengirimProps {
   onShipperCreated?: () => void;
+  editingShipper?: Shipper | null;
+  onCancelEdit?: () => void;
 }
 
 export default function InputFormPengirim({
   onShipperCreated,
+  editingShipper,
+  onCancelEdit,
 }: InputFormPengirimProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [provinceOptions, setProvinceOptions] = useState<Province[]>([]);
-  const [regencyOptions, setRegencyOptions] = useState<Regency[]>([]);
-  const [districtOptions, setDistrictOptions] = useState<District[]>([]);
-  const [provinceSearch, setProvinceSearch] = useState("");
-  const [regencySearch, setRegencySearch] = useState("");
-  const [districtSearch, setDistrictSearch] = useState("");
+  
+  // Address search state
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressResults, setAddressResults] = useState<AddressResult[]>([]);
+  const [loadingAddress, setLoadingAddress] = useState(false);
+  const [showAddressResults, setShowAddressResults] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<AddressResult | null>(null);
+  const addressInputRef = useRef<HTMLDivElement>(null);
+  
+  // Location state (latitude and longitude)
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  
+  // Address for geocoding on the map
+  const [addressForGeocode, setAddressForGeocode] = useState<string>("");
+  
+  // Map picker ref
+  const mapPickerRef = useRef<GoogleMapPickerRef>(null);
+  
+  // Store selected location names for form submission
   const [selectedProvinceName, setSelectedProvinceName] = useState("");
   const [selectedRegencyName, setSelectedRegencyName] = useState("");
   const [selectedDistrictName, setSelectedDistrictName] = useState("");
-  const [loadingProvince, setLoadingProvince] = useState(false);
-  const [loadingRegency, setLoadingRegency] = useState(false);
-  const [loadingDistrict, setLoadingDistrict] = useState(false);
 
   const [formData, setFormData] = useState<ShipperFormData>({
     name: "",
@@ -65,71 +95,160 @@ export default function InputFormPengirim({
 
   const [errors, setErrors] = useState<ShipperFormErrors>({});
 
-  // Province search and fetch
+  // Load editing shipper data when editingShipper changes
   useEffect(() => {
-    if (provinceSearch.length >= 3) {
-      setLoadingProvince(true);
-      getProvinces()
-        .then((res) => {
-          setProvinceOptions(
-            res.data.filter((prov) =>
-              prov.name.toLowerCase().includes(provinceSearch.toLowerCase())
-            )
-          );
-          setLoadingProvince(false);
-        })
-        .catch((error) => {
-          console.error("Error loading provinces:", error);
-          setLoadingProvince(false);
-        });
-    } else {
-      setProvinceOptions([]);
-    }
-  }, [provinceSearch]);
+    if (editingShipper) {
+      // Set form data with existing values
+      setFormData({
+        name: editingShipper.name || "",
+        phone: editingShipper.phone || "",
+        contact: editingShipper.contact || "",
+        email: editingShipper.email || "",
+        address: editingShipper.address || "",
+        province_id: "",
+        regency_id: "",
+        district_id: "",
+        postal_code: editingShipper.postal_code || "",
+      });
 
-  // Regency search and fetch
-  useEffect(() => {
-    if (formData.province_id && regencySearch.length >= 3) {
-      setLoadingRegency(true);
-      getRegencies(Number(formData.province_id))
-        .then((res) => {
-          setRegencyOptions(
-            res.data.filter((reg) =>
-              reg.name.toLowerCase().includes(regencySearch.toLowerCase())
-            )
-          );
-          setLoadingRegency(false);
-        })
-        .catch((error) => {
-          console.error("Error loading regencies:", error);
-          setLoadingRegency(false);
-        });
-    } else {
-      setRegencyOptions([]);
-    }
-  }, [formData.province_id, regencySearch]);
+      // Set location names for form submission
+      setSelectedProvinceName(editingShipper.province || "");
+      setSelectedRegencyName(editingShipper.regency || "");
+      setSelectedDistrictName(editingShipper.district || "");
 
-  // District search and fetch
-  useEffect(() => {
-    if (formData.regency_id && districtSearch.length >= 3) {
-      setLoadingDistrict(true);
-      getDistricts(Number(formData.regency_id))
-        .then((res) => {
-          setDistrictOptions(
-            res.data.filter((dist) =>
-              dist.name.toLowerCase().includes(districtSearch.toLowerCase())
-            )
-          );
-          setLoadingDistrict(false);
-        })
-        .catch((error) => {
-          console.error("Error loading districts:", error);
-          setLoadingDistrict(false);
-        });
+      // Set latitude and longitude if available
+      setLatitude(editingShipper.latitude);
+      setLongitude(editingShipper.longitude);
+
+      // Create AddressResult-like object for existing location
+      if (editingShipper.province && editingShipper.regency && editingShipper.district) {
+        const fullAddress = `${editingShipper.district}, ${editingShipper.regency}, ${editingShipper.province}`;
+        setAddressQuery(fullAddress);
+        
+        const addressResult: AddressResult = {
+          type: "subdistrict",
+          id: 0,
+          name: editingShipper.district || "",
+          full_address: fullAddress,
+          code: editingShipper.postal_code ? Number(editingShipper.postal_code) : null,
+          province: editingShipper.province || "",
+          regency: editingShipper.regency || "",
+          district: editingShipper.district || "",
+          subdistrict: editingShipper.district || "",
+          province_id: 0,
+          regency_id: 0,
+          district_id: 0,
+          subdistrict_id: 0,
+        };
+        setSelectedAddress(addressResult);
+        
+        // Trigger geocoding dengan full address untuk center map
+        const addressForGeocode = editingShipper.address
+          ? `${editingShipper.address}, ${fullAddress}`
+          : fullAddress;
+        setAddressForGeocode(addressForGeocode);
+      } else {
+        setAddressQuery("");
+        setSelectedAddress(null);
+        setAddressForGeocode("");
+      }
+
+      setErrors({});
     } else {
-      setDistrictOptions([]);
+      // Reset form when not editing
+      setFormData({
+        name: "",
+        phone: "",
+        contact: "",
+        email: "",
+        address: "",
+        province_id: "",
+        regency_id: "",
+        district_id: "",
+        postal_code: "",
+      });
+      setErrors({});
+      setAddressQuery("");
+      setSelectedAddress(null);
+      setSelectedProvinceName("");
+      setSelectedRegencyName("");
+      setSelectedDistrictName("");
+      setLatitude(null);
+      setLongitude(null);
+      setAddressForGeocode("");
     }
-  }, [formData.regency_id, districtSearch]);
+  }, [editingShipper]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        addressInputRef.current &&
+        !addressInputRef.current.contains(event.target as Node)
+      ) {
+        setShowAddressResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Address search
+  useEffect(() => {
+    if (addressQuery.length >= 3) {
+      setLoadingAddress(true);
+      const timeoutId = setTimeout(() => {
+        searchAddressNew(addressQuery)
+          .then((response) => {
+            setAddressResults(response.results);
+            setShowAddressResults(true);
+          })
+          .catch((error) => {
+            console.error("Error searching address:", error);
+            setAddressResults([]);
+          })
+          .finally(() => {
+            setLoadingAddress(false);
+          });
+      }, 300); // Debounce 300ms
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setAddressResults([]);
+      setShowAddressResults(false);
+    }
+  }, [addressQuery]);
+
+  const handleSelectAddress = (result: AddressResult) => {
+    setSelectedAddress(result);
+    setAddressQuery(result.full_address);
+    setShowAddressResults(false);
+    
+    // Update formData with selected address IDs
+    setFormData((prev) => ({
+      ...prev,
+      province_id: String(result.province_id),
+      regency_id: String(result.regency_id),
+      district_id: String(result.district_id),
+      postal_code: result.code ? String(result.code) : "",
+    }));
+    
+    // Store location names for form submission
+    setSelectedProvinceName(result.province);
+    setSelectedRegencyName(result.regency);
+    setSelectedDistrictName(result.district);
+    
+    // Trigger geocoding di GoogleMapPicker dengan full_address
+    // Hanya set sekali saat alamat area dipilih, tidak update saat detail alamat berubah
+    // Gabungkan detail alamat yang ada saat ini (jika ada) dengan area yang dipilih
+    const addressForGeocode = formData.address
+      ? `${formData.address}, ${result.full_address}`
+      : result.full_address;
+    setAddressForGeocode(addressForGeocode);
+  };
 
   const handleChange = (field: keyof ShipperFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -165,16 +284,8 @@ export default function InputFormPengirim({
       newErrors.address = "Alamat wajib diisi";
     }
 
-    if (!formData.province_id) {
-      newErrors.province_id = "Provinsi wajib dipilih";
-    }
-
-    if (!formData.regency_id) {
-      newErrors.regency_id = "Kabupaten/Kota wajib dipilih";
-    }
-
-    if (!formData.district_id) {
-      newErrors.district_id = "Kecamatan wajib dipilih";
+    if (!selectedAddress) {
+      newErrors.province_id = "Area alamat wajib dipilih";
     }
 
     if (!formData.postal_code.trim()) {
@@ -205,7 +316,6 @@ export default function InputFormPengirim({
       }
 
       const shipperData = {
-        user_id: user.id,
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         contact: formData.name.trim(), // contact sama dengan name sesuai requirement
@@ -215,12 +325,32 @@ export default function InputFormPengirim({
         regency: selectedRegencyName || "",
         district: selectedDistrictName || "",
         postal_code: formData.postal_code.trim(),
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
       };
 
-      const response = await createShipper(shipperData);
+      let response;
+      if (editingShipper) {
+        // Update existing shipper
+        response = await updateShipper(editingShipper.id, shipperData);
+      } else {
+        // Create new shipper
+        if (!user || !user.id) {
+          toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+          return;
+        }
+        response = await createShipper({
+          ...shipperData,
+          user_id: user.id,
+        });
+      }
 
       if (response.success) {
-        toast.success("Data pengirim berhasil disimpan!");
+        toast.success(
+          editingShipper
+            ? "Data pengirim berhasil diperbarui!"
+            : "Data pengirim berhasil disimpan!"
+        );
 
         // Reset form
         setFormData({
@@ -237,19 +367,31 @@ export default function InputFormPengirim({
         setErrors({});
 
         // Reset location searches
-        setProvinceSearch("");
-        setRegencySearch("");
-        setDistrictSearch("");
+        setAddressQuery("");
+        setSelectedAddress(null);
         setSelectedProvinceName("");
         setSelectedRegencyName("");
         setSelectedDistrictName("");
+        setLatitude(null);
+        setLongitude(null);
+        setAddressForGeocode("");
 
         // Notify parent component
         if (onShipperCreated) {
           onShipperCreated();
         }
+        
+        // Clear editing state
+        if (onCancelEdit) {
+          onCancelEdit();
+        }
       } else {
-        toast.error(response.message || "Gagal menyimpan data pengirim");
+        toast.error(
+          response.message ||
+            (editingShipper
+              ? "Gagal memperbarui data pengirim"
+              : "Gagal menyimpan data pengirim")
+        );
       }
     } catch (error: unknown) {
       console.error("Error creating shipper:", error);
@@ -263,9 +405,23 @@ export default function InputFormPengirim({
     <form onSubmit={handleSubmit} className="animate-slide-down">
       <Card className="shadow-sm">
         <CardHeader className="p-3 mt-3 ml-3">
-          <CardTitle className="text-lg font-semibold">
-            Tambah Alamat Asal Pengiriman
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg font-semibold">
+              {editingShipper
+                ? "Edit Alamat Asal Pengiriman"
+                : "Tambah Alamat Asal Pengiriman"}
+            </CardTitle>
+            {editingShipper && onCancelEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCancelEdit}
+              >
+                Batal Edit
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Nama Pengirim */}
@@ -323,169 +479,111 @@ export default function InputFormPengirim({
             </div>
           </div>
 
-          {/* Location Dropdowns */}
-          <div className="space-y-4">
-            {/* Province Dropdown */}
+          {/* Address Search */}
+          <div className="relative" ref={addressInputRef}>
+            <Label htmlFor="addressSearch" className="text-shipping-label">
+              Alamat <span className="text-red-500">*</span>
+            </Label>
             <div className="relative">
-              <Label htmlFor="province" className="text-shipping-label">
-                Provinsi<span className="text-red-500">*</span>
-              </Label>
               <Input
-                id="province"
-                placeholder="Cari provinsi..."
-                value={provinceSearch}
+                id="addressSearch"
+                placeholder="Cari area alamat (minimal 3 huruf)..."
+                value={addressQuery}
                 onChange={(e) => {
-                  setProvinceSearch(e.target.value);
+                  setAddressQuery(e.target.value);
+                  setSelectedAddress(null);
                   handleChange("province_id", "");
                   handleChange("regency_id", "");
                   handleChange("district_id", "");
+                  handleChange("postal_code", "");
                   setSelectedProvinceName("");
                   setSelectedRegencyName("");
                   setSelectedDistrictName("");
-                  setRegencySearch("");
-                  setDistrictSearch("");
                 }}
                 autoComplete="off"
-                className={`bg-white ${errors.province_id ? "border-red-500" : ""}`}
+                className={`bg-white ${
+                  !selectedAddress &&
+                  addressQuery.length >= 3
+                    ? "border-yellow-500"
+                    : errors.province_id
+                    ? "border-red-500"
+                    : ""
+                }`}
               />
-              {errors.province_id && (
-                <p className="text-red-500 text-sm">{errors.province_id}</p>
-              )}
-              {provinceSearch.length >= 3 && !formData.province_id && (
-                <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                  {loadingProvince ? (
-                    <div className="p-2 text-sm text-gray-500">Loading...</div>
-                  ) : provinceOptions.length > 0 ? (
-                    provinceOptions.map((prov) => (
-                      <div
-                        key={prov.id}
-                        className="p-2 hover:bg-blue-100 cursor-pointer"
-                        onClick={() => {
-                          handleChange("province_id", String(prov.id));
-                          setProvinceSearch(prov.name);
-                          setSelectedProvinceName(prov.name);
-                          setRegencySearch("");
-                          setDistrictSearch("");
-                        }}
-                      >
-                        {prov.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-2 text-sm text-gray-500">
-                      Tidak ada hasil
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {loadingAddress ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                ) : (
+                  <Search className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+            </div>
+            {!selectedAddress && addressQuery.length >= 3 && (
+              <p className="text-sm text-yellow-600 mt-1">
+                Silakan pilih area alamat dari hasil pencarian
+              </p>
+            )}
+            {errors.province_id && (
+              <p className="text-red-500 text-sm">{errors.province_id}</p>
+            )}
+            {showAddressResults && addressQuery.length >= 3 && (
+              <div className="absolute w-full bg-white border border-gray-300 mt-2 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                {loadingAddress ? (
+                  <div className="p-3 text-center">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-500 mr-2" />
+                      <span className="text-gray-500">Mencari...</span>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Regency Dropdown */}
-            <div className="relative">
-              <Label htmlFor="regency" className="text-shipping-label">
-                Kota/Kabupaten<span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="regency"
-                placeholder="Cari kota/kabupaten..."
-                value={regencySearch}
-                onChange={(e) => {
-                  setRegencySearch(e.target.value);
-                  handleChange("regency_id", "");
-                  handleChange("district_id", "");
-                  setSelectedRegencyName("");
-                  setSelectedDistrictName("");
-                  setDistrictSearch("");
-                }}
-                disabled={!formData.province_id}
-                autoComplete="off"
-                className={`bg-white ${errors.regency_id ? "border-red-500" : ""}`}
-              />
-              {errors.regency_id && (
-                <p className="text-red-500 text-sm">{errors.regency_id}</p>
-              )}
-              {formData.province_id &&
-                regencySearch.length >= 3 &&
-                !formData.regency_id && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingRegency ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : regencyOptions.length > 0 ? (
-                      regencyOptions.map((reg) => (
-                        <div
-                          key={reg.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("regency_id", String(reg.id));
-                            setRegencySearch(reg.name);
-                            setSelectedRegencyName(reg.name);
-                            setDistrictSearch("");
-                          }}
-                        >
-                          {reg.name}
+                  </div>
+                ) : addressResults.length > 0 ? (
+                  <ul>
+                    {addressResults.map((result, index) => (
+                      <li
+                        key={`${result.type}-${result.id}-${index}`}
+                        className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                        onClick={() => handleSelectAddress(result)}
+                      >
+                        <div className="text-sm font-medium text-gray-900">
+                          {result.full_address}
                         </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
+                        {result.code && (
+                          <div className="text-xs text-blue-600 mt-1 font-semibold">
+                            Kode Pos: {result.code}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="p-3 text-sm text-gray-500 text-center">
+                    Tidak ada hasil
                   </div>
                 )}
-            </div>
-
-            {/* District Dropdown */}
-            <div className="relative">
-              <Label htmlFor="district" className="text-shipping-label">
-                Kecamatan<span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="district"
-                placeholder="Cari kecamatan..."
-                value={districtSearch}
-                onChange={(e) => {
-                  setDistrictSearch(e.target.value);
-                  handleChange("district_id", "");
-                  setSelectedDistrictName("");
+              </div>
+            )}
+            {/* Tombol Ambil Lokasi Saya */}
+            <div className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (mapPickerRef.current) {
+                    mapPickerRef.current.getCurrentLocation();
+                  }
                 }}
-                disabled={!formData.regency_id}
-                autoComplete="off"
-                className={`bg-white ${errors.district_id ? "border-red-500" : ""}`}
-              />
-              {errors.district_id && (
-                <p className="text-red-500 text-sm">{errors.district_id}</p>
-              )}
-              {formData.regency_id &&
-                districtSearch.length >= 3 &&
-                !formData.district_id && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
-                    {loadingDistrict ? (
-                      <div className="p-2 text-sm text-gray-500">
-                        Loading...
-                      </div>
-                    ) : districtOptions.length > 0 ? (
-                      districtOptions.map((dist) => (
-                        <div
-                          key={dist.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
-                          onClick={() => {
-                            handleChange("district_id", String(dist.id));
-                            setDistrictSearch(dist.name);
-                            setSelectedDistrictName(dist.name);
-                          }}
-                        >
-                          {dist.name}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-sm text-gray-500">
-                        Tidak ada hasil
-                      </div>
-                    )}
-                  </div>
+                disabled={isGettingLocation}
+                className="text-xs w-full sm:w-auto"
+              >
+                {isGettingLocation ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Mengambil lokasi...
+                  </>
+                ) : (
+                  "📍 Ambil Lokasi Saya"
                 )}
+              </Button>
             </div>
           </div>
 
@@ -502,6 +600,7 @@ export default function InputFormPengirim({
               value={formData.postal_code}
               onChange={(e) => handleChange("postal_code", e.target.value)}
               className={`bg-white ${errors.postal_code ? "border-red-500" : ""}`}
+              readOnly={!!selectedAddress}
             />
             {errors.postal_code && (
               <p className="text-red-500 text-sm">{errors.postal_code}</p>
@@ -511,18 +610,38 @@ export default function InputFormPengirim({
           {/* Complete Address */}
           <div className="space-y-1.5">
             <Label htmlFor="address" className="text-shipping-label">
-              Alamat Lengkap<span className="text-red-500">*</span>
+              Detail Alamat<span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="address"
               placeholder="Alamat lengkap seperti Jl. atau RT/RW"
               value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-              className={`bg-white placeholder:text-shipping-placeholder ${errors.address ? "border-red-500" : ""}`}
+              onChange={(e) => {
+                handleChange("address", e.target.value);
+                // Jangan update addressForGeocode saat user mengetik detail alamat
+                // Map hanya akan reload sekali saat alamat area dipilih
+              }}
+              className={`bg-white placeholder:text-shipping-placeholder min-h-[100px] ${errors.address ? "border-red-500" : ""}`}
             />
             {errors.address && (
               <p className="text-red-500 text-sm">{errors.address}</p>
             )}
+          </div>
+
+          {/* Google Maps Picker */}
+          <div>
+            <GoogleMapPicker
+              ref={mapPickerRef}
+              onLocationChange={(lat, lng) => {
+                setLatitude(lat);
+                setLongitude(lng);
+              }}
+              initialLat={latitude || undefined}
+              initialLng={longitude || undefined}
+              height="400px"
+              addressToGeocode={addressForGeocode}
+              onGettingLocationChange={setIsGettingLocation}
+            />
           </div>
         </CardContent>
         <CardFooter>
@@ -534,10 +653,10 @@ export default function InputFormPengirim({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Menyimpan...
+                {editingShipper ? "Memperbarui..." : "Menyimpan..."}
               </>
             ) : (
-              "Simpan Data Pengirim"
+              editingShipper ? "Perbarui Data Pengirim" : "Simpan Data Pengirim"
             )}
           </Button>
         </CardFooter>

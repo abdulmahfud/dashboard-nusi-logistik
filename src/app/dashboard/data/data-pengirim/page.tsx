@@ -3,6 +3,7 @@
 import { useState } from "react";
 import InputFormPengirim from "@/components/Data/InputFormPengirim";
 import ListSender from "@/components/Data/ListSender";
+import type { Shipper } from "@/types/dataPengirim";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -11,10 +12,21 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 const DataPengirim = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [editingShipper, setEditingShipper] = useState<Shipper | null>(null);
 
   const handleShipperCreated = () => {
     // Trigger refresh of the list when a new shipper is created
     setRefreshTrigger((prev) => prev + 1);
+    // Clear editing state
+    setEditingShipper(null);
+  };
+
+  const handleEditShipper = (shipper: Shipper) => {
+    setEditingShipper(shipper);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingShipper(null);
   };
 
   return (
@@ -38,10 +50,15 @@ const DataPengirim = () => {
                   <div className="flex flex-col">
                     <InputFormPengirim
                       onShipperCreated={handleShipperCreated}
+                      editingShipper={editingShipper}
+                      onCancelEdit={handleCancelEdit}
                     />
                   </div>
                   <div className="flex flex-col col-span-2">
-                    <ListSender refreshTrigger={refreshTrigger} />
+                    <ListSender 
+                      refreshTrigger={refreshTrigger}
+                      onEditShipper={handleEditShipper}
+                    />
                   </div>
                 </div>
               </main>
