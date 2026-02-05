@@ -188,9 +188,7 @@ export const getJntExpressShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk JNT Express API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -198,7 +196,7 @@ export const getJntExpressShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -267,9 +265,7 @@ export const getLionShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Lion Parcel API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -277,7 +273,7 @@ export const getLionShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -308,8 +304,16 @@ export const getSapShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk SAP API
-  const weightInKg = Number(weight) / 1000;
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
+  // Pastikan format string (hilangkan trailing zero jika ada, misalnya "2.0" -> "2")
+  const weightValue = typeof weight === "string" 
+    ? weight 
+    : weight.toString();
+  
+  // Hapus trailing zero dan titik desimal jika tidak perlu (misalnya "2.0" -> "2", "1.5" -> "1.5")
+  const cleanWeight = weightValue.includes(".")
+    ? weightValue.replace(/\.?0+$/, "")
+    : weightValue;
 
   const requestPayload = {
     origin_province,
@@ -318,7 +322,7 @@ export const getSapShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: cleanWeight,
   };
 
   const res = await apiClient.post(
@@ -349,9 +353,7 @@ export const getPosIndonesiaShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Pos Indonesia API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -359,7 +361,7 @@ export const getPosIndonesiaShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -390,9 +392,7 @@ export const getJneShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk JNE API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -400,7 +400,7 @@ export const getJneShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -431,9 +431,7 @@ export const getIdexpressShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk ID Express API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -441,7 +439,7 @@ export const getIdexpressShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -472,9 +470,7 @@ export const getAnterajaShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Anteraja API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -482,7 +478,7 @@ export const getAnterajaShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(
@@ -513,9 +509,7 @@ export const getNinjaShipmentCost = async ({
   destination_district: string;
   weight: string | number;
 }) => {
-  // Konversi berat dari gram ke kilogram untuk Ninja API
-  const weightInKg = Number(weight) / 1000;
-
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
     origin_province,
     origin_regencie,
@@ -523,7 +517,7 @@ export const getNinjaShipmentCost = async ({
     destination_province,
     destination_regencie,
     destination_district,
-    weight: weightInKg.toString(),
+    weight: weight.toString(),
   };
 
   const res = await apiClient.post(

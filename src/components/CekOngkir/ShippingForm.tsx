@@ -150,8 +150,28 @@ export default function ShippingForm({
     }
   }, [destQuery]);
 
+  // Helper function untuk format angka dengan titik pemisah ribuan (format Indonesia)
+  const formatNumber = (value: string): string => {
+    // Hapus semua karakter non-digit
+    const numericValue = value.replace(/\D/g, "");
+    if (!numericValue) return "";
+    // Format dengan titik pemisah ribuan
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  // Helper function untuk menghapus format (mendapatkan nilai numerik)
+  const removeFormat = (value: string): string => {
+    return value.replace(/\./g, "");
+  };
+
   const handleChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Jika field adalah weight, format dengan titik pemisah ribuan
+    if (field === "weight" && typeof value === "string") {
+      const formattedValue = formatNumber(value);
+      setFormData((prev) => ({ ...prev, [field]: formattedValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSelectOrigin = (result: AddressResult) => {
@@ -187,6 +207,10 @@ export default function ShippingForm({
 
     try {
       // Prepare common payload for all APIs
+      // Hapus format titik dari weight dan konversi dari gram ke kilogram
+      const weightInGrams = removeFormat(formData.weight);
+      const weightInKg = (Number(weightInGrams) / 1000).toString();
+      
       const shipmentPayload = {
         origin_province: selectedOrigin.province,
         origin_regencie: selectedOrigin.regency,
@@ -194,7 +218,7 @@ export default function ShippingForm({
         destination_province: selectedDest.province,
         destination_regencie: selectedDest.regency,
         destination_district: selectedDest.district,
-        weight: formData.weight,
+        weight: weightInKg,
       };
 
       // Call all vendor APIs in parallel
@@ -387,11 +411,12 @@ export default function ShippingForm({
             <div className="relative">
               <Input
                 id="weight"
-                type="number"
-                placeholder="Cth : 1000"
+                type="text"
+                placeholder="Cth : 1.000"
                 value={formData.weight}
                 onChange={(e) => handleChange("weight", e.target.value)}
                 className="bg-white pr-16"
+                inputMode="numeric"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-shipping-label">
                 gram
