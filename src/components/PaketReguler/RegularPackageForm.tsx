@@ -672,7 +672,9 @@ export default function RegularPackageForm({
     }
 
     // Ambil data untuk ongkir
-    const weight = formData.weight;
+    // Konversi dari gram ke kilogram sebelum dikirim ke API
+    const weightInGrams = formData.weight.replace(/\./g, ""); // Hapus titik pemisah ribuan jika ada
+    const weightInKg = (Number(weightInGrams) / 1000).toString();
 
     // Get origin data from senderData
     const originProvince = senderData.province || "";
@@ -708,7 +710,7 @@ export default function RegularPackageForm({
 
     // Validate required parameters
     if (
-      !weight ||
+      !weightInKg ||
       !originProvince ||
       !originRegency ||
       !originDistrict ||
@@ -717,7 +719,7 @@ export default function RegularPackageForm({
       !destDistrict
     ) {
       const missingFields = [];
-      if (!weight) missingFields.push("berat");
+      if (!weightInKg) missingFields.push("berat");
       if (!originProvince || !originRegency || !originDistrict)
         missingFields.push("data alamat pengirim tidak lengkap");
       if (!destProvince || !destRegency || !destDistrict)
@@ -743,7 +745,7 @@ export default function RegularPackageForm({
         destination_province: destProvince,
         destination_regencie: destRegency,
         destination_district: destDistrict,
-        weight,
+        weight: weightInKg,
       };
 
       // Call all vendor APIs in parallel - same as ShippingForm.tsx for consistency
