@@ -236,8 +236,6 @@ export default function CalculationResults({
         if (paxelData?.fixed_price) {
           const fixedPrice = paxelData.fixed_price;
 
-          console.log("🔍 Paxel data received:", paxelData);
-
           // Add same-day service if available
           if (
             paxelData.time_detail?.some(

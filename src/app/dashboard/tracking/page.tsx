@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Search, Package } from "lucide-react";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
 import { TrackingDisplay } from "@/components/tracking/TrackingDisplay";
+import { normalizeTrackingResponse } from "@/lib/trackingTransform";
 
 export default function TrackingPage() {
   const searchParams = useSearchParams();
@@ -49,14 +50,48 @@ export default function TrackingPage() {
     try {
       const response = await trackOrderByAwb(awbNumber.trim());
 
-      if (response.success) {
-        setResult(response);
+      // Normalize response (handles both standardized and raw vendor formats)
+      const normalizedResponse = normalizeTrackingResponse(
+        response,
+        awbNumber.trim()
+      );
+
+      if (normalizedResponse) {
+        setResult(normalizedResponse);
         toast.success("Data tracking berhasil ditemukan");
       } else {
+        // Try to extract from error response
+        const errorResponse = (response as { response?: { data?: unknown } })?.response?.data;
+        if (errorResponse) {
+          const errorNormalized = normalizeTrackingResponse(
+            errorResponse,
+            awbNumber.trim()
+          );
+          if (errorNormalized) {
+            setResult(errorNormalized);
+            toast.success("Data tracking berhasil ditemukan");
+            return;
+          }
+        }
         toast.error("Data tracking tidak ditemukan");
       }
     } catch (error: unknown) {
       console.error("Tracking error:", error);
+      
+      // Try to extract vendor response from error
+      const errorResponse = (error as { response?: { data?: unknown } })?.response?.data;
+      if (errorResponse) {
+        const normalized = normalizeTrackingResponse(
+          errorResponse,
+          awbNumber.trim()
+        );
+        if (normalized) {
+          setResult(normalized);
+          toast.success("Data tracking berhasil ditemukan");
+          return;
+        }
+      }
+
       const errorMessage =
         (error as { response?: { data?: { message?: string } } })?.response
           ?.data?.message || "Gagal melacak paket. Silakan coba lagi.";
