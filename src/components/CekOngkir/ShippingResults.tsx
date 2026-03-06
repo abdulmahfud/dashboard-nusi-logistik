@@ -173,6 +173,43 @@ type PosIndonesiaApiResult = {
       };
 };
 
+type PosIndonesiaNewServiceItem = {
+  serviceCode: number;
+  serviceName: string;
+  totalFee: number;
+  estimation?: string;
+};
+
+type PosIndonesiaOldServiceItem = {
+  productname: string;
+  totalfee: string;
+  estimation: string;
+};
+
+function isPosIndonesiaNewServiceItem(
+  item: unknown
+): item is PosIndonesiaNewServiceItem {
+  if (!item || typeof item !== "object") return false;
+  const obj = item as Record<string, unknown>;
+  return (
+    typeof obj.serviceCode === "number" &&
+    typeof obj.serviceName === "string" &&
+    typeof obj.totalFee === "number"
+  );
+}
+
+function isPosIndonesiaOldServiceItem(
+  item: unknown
+): item is PosIndonesiaOldServiceItem {
+  if (!item || typeof item !== "object") return false;
+  const obj = item as Record<string, unknown>;
+  return (
+    typeof obj.productname === "string" &&
+    typeof obj.totalfee === "string" &&
+    typeof obj.estimation === "string"
+  );
+}
+
 type JneApiResult = {
   status: string;
   message?: string;
@@ -483,10 +520,11 @@ export default function ShippingResults({
         else if (posData && Array.isArray(posData) && posData.length > 0) {
           // Check if it's the new format with serviceCode (camelCase)
           const firstItem = posData[0];
-          if (firstItem && "serviceCode" in firstItem && "serviceName" in firstItem && "totalFee" in firstItem) {
+          if (isPosIndonesiaNewServiceItem(firstItem)) {
             // Filter untuk serviceCode 910548
-            const filteredService = posData.find(
-              (item: any) => item.serviceCode === 910548
+            const filteredService = (posData as unknown[]).find(
+              (item): item is PosIndonesiaNewServiceItem =>
+                isPosIndonesiaNewServiceItem(item) && item.serviceCode === 910548
             );
             
             if (filteredService && filteredService.totalFee > 0) {
@@ -505,10 +543,12 @@ export default function ShippingResults({
           // Handle old format (array with productname, totalfee)
           else {
             // Filter hanya untuk "Pos Reguler"
-            const posReguler = posData.find(
-              (item) => item.productname === "Pos Reguler"
+            const posReguler = (posData as unknown[]).find(
+              (item): item is PosIndonesiaOldServiceItem =>
+                isPosIndonesiaOldServiceItem(item) &&
+                item.productname === "Pos Reguler"
             );
-            if (posReguler && posReguler.totalfee) {
+            if (posReguler?.totalfee) {
               options.push({
                 id: "posindonesia-reguler",
                 name: posReguler.productname,

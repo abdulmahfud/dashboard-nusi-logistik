@@ -200,7 +200,6 @@ export function transformPosIndonesiaTrackingResponse(
   // Get POD info
   const pod = posResponse.pod || {};
   const customField = posResponse.connote_customfield || {};
-  const historyTracking = customField.history_tracking || {};
 
   // Get delivery info
   const deliveredAt = parsePosDate(pod.timeReceive) || 
@@ -221,7 +220,6 @@ export function transformPosIndonesiaTrackingResponse(
     : posResponse.actual_weight || null;
 
   // Get driver info from last history or custom field
-  const deliveryDriverUsername = customField.usernameDeliveredBy || lastHistory?.username || null;
   const deliveryDriverName = lastHistory?.username || null;
 
   // Build standardized tracking data
