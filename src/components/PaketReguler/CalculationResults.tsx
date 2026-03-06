@@ -403,23 +403,47 @@ export default function CalculationResults({
             }
           }
         }
-        // Handle old format (array)
+        // Handle new array format (with serviceCode, serviceName, totalFee)
         else if (posData && Array.isArray(posData) && posData.length > 0) {
-          const posReguler = posData.find(
-            (item: Record<string, unknown>) =>
-              item.productname === "Pos Reguler"
-          );
-          if (posReguler && posReguler.totalfee) {
-            options.push({
-              id: "posindonesia-reguler",
-              name: String(posReguler.productname || "Pos Reguler"),
-              logo: "/images/pos.png",
-              price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
-              duration: String(posReguler.estimation || "2-4 Hari"),
-              available: true,
-              recommended: false,
-              tags: [{ label: "Pos Indonesia", type: "info" as const }],
-            });
+          // Check if it's the new format with serviceCode (camelCase)
+          const firstItem = posData[0];
+          if (firstItem && "serviceCode" in firstItem && "serviceName" in firstItem && "totalFee" in firstItem) {
+            // Filter untuk serviceCode 910548
+            const filteredService = posData.find(
+              (item: Record<string, unknown>) => item.serviceCode === 910548
+            );
+            
+            if (filteredService && filteredService.totalFee && Number(filteredService.totalFee) > 0) {
+              options.push({
+                id: `posindonesia-${filteredService.serviceCode}`,
+                name: String(filteredService.serviceName || ""),
+                logo: "/images/pos.png",
+                price: `Rp${Number(filteredService.totalFee).toLocaleString("id-ID")}`,
+                duration: String(filteredService.estimation || "2-4 Hari"),
+                available: true,
+                recommended: false,
+                tags: [{ label: "Pos Indonesia", type: "info" as const }],
+              });
+            }
+          }
+          // Handle old format (array with productname, totalfee)
+          else {
+            const posReguler = posData.find(
+              (item: Record<string, unknown>) =>
+                item.productname === "Pos Reguler"
+            );
+            if (posReguler && posReguler.totalfee) {
+              options.push({
+                id: "posindonesia-reguler",
+                name: String(posReguler.productname || "Pos Reguler"),
+                logo: "/images/pos.png",
+                price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
+                duration: String(posReguler.estimation || "2-4 Hari"),
+                available: true,
+                recommended: false,
+                tags: [{ label: "Pos Indonesia", type: "info" as const }],
+              });
+            }
           }
         }
       }

@@ -4,6 +4,16 @@ import {
   isJneRawResponse,
   type JneTrackingResponse,
 } from "./jneTrackingTransform";
+import {
+  transformPosIndonesiaTrackingResponse,
+  isPosIndonesiaRawResponse,
+  type PosIndonesiaTrackingResponse,
+} from "./posIndonesiaTrackingTransform";
+import {
+  transformAnterAjaTrackingResponse,
+  isAnterAjaRawResponse,
+  type AnterAjaTrackingResponse,
+} from "./anterajaTrackingTransform";
 
 /**
  * Vendor transformer interface
@@ -25,6 +35,20 @@ const vendorTransformers: VendorTransformer[] = [
     detect: isJneRawResponse,
     transform: (data, awbNo) =>
       transformJneTrackingResponse(data as JneTrackingResponse, awbNo),
+  },
+  {
+    vendor: "pos_indonesia",
+    vendorName: "Pos Indonesia",
+    detect: isPosIndonesiaRawResponse,
+    transform: (data, awbNo) =>
+      transformPosIndonesiaTrackingResponse(data as PosIndonesiaTrackingResponse, awbNo),
+  },
+  {
+    vendor: "anteraja",
+    vendorName: "AnterAja",
+    detect: isAnterAjaRawResponse,
+    transform: (data, awbNo) =>
+      transformAnterAjaTrackingResponse(data as AnterAjaTrackingResponse, awbNo),
   },
   // Add more vendors here in the future
   // {

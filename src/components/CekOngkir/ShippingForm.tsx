@@ -212,12 +212,12 @@ export default function ShippingForm({
       const weightInKg = (Number(weightInGrams) / 1000).toString();
       
       const shipmentPayload = {
-        origin_province: selectedOrigin.province,
-        origin_regencie: selectedOrigin.regency,
-        origin_district: selectedOrigin.district,
-        destination_province: selectedDest.province,
-        destination_regencie: selectedDest.regency,
-        destination_district: selectedDest.district,
+        origin_province: selectedOrigin.province.toUpperCase(),
+        origin_regencie: selectedOrigin.regency.toUpperCase(),
+        origin_district: selectedOrigin.district.toUpperCase(),
+        destination_province: selectedDest.province.toUpperCase(),
+        destination_regencie: selectedDest.regency.toUpperCase(),
+        destination_district: selectedDest.district.toUpperCase(),
         weight: weightInKg,
       };
 

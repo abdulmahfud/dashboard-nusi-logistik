@@ -739,12 +739,12 @@ export default function RegularPackageForm({
     try {
       // Prepare common payload for all APIs
       const shipmentPayload = {
-        origin_province: originProvince,
-        origin_regencie: originRegency,
-        origin_district: originDistrict,
-        destination_province: destProvince,
-        destination_regencie: destRegency,
-        destination_district: destDistrict,
+        origin_province: originProvince.toUpperCase(),
+        origin_regencie: originRegency.toUpperCase(),
+        origin_district: originDistrict.toUpperCase(),
+        destination_province: destProvince.toUpperCase(),
+        destination_regencie: destRegency.toUpperCase(),
+        destination_district: destDistrict.toUpperCase(),
         weight: weightInKg,
       };
 
