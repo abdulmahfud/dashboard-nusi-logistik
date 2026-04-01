@@ -16,7 +16,6 @@ import {
   Mail,
   Phone,
   User as UserIcon,
-  Calendar,
   CheckCircle,
   XCircle,
 } from "lucide-react";
@@ -200,7 +199,7 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Calendar className="h-5 w-5" />
@@ -238,7 +237,7 @@ export default function UserProfilePage() {
                     </p>
                   </div>
                 </CardContent>
-              </Card>
+              </Card> */}
 
               <Card>
                 <CardHeader>

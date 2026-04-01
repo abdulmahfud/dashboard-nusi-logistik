@@ -12,6 +12,7 @@ import RegularPackageForm from "../../../../components/PaketReguler/RegularPacka
 import CalculationResults from "@/components/PaketReguler/CalculationResults";
 
 const PaketReguler = () => {
+  const [formResetKey, setFormResetKey] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [calculationResult, setCalculationResult] = useState<
     Record<string, unknown> | undefined
@@ -74,7 +75,8 @@ const PaketReguler = () => {
   const handleResetForm = useCallback(() => {
     setFormData({});
     setCalculationResult(undefined);
-    // Form will be reset via prop passing
+    setIsSearching(false);
+    setFormResetKey((k) => k + 1);
   }, []);
 
   return (
@@ -97,6 +99,7 @@ const PaketReguler = () => {
                 >
                   <div className="flex flex-col mx-2">
                     <RegularPackageForm
+                      key={formResetKey}
                       onResult={handleCalculationResult}
                       setIsSearching={setIsSearching}
                       onFormDataChange={handleFormDataChange}

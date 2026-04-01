@@ -20,6 +20,7 @@ import {
   CreditCard,
   Tag,
   Loader2,
+  ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -146,6 +147,7 @@ export default function CalculationResults({
   isSearching,
   result,
   formData,
+  onResetForm,
 }: CalculationResultsProps) {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -158,6 +160,8 @@ export default function CalculationResults({
     awb_no?: string;
     order_id?: number;
     reference_no?: string;
+    /** COD: dialog khusus dua aksi; payment: alur pembayaran */
+    flow?: "cod" | "payment";
   } | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -1195,6 +1199,7 @@ export default function CalculationResults({
       awb_no: undefined, // AWB will be available after payment and expedition processing
       order_id: orderData.order_id,
       reference_no: orderData.reference_no,
+      flow: "payment",
     });
 
     setShowSuccessDialog(true);
@@ -1205,23 +1210,30 @@ export default function CalculationResults({
     reference_no: string;
     awb_no?: string;
   }) => {
-    toast.success("Order COD berhasil dibuat! Tidak ada pembayaran yang diperlukan.");
+    toast.success("Pengiriman COD berhasil dibuat.");
 
-    // Set order result to show success with order ID
     setOrderResult({
       success: true,
-      message: "Order COD berhasil dibuat! Tidak ada pembayaran yang diperlukan.",
+      message:
+        "Pengiriman COD Anda sedang diproses. Detail pesanan tercantum di bawah.",
       awb_no: orderData.awb_no,
       order_id: orderData.order_id,
       reference_no: orderData.reference_no,
+      flow: "cod",
     });
 
     setShowSuccessDialog(true);
   };
 
   const handleCreateNewOrder = () => {
-    router.push("/dashboard/paket/paket-reguler");
     setShowSuccessDialog(false);
+    onResetForm?.();
+    router.push("/dashboard/paket/paket-reguler");
+  };
+
+  const handleGoToLaporanPengiriman = () => {
+    setShowSuccessDialog(false);
+    router.push("/dashboard/laporan/laporan-pengiriman");
   };
 
   // No payment flow needed - orders go directly to pending payment status
@@ -1553,17 +1565,25 @@ export default function CalculationResults({
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
             <DialogTitle className="text-xl font-bold text-green-600">
-              Order Berhasil Dibuat!
+              {orderResult?.flow === "cod"
+                ? "Pengiriman COD sedang diproses"
+                : "Order Berhasil Dibuat!"}
             </DialogTitle>
             <DialogDescription asChild>
               <div className="text-base">
-                <div className="bg-blue-50 p-3 rounded-lg mt-4">
+                {orderResult?.flow === "cod" && (
+                  <p className="text-muted-foreground text-sm mt-2">
+                    Pesanan COD Anda telah diterima dan sedang diproses ke
+                    ekspedisi. Anda dapat melacak status di laporan pengiriman.
+                  </p>
+                )}
+                <div className="bg-blue-50 p-3 rounded-lg mt-4 text-left">
                   {orderResult?.order_id && (
                     <div className="text-sm text-blue-600 mb-2">
                       Order ID: #{orderResult.order_id}
@@ -1580,56 +1600,90 @@ export default function CalculationResults({
                     </div>
                   )}
                   <div className="text-sm text-blue-700">
-                    {orderResult?.awb_no
-                      ? "Status: Order berhasil dibuat (COD - Tidak ada pembayaran)"
-                      : "Status: Menunggu Pembayaran"}
+                    {orderResult?.flow === "cod"
+                      ? "Status: COD — diproses (tanpa pembayaran di muka)"
+                      : orderResult?.awb_no
+                        ? "Status: Diproses ke ekspedisi"
+                        : "Status: Menunggu Pembayaran"}
                   </div>
                 </div>
               </div>
             </DialogDescription>
           </DialogHeader>
 
-          <div className={`grid gap-3 mt-6 ${orderResult?.awb_no ? "grid-cols-1" : "grid-cols-2"}`}>
-            {!orderResult?.awb_no && (
+          {orderResult?.flow === "cod" ? (
+            <div className="grid grid-cols-1 gap-3 mt-6 sm:grid-cols-2">
               <Button
-                onClick={() => router.push("/dashboard/paket/pembayaran-paket")}
-                className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
+                type="button"
+                onClick={handleCreateNewOrder}
+                variant="outline"
+                className="h-11 px-4 font-semibold text-sm flex items-center justify-center gap-2 rounded-full border-blue-200"
               >
-                <CreditCard className="h-4 w-4" />
-                Lakukan Pembayaran
+                <Package className="h-4 w-4 shrink-0" />
+                Kirim paket lagi
               </Button>
-            )}
-
-            <Button
-              onClick={handleCreateNewOrder}
-              variant="outline"
-              className="h-11 px-6 py-4 font-semibold text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
-            >
-              <Package className="h-4 w-4" />
-              Kirim Paket Lagi
-            </Button>
-          </div>
-
-          {/* Show message when payment successful but order still processing */}
-          {orderResult?.success && !orderResult?.awb_no && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
-              <p className="text-sm text-blue-700">
-                📦 Order berhasil dibuat dan sedang diproses setelah pembayaran
-                berhasil.
-              </p>
-              {orderResult.order_id && (
-                <p className="text-xs text-blue-600 mt-2">
-                  Order ID: #{orderResult.order_id}
-                </p>
-              )}
-              <p className="text-xs text-blue-600 mt-2">
-                Status: Belum Diproses → Akan diproses ke ekspedisi dalam
-                beberapa menit.
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Anda dapat melihat status terkini di halaman laporan pengiriman.
-              </p>
+              <Button
+                type="button"
+                onClick={handleGoToLaporanPengiriman}
+                className="h-11 px-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 text-sm flex items-center justify-center gap-2 rounded-full"
+              >
+                <ClipboardList className="h-4 w-4 shrink-0" />
+                Laporan pengiriman
+              </Button>
             </div>
+          ) : (
+            <>
+              <div
+                className={`grid gap-3 mt-6 ${orderResult?.awb_no ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}
+              >
+                {!orderResult?.awb_no && (
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      router.push("/dashboard/paket/pembayaran-paket")
+                    }
+                    className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Lakukan Pembayaran
+                  </Button>
+                )}
+
+                <Button
+                  type="button"
+                  onClick={handleCreateNewOrder}
+                  variant="outline"
+                  className="h-11 px-6 py-4 font-semibold text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
+                >
+                  <Package className="h-4 w-4" />
+                  Kirim Paket Lagi
+                </Button>
+              </div>
+
+              {orderResult?.success &&
+                !orderResult?.awb_no &&
+                orderResult?.flow === "payment" && (
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
+                    <p className="text-sm text-blue-700">
+                      📦 Order berhasil dibuat dan sedang diproses setelah
+                      pembayaran berhasil.
+                    </p>
+                    {orderResult.order_id && (
+                      <p className="text-xs text-blue-600 mt-2">
+                        Order ID: #{orderResult.order_id}
+                      </p>
+                    )}
+                    <p className="text-xs text-blue-600 mt-2">
+                      Status: Belum Diproses → Akan diproses ke ekspedisi dalam
+                      beberapa menit.
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Anda dapat melihat status terkini di halaman laporan
+                      pengiriman.
+                    </p>
+                  </div>
+                )}
+            </>
           )}
         </DialogContent>
       </Dialog>
