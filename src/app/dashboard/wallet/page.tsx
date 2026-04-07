@@ -20,7 +20,6 @@ import {
   AlertCircle,
   ArrowDownToLine,
   ArrowRight,
-  Globe,
   History,
   Loader2,
   RefreshCw,
@@ -51,7 +50,6 @@ export default function WalletPage() {
     useAuth();
   const canTopup = hasPermission("wallet.topup");
   const canViewOwn = hasPermission("wallet.view");
-  const canViewAll = hasPermission("wallet.transactions.view_all");
 
   const [amountRaw, setAmountRaw] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +157,7 @@ export default function WalletPage() {
             </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6">
             <Card className="border-blue-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -169,16 +167,12 @@ export default function WalletPage() {
                   <div>
                     <CardTitle className="text-lg">Saldo saat ini</CardTitle>
                     <CardDescription>
-                      Dari endpoint wallet (
-                      <code className="rounded bg-white px-1 text-xs">
-                        GET /admin/wallet/balance
-                      </code>
-                      )
+                      Menampilkan saldo aktif terbaru dari akun Anda.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
                 <p className="text-3xl font-bold tabular-nums text-slate-900">
                   {balanceLoading
                     ? "Memuat saldo..."
@@ -200,136 +194,70 @@ export default function WalletPage() {
                   />
                   Refresh saldo
                 </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-blue-100 shadow-sm">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className="rounded-full bg-emerald-100 p-2">
-                    <ArrowDownToLine className="h-5 w-5 text-emerald-700" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">Top-up saldo</CardTitle>
-                    <CardDescription>
-                      Minimum Rp {MIN_TOPUP.toLocaleString("id-ID")} — Anda akan
-                      diarahkan ke halaman pembayaran Xendit.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {canTopup ? (
-                  <form onSubmit={handleTopup} className="space-y-4">
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="topup-amount"
-                        className="text-sm font-medium"
-                      >
-                        Nominal (Rp)
-                      </label>
-                      <CurrencyInput
-                        id="topup-amount"
-                        value={amountRaw}
-                        onChange={setAmountRaw}
-                        placeholder="10000"
-                      />
+                <div className="border-t border-slate-100 pt-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <div className="rounded-full bg-emerald-100 p-2">
+                      <ArrowDownToLine className="h-5 w-5 text-emerald-700" />
                     </div>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      Anda akan diarahkan ke halaman pembayaran Xendit. Saldo
-                      belum bertambah sebelum pembayaran selesai diverifikasi.
-                    </p>
-                    <Button
-                      type="submit"
-                      disabled={submitting || !amountRaw}
-                      className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Memproses…
-                        </>
-                      ) : (
-                        "Lanjutkan pembayaran"
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <div
-                    className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
-                    role="status"
-                  >
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    <p>
-                      Akun Anda belum memiliki izin{" "}
-                      <code className="rounded bg-white px-1">wallet.topup</code>
-                      . Hubungi admin untuk mengaktifkan top-up saldo.
-                    </p>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">
+                        Top-up saldo
+                      </h2>
+                      <p className="text-muted-foreground text-sm">
+                        Minimum Rp {MIN_TOPUP.toLocaleString("id-ID")} — Anda akan
+                        diarahkan ke halaman pembayaran Xendit.
+                      </p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border-slate-200">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-base">Riwayat wallet saya</CardTitle>
+                  {canTopup ? (
+                    <form onSubmit={handleTopup} className="space-y-4">
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="topup-amount"
+                          className="text-sm font-medium"
+                        >
+                          Nominal (Rp)
+                        </label>
+                        <CurrencyInput
+                          id="topup-amount"
+                          value={amountRaw}
+                          onChange={setAmountRaw}
+                          placeholder="10000"
+                        />
+                      </div>
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        Anda akan diarahkan ke halaman pembayaran Xendit. Saldo
+                        belum bertambah sebelum pembayaran selesai diverifikasi.
+                      </p>
+                      <Button
+                        type="submit"
+                        disabled={submitting || !amountRaw}
+                        className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Memproses…
+                          </>
+                        ) : (
+                          "Lanjutkan pembayaran"
+                        )}
+                      </Button>
+                    </form>
+                  ) : (
+                    <div
+                      className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                      role="status"
+                    >
+                      <AlertCircle className="h-5 w-5 shrink-0" />
+                      <p>
+                        Akun Anda belum memiliki izin{" "}
+                        <code className="rounded bg-white px-1">wallet.topup</code>
+                        . Hubungi admin untuk mengaktifkan top-up saldo.
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <CardDescription>
-                  Transaksi dompet Anda sendiri (izin{" "}
-                  <code className="text-xs">wallet.view</code>).
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {canViewOwn ? (
-                  <Button asChild variant="secondary" className="w-full gap-2 sm:w-auto">
-                    <Link href="/dashboard/wallet/riwayat">
-                      Buka riwayat
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Anda tidak memiliki akses riwayat pribadi (wallet.view).
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-indigo-100 bg-indigo-50/40">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-indigo-700" />
-                  <CardTitle className="text-base">
-                    Semua transaksi wallet
-                  </CardTitle>
-                </div>
-                <CardDescription>
-                  Tampilan admin — seluruh pengguna (
-                  <code className="text-xs">wallet.transactions.view_all</code>
-                  ).
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {canViewAll ? (
-                  <Button
-                    asChild
-                    className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 sm:w-auto"
-                  >
-                    <Link href="/dashboard/wallet/transactions/all">
-                      Buka daftar global
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Menu ini hanya untuk peran dengan izin melihat semua
-                    transaksi wallet.
-                  </p>
-                )}
               </CardContent>
             </Card>
           </div>

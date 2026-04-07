@@ -138,10 +138,7 @@ export default function WalletRiwayatPage() {
               </h1>
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
-              Hanya transaksi dompet Anda. Data dari{" "}
-              <code className="rounded bg-white px-1 text-xs">
-                GET /admin/wallet/transactions
-              </code>
+              Hanya transaksi dompet milik Anda sendiri.
             </p>
           </div>
 

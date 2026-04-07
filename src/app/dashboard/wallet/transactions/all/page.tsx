@@ -206,11 +206,7 @@ export default function WalletAllTransactionsPage() {
               </h1>
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
-              Tampilan administrator — seluruh pengguna. Bukan riwayat pribadi.
-              Endpoint:{" "}
-              <code className="rounded bg-white px-1 text-xs">
-                GET /admin/wallet/transactions/all
-              </code>
+              Tampilan administrator untuk seluruh pengguna, bukan riwayat pribadi.
             </p>
           </div>
 
