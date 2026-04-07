@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { getPaymentStatus } from "@/lib/apiClient";
 import type { PaymentStatus } from "@/types/payment";
 
-export default function PaymentFailedPage() {
+function PaymentFailedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [payment, setPayment] = useState<PaymentStatus | null>(null);
@@ -411,5 +411,24 @@ export default function PaymentFailedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentFailedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Memuat halaman pembayaran...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <PaymentFailedContent />
+    </Suspense>
   );
 }
