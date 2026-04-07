@@ -50,7 +50,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     router,
   ]);
 
-  if (loading) return <DashboardSkeleton />;
+  // Untuk halaman return gateway, jangan block UI dengan loading auth.
+  if (loading && !allowWithoutUser) return <DashboardSkeleton />;
 
   if (!user && !allowWithoutUser) return <DashboardSkeleton />;
 

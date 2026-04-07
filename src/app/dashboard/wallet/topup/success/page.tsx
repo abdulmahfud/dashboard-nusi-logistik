@@ -14,20 +14,8 @@ import {
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { CheckCircle, ClipboardList, Home, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
-import { getCookie } from "cookies-next";
-import { useEffect } from "react";
 
 export default function WalletTopupSuccessPage() {
-  const { refreshUser } = useAuth();
-
-  useEffect(() => {
-    if (getCookie("token")) {
-      // Jangan force refresh saat return dari gateway: cukup andalkan cache/dedupe.
-      void refreshUser({ force: false });
-    }
-  }, [refreshUser]);
-
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
