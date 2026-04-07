@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "./ui/skeleton";
 
@@ -19,14 +20,18 @@ function DashboardSkeleton() {
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+  const allowWithoutUser = isDashboardGatewayReturnPath(pathname);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !allowWithoutUser) {
       router.push("/login");
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, allowWithoutUser]);
 
   if (loading) return <DashboardSkeleton />;
+
+  if (!user && !allowWithoutUser) return <DashboardSkeleton />;
 
   return <>{children}</>;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify, type JWTPayload } from "jose";
+import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -69,13 +70,13 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = path === "/login" || path === "/register";
   const isDashboard = path.startsWith("/dashboard");
   const isVerificationPage = path === "/dashboard/verifikasi";
-  const isPaymentPage = path.startsWith("/dashboard/payment/");
+  const isGatewayReturnPage = isDashboardGatewayReturnPath(path);
 
   const authenticated = await isAuthenticated(request);
 
   // If accessing dashboard and not authenticated, redirect to login
-  // Exception: payment pages (success/failed) are accessible without auth to handle redirects from external payment gateway
-  if (isDashboard && !authenticated && !isPaymentPage) {
+  // Exception: order payment + wallet top-up return URLs (external gateway may omit cookie on first request)
+  if (isDashboard && !authenticated && !isGatewayReturnPage) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", path);
 

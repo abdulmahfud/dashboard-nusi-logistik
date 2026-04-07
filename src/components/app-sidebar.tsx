@@ -7,6 +7,8 @@ import {
   FileSymlink,
   FileText,
   HelpCircleIcon,
+  History,
+  Globe,
   House,
   PackageSearch,
   Truck,
@@ -29,11 +31,13 @@ import { NavData } from "@/components/nav-data";
 import { NavManagementUser } from "@/components/nav-management-user";
 import { NavMain } from "@/components/nav-main";
 import { NavReport } from "@/components/nav-report";
+import { NavWallet } from "@/components/nav-wallet";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavSendPackage } from "@/components/nav-send-package";
 import { NavUser } from "@/components/nav-user";
 
 import { useAuth } from "@/context/AuthContext";
+import { filterSidebarByPermission } from "@/lib/sidebar-permissions";
 
 import {
   Sidebar,
@@ -49,43 +53,62 @@ const data = {
       title: "Beranda",
       url: "/dashboard",
       icon: House,
-    },
+      permission: "orders.index",
+    },    
     {
       title: "Cek Ongkir",
       url: "/dashboard/cek-ongkir",
       icon: PackageSearch,
+      permission: "expedition.shipment_cost.calculate",
     },
     {
       title: "Lacak Paket",
       url: "/dashboard/tracking",
       icon: Truck,
+      permission: "expedition.tracking.view",
     },
     {
       title: "Cek Kode Pos",
       url: "/dashboard/cek-kode-pos",
       icon: FileSearch,
-    },    
-    // {
-    //   title: "Cetak Resi Massal",
-    //   url: "/dashboard/cetak-resi-massal",
-    //   icon: PrinterCheck,
-    // },
+      permission: "expedition.shipment_cost",
+    },
+  ],
+  wallet: [
+    {
+      title: "Dompet",
+      url: "/dashboard/wallet",
+      icon: Wallet,
+      matchPrefix: true,
+      permission: "wallet.topup",
+    },
+    {
+      title: "Riwayat Dompet",
+      url: "/dashboard/wallet/riwayat",
+      icon: History,
+      exact: true,
+      permission: "wallet.view",
+    },
+    {
+      title: "Semua Transaksi",
+      url: "/dashboard/wallet/transactions/all",
+      icon: Globe,
+      exact: true,
+      permission: "wallet.transactions.view_all",
+    },
   ],
   sendPackage: [
     {
       title: "Kirim Paket Reguler",
       url: "/dashboard/paket/paket-reguler",
       icon: Truck,
+      permission: "expedition.orders.create",
     },
-    // {
-    //   title: "Kirim Paket Instant",
-    //   url: "/dashboard/paket/paket-instant",
-    //   icon: Package,
-    // },
     {
       title: "Pembayaran Paket",
       url: "/dashboard/paket/pembayaran-paket",
       icon: Wallet,
+      permission: "payments.view",
     },
     {
       title: "Cancel Order",
@@ -97,7 +120,7 @@ const data = {
       title: "Diskon Pengiriman",
       url: "/dashboard/paket/diskon-pengiriman",
       icon: BadgePercent,
-      permission: "discounts.create",
+      permission: "discounts.view",
     },
   ],
   navSecondary: [
@@ -105,16 +128,19 @@ const data = {
       title: "Dapatkan Bantuan",
       url: "/dashboard/bantuan",
       icon: HelpCircleIcon,
+      permission: "orders.index",
     },
     {
       title: "Syarat & Ketentuan",
       url: "/dashboard/syarat-dan-ketentuan",
       icon: FileText,
+      permission: "orders.index",
     },
     {
       title: "Kritik & Saran",
       url: "/dashboard/kritik-dan-saran",
       icon: MessageCircle,
+      permission: "orders.index",
     },
   ],
   report: [
@@ -122,11 +148,13 @@ const data = {
       title: "Laporan Mutasi Saldo",
       url: "/dashboard/laporan/laporan-mutasi-saldo",
       icon: ClipboardListIcon,
+      permission: "wallet.view",
     },
     {
       title: "Laporan Pengiriman",
       url: "/dashboard/laporan/laporan-pengiriman",
       icon: FileText,
+      permission: "expedition.orders.list",
     },
   ],
   account: [
@@ -134,33 +162,27 @@ const data = {
       title: "Profil",
       url: "/dashboard/akun/profil",
       icon: User,
+      permission: "users.show",
     },
-    // {
-    //   title: "Laporan Withdraw",
-    //   url: "#",
-    //   icon: Calculator,
-    // },
     {
       title: "Rekening",
       url: "/dashboard/akun/rekening",
       icon: Wallet,
+      permission: "bank-accounts.index",
     },
-    // {
-    //   title: "Social Media",
-    //   url: "/dashboard/akun/social-media",
-    //   icon: MessageCircleCode,
-    // },
   ],
   data: [
     {
       title: "Data Pengirim",
       url: "/dashboard/data/data-pengirim",
       icon: FileSymlink,
+      permission: "shipper.index",
     },
     {
       title: "Data Penerima",
       url: "/dashboard/data/data-penerima",
       icon: FileDown,
+      permission: "receiver.index",
     },
   ],
   managementUser: [
@@ -168,31 +190,37 @@ const data = {
       title: "List Bank Account",
       url: "/dashboard/list-bank-accounts",
       icon: Banknote,
+      permission: "bank-accounts.index",
     },
     {
       title: "List User",
       url: "/dashboard/users",
       icon: UserRoundSearch,
+      permission: "users.index",
     },
     {
       title: "Tambah User",
       url: "/dashboard/users/create",
       icon: UserRoundPlus,
+      permission: "users.store",
     },
     {
       title: "List Role",
       url: "/dashboard/roles",
       icon: UserCheck,
+      permission: "roles.index",
     },
     {
       title: "Tambah Role",
       url: "/dashboard/roles/create",
       icon: UserCog,
+      permission: "roles.store",
     },
     {
       title: "List Permission",
       url: "/dashboard/permissions",
       icon: ShieldUser,
+      permission: "permissions.index",
     },
   ],
 };
@@ -200,14 +228,47 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { hasPermission, loading: authLoading } = useAuth();
 
-  if (authLoading) return null;
+  const filteredNavMain = filterSidebarByPermission(
+    data.navMain,
+    hasPermission,
+    authLoading
+  );
+  const filteredSendPackage = filterSidebarByPermission(
+    data.sendPackage,
+    hasPermission,
+    authLoading
+  );
+  const walletItemsForSidebar = filterSidebarByPermission(
+    data.wallet,
+    hasPermission,
+    authLoading
+  );
+  const filteredReport = filterSidebarByPermission(
+    data.report,
+    hasPermission,
+    authLoading
+  );
+  const filteredData = filterSidebarByPermission(
+    data.data,
+    hasPermission,
+    authLoading
+  );
+  const filteredAccount = filterSidebarByPermission(
+    data.account,
+    hasPermission,
+    authLoading
+  );
+  const filteredNavSecondary = filterSidebarByPermission(
+    data.navSecondary,
+    hasPermission,
+    authLoading
+  );
+  const filteredManagementUser = filterSidebarByPermission(
+    data.managementUser,
+    hasPermission,
+    authLoading
+  );
 
-  // ✅ Filter sendPackage berdasarkan permission
-  const filteredSendPackage = data.sendPackage.filter((item: { permission?: string }) => {
-    if (!item.permission) return true; // menu tanpa permission = selalu tampil
-    return hasPermission(item.permission);
-  });
-  
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader className="pt-0 pb-0 mb-5 mt-5">
@@ -219,15 +280,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSendPackage items={filteredSendPackage} />
-        <NavReport items={data.report} />
-        <NavData items={data.data} />
-        <NavAccount items={data.account} />
-        {hasPermission("roles.index") && (
-          <NavManagementUser items={data.managementUser} />
+        {filteredNavMain.length > 0 && <NavMain items={filteredNavMain} />}
+        {filteredSendPackage.length > 0 && (
+          <NavSendPackage items={filteredSendPackage} />
         )}
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {walletItemsForSidebar.length > 0 && (
+          <NavWallet items={walletItemsForSidebar} />
+        )}
+        {filteredReport.length > 0 && <NavReport items={filteredReport} />}
+        {filteredData.length > 0 && <NavData items={filteredData} />}
+        {filteredAccount.length > 0 && (
+          <NavAccount items={filteredAccount} />
+        )}
+        {filteredManagementUser.length > 0 && (
+          <NavManagementUser items={filteredManagementUser} />
+        )}
+        {filteredNavSecondary.length > 0 && (
+          <NavSecondary items={filteredNavSecondary} className="mt-auto" />
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

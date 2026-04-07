@@ -1,26 +1,27 @@
 "use client";
 
-import Link from "next/link";
 import { type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
-export function NavMain({
+export function NavWallet({
   items,
 }: {
   items: {
     title: string;
     url: string;
     icon?: LucideIcon;
-    /** aktif juga untuk sub-path (mis. /dashboard/wallet/riwayat untuk url /dashboard/wallet) */
-    matchPrefix?: boolean;
-    /** diisi di app-sidebar, tidak dipakai di sini */
+    /** default true: aktif hanya jika pathname sama persis (hindari /dompet aktif di sub-route) */
+    exact?: boolean;
+    /** hanya dipakai di sidebar untuk filter; tidak dipakai di sini */
     permission?: string;
   }[];
 }) {
@@ -29,11 +30,14 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
+        <SidebarGroupLabel>Saldo</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = item.matchPrefix
-              ? pathname === item.url || pathname.startsWith(`${item.url}/`)
-              : pathname === item.url;
+            const exact = item.exact !== false;
+            const isActive = exact
+              ? pathname === item.url
+              : pathname === item.url ||
+                pathname.startsWith(`${item.url}/`);
 
             return (
               <SidebarMenuItem key={item.title}>

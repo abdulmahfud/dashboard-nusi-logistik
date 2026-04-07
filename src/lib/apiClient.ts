@@ -55,6 +55,16 @@ import type {
 } from "@/types/bankAccount";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
 import type { ExpeditionDiscount } from "@/types/discount";
+import type {
+  WalletTopupResponse,
+  WalletTransactionsResponse,
+  WalletTransactionItem,
+  WalletAllTransactionsResponse,
+  WalletAllTransactionsQuery,
+  LaravelPaginator,
+  LaravelPaginatorMeta,
+} from "@/types/wallet";
+import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 
 // Ambil URL dari .env
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -122,10 +132,13 @@ let isRedirecting = false;
 apiClient.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
+    const path =
+      typeof window !== "undefined" ? window.location.pathname : "";
     if (
       error.response?.status === 401 &&
       typeof window !== "undefined" &&
-      !window.location.pathname.includes("/login") &&
+      !path.includes("/login") &&
+      !isDashboardGatewayReturnPath(path) &&
       !isRedirecting
     ) {
       isRedirecting = true;
@@ -1339,5 +1352,76 @@ export const getExpeditionDiscountStatistics = async (): Promise<{
   const res = await apiClient.get("/admin/expedition-discounts/statistics");
   return res.data;
 };
+
+export const requestWalletTopup = async (
+  amount: number
+): Promise<WalletTopupResponse> => {
+  const res = await apiClient.post<WalletTopupResponse>(
+    "/admin/wallet/topup",
+    { amount }
+  );
+  return res.data;
+};
+
+/** Riwayat transaksi user login — permission: wallet.view */
+export const getMyWalletTransactions = async (params?: {
+  page?: number;
+}): Promise<WalletTransactionsResponse> => {
+  const res = await apiClient.get<WalletTransactionsResponse>(
+    "/admin/wallet/transactions",
+    { params }
+  );
+  return res.data;
+};
+
+/** Semua transaksi wallet (admin) — permission: wallet.transactions.view_all */
+export const getAllWalletTransactions = async (
+  params?: WalletAllTransactionsQuery
+): Promise<WalletAllTransactionsResponse> => {
+  const res = await apiClient.get<WalletAllTransactionsResponse>(
+    "/admin/wallet/transactions/all",
+    { params }
+  );
+  return res.data;
+};
+
+/** Normalisasi array transaksi dari response Laravel (array atau paginator). */
+export function normalizeWalletTransactions(
+  payload:
+    | WalletTransactionsResponse
+    | WalletAllTransactionsResponse
+    | undefined
+): WalletTransactionItem[] {
+  if (!payload?.data) return [];
+  const d = payload.data;
+  if (Array.isArray(d)) return d;
+  if (
+    typeof d === "object" &&
+    "data" in d &&
+    Array.isArray((d as LaravelPaginator<WalletTransactionItem>).data)
+  ) {
+    return (d as LaravelPaginator<WalletTransactionItem>).data;
+  }
+  return [];
+}
+
+export function getWalletPaginatorMeta(
+  payload:
+    | WalletTransactionsResponse
+    | WalletAllTransactionsResponse
+    | undefined
+): LaravelPaginatorMeta | null {
+  const d = payload?.data;
+  if (
+    d &&
+    typeof d === "object" &&
+    !Array.isArray(d) &&
+    "current_page" in d &&
+    "last_page" in d
+  ) {
+    return d as LaravelPaginator<WalletTransactionItem>;
+  }
+  return null;
+}
 
 export default apiClient;

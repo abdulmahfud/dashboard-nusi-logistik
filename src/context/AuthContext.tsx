@@ -4,6 +4,25 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserData, ApiResponse } from "@/types/api";
 import apiClient from "@/lib/apiClient";
 
+function normalizePermissions(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((p): p is string => typeof p === "string");
+  }
+  if (raw && typeof raw === "object") {
+    return Object.values(raw as Record<string, unknown>).filter(
+      (p): p is string => typeof p === "string"
+    );
+  }
+  return [];
+}
+
+function normalizeRoles(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((r) => String(r)).filter(Boolean);
+  }
+  return [];
+}
+
 type AuthContextType = {
   user: UserData | null;
   loading: boolean;
@@ -28,7 +47,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       const res = await apiClient.get<ApiResponse<UserData>>("/admin/me");
-      setUser(res.data.data);
+      const raw = res.data.data;
+      setUser({
+        ...raw,
+        permissions: normalizePermissions(raw.permissions),
+        roles: normalizeRoles(raw.roles),
+      });
     } catch {
       setUser(null);
     } finally {

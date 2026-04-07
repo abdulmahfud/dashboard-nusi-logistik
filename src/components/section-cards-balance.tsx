@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 
 import Image from "next/image";
+import Link from "next/link";
 import { DatePickerWithRange } from "./date-picker-with-range";
 import { Button } from "./ui/button";
 
@@ -61,19 +62,17 @@ export function SectionCardsBalance() {
             <CardContent className="pt-0">
               <div className="space-y-4">
                 <div className="text-2xl font-bold text-gray-900">Rp0</div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    Tarik Saldo
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" asChild>
+                    <Link href="/dashboard/akun/rekening">Tarik Saldo</Link>
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                    asChild
                   >
-                    Riwayat
+                    <Link href="/dashboard/wallet">Dompet &amp; top-up</Link>
                   </Button>
                 </div>
               </div>

@@ -8,7 +8,7 @@ import { SectionCardsCod } from "@/components/section-cards-cod";
 import { SectionCardsReguler } from "@/components/section-cards-reguler";
 import { SectionCardsTrouble } from "@/components/section-cards-trouble";
 import TopNav from "@/components/top-nav";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function DashboardSkeleton() {
@@ -63,9 +63,5 @@ function DashboardContent() {
 }
 
 export default function Dashboard() {
-  return (
-    <AuthProvider>
-      <DashboardContent />
-    </AuthProvider>
-  );
+  return <DashboardContent />;
 }

@@ -14,6 +14,8 @@ export interface UserData {
   updated_at?: string;
   roles: string[];
   permissions: string[];
+  /** Saldo dompet (string dari API), jika dikirim di GET /admin/me */
+  balance?: string | number;
 }
 
 export interface UsersResponse {
