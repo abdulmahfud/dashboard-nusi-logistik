@@ -16,37 +16,14 @@ export default function VerifikasiPage() {
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const { user, refreshUser, loading } = useAuth();
 
-  // Check verification status on page load
+  // Satu sumber data: AuthContext (GET /admin/me sudah dipanggil di sana, tidak duplikat di sini)
   useEffect(() => {
-    const checkInitialStatus = async () => {
-      if (loading) return; // Wait for auth context to load
-      
-      try {
-        const response = await apiClient.get("/admin/me");
-        const userData = response.data.data;
-        
-        if (userData.email_verified_at) {
-          window.location.href = "/dashboard";
-          return;
-        }
-      } catch {
-        // Silently handle error
-      } finally {
-        setInitialCheckDone(true);
-      }
-    };
-
-    if (!initialCheckDone && !loading) {
-      checkInitialStatus();
-    }
-  }, [loading, initialCheckDone]);
-
-  // Also check when user context changes
-  useEffect(() => {
-    if (user?.email_verified_at && initialCheckDone) {
+    if (loading) return;
+    setInitialCheckDone(true);
+    if (user?.email_verified_at) {
       window.location.href = "/dashboard";
     }
-  }, [user, initialCheckDone]);
+  }, [loading, user]);
 
   const handleResendVerification = async () => {
     setIsLoading(true);
@@ -68,15 +45,9 @@ export default function VerifikasiPage() {
   const handleCheckStatus = async () => {
     setIsCheckingStatus(true);
     try {
-      // Make direct API call to check current status
-      const response = await apiClient.get("/admin/me");
-      const userData = response.data.data;
-      
-      if (userData.email_verified_at) {
-        // Update the context with fresh data
-        await refreshUser();
+      const userData = await refreshUser({ force: true });
+      if (userData?.email_verified_at) {
         toast.success("Email berhasil diverifikasi!");
-        // Small delay to ensure state is updated
         setTimeout(() => {
           window.location.href = "/dashboard";
         }, 100);

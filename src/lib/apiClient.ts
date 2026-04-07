@@ -87,6 +87,12 @@ const isDev = process.env.NODE_ENV === "development";
 
 // Tambahkan fungsi logout terpusat
 export function logout() {
+  if (typeof window !== "undefined") {
+    void import("@/lib/admin-me")
+      .then((m) => m.clearAdminMeCache())
+      .catch(() => {});
+  }
+
   // Hapus cookie token (pastikan domain cocok!)
   deleteCookie("token", {
     path: "/",

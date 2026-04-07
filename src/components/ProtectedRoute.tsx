@@ -23,15 +23,45 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const allowWithoutUser = isDashboardGatewayReturnPath(pathname);
 
+  const isVerifikasiPage = pathname === "/dashboard/verifikasi";
+
   useEffect(() => {
     if (!loading && !user && !allowWithoutUser) {
       router.push("/login");
     }
   }, [loading, user, router, allowWithoutUser]);
 
+  useEffect(() => {
+    if (
+      loading ||
+      !user ||
+      user.email_verified_at ||
+      isVerifikasiPage ||
+      allowWithoutUser
+    ) {
+      return;
+    }
+    router.replace("/dashboard/verifikasi");
+  }, [
+    loading,
+    user,
+    isVerifikasiPage,
+    allowWithoutUser,
+    router,
+  ]);
+
   if (loading) return <DashboardSkeleton />;
 
   if (!user && !allowWithoutUser) return <DashboardSkeleton />;
+
+  if (
+    user &&
+    !user.email_verified_at &&
+    !isVerifikasiPage &&
+    !allowWithoutUser
+  ) {
+    return <DashboardSkeleton />;
+  }
 
   return <>{children}</>;
 }
