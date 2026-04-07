@@ -1,3 +1,5 @@
+ "use client";
+
 import { Wallet, Info, CreditCard, History } from "lucide-react";
 
 import {
@@ -11,8 +13,51 @@ import Image from "next/image";
 import Link from "next/link";
 import { DatePickerWithRange } from "./date-picker-with-range";
 import { Button } from "./ui/button";
+import { getWalletBalance } from "@/lib/apiClient";
+import { AxiosError } from "axios";
+import { useEffect, useState } from "react";
+
+function formatIdrDisplay(value: string | number | undefined): string {
+  if (value === undefined || value === null || value === "") return "Rp0";
+  const n =
+    typeof value === "string"
+      ? parseFloat(String(value).replace(/,/g, ""))
+      : Number(value);
+  if (Number.isNaN(n)) return "Rp0";
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(n);
+}
 
 export function SectionCardsBalance() {
+  const [balance, setBalance] = useState<string | number | undefined>(undefined);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  const loadBalance = async () => {
+    setBalanceLoading(true);
+    setBalanceError(null);
+    try {
+      const res = await getWalletBalance();
+      setBalance(res.data?.balance);
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        const msg = (err.response?.data as { message?: string })?.message;
+        setBalanceError(msg || "Gagal memuat saldo aktif.");
+      } else {
+        setBalanceError("Gagal memuat saldo aktif.");
+      }
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadBalance();
+  }, []);
+
   return (
     <>
       <Card className="@container/card px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 relative">
@@ -61,7 +106,12 @@ export function SectionCardsBalance() {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="space-y-4">
-                <div className="text-2xl font-bold text-gray-900">Rp0</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {balanceLoading ? "Memuat saldo..." : formatIdrDisplay(balance)}
+                </div>
+                {balanceError && (
+                  <p className="text-sm text-red-600">{balanceError}</p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" asChild>
                     <Link href="/dashboard/akun/rekening">Tarik Saldo</Link>
@@ -73,6 +123,14 @@ export function SectionCardsBalance() {
                     asChild
                   >
                     <Link href="/dashboard/wallet">Dompet &amp; top-up</Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadBalance()}
+                    disabled={balanceLoading}
+                  >
+                    Refresh
                   </Button>
                 </div>
               </div>

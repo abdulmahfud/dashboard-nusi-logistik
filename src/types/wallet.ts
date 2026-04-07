@@ -13,6 +13,14 @@ export interface WalletTopupResponse {
   data: WalletTopupData;
 }
 
+export interface WalletBalanceResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    balance?: number | string;
+  };
+}
+
 /** Item transaksi dompet — struktur mengikuti response API (boleh berubah). */
 export interface WalletTransactionItem {
   id?: number;

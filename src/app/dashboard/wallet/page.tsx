@@ -14,7 +14,7 @@ import {
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
-import { requestWalletTopup } from "@/lib/apiClient";
+import { getWalletBalance, requestWalletTopup } from "@/lib/apiClient";
 import { AxiosError } from "axios";
 import {
   AlertCircle,
@@ -27,7 +27,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const MIN_TOPUP = 1000;
@@ -47,7 +47,7 @@ function formatIdrDisplay(value: string | number | undefined): string {
 }
 
 export default function WalletPage() {
-  const { user, loading: authLoading, refreshUser, hasPermission } =
+  const { user, loading: authLoading, hasPermission } =
     useAuth();
   const canTopup = hasPermission("wallet.topup");
   const canViewOwn = hasPermission("wallet.view");
@@ -55,6 +55,33 @@ export default function WalletPage() {
 
   const [amountRaw, setAmountRaw] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [balance, setBalance] = useState<string | number | undefined>(undefined);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  const loadBalance = async () => {
+    setBalanceLoading(true);
+    setBalanceError(null);
+    try {
+      const res = await getWalletBalance();
+      setBalance(res.data?.balance);
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        const msg = (err.response?.data as { message?: string })?.message;
+        setBalanceError(msg || "Gagal memuat saldo wallet.");
+      } else {
+        setBalanceError("Gagal memuat saldo wallet.");
+      }
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      void loadBalance();
+    }
+  }, [authLoading, user]);
 
   const handleTopup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,23 +169,35 @@ export default function WalletPage() {
                   <div>
                     <CardTitle className="text-lg">Saldo saat ini</CardTitle>
                     <CardDescription>
-                      Dari data akun (GET /admin/me)
+                      Dari endpoint wallet (
+                      <code className="rounded bg-white px-1 text-xs">
+                        GET /admin/wallet/balance
+                      </code>
+                      )
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold tabular-nums text-slate-900">
-                  {formatIdrDisplay(user?.balance)}
+                  {balanceLoading
+                    ? "Memuat saldo..."
+                    : formatIdrDisplay(balance)}
                 </p>
+                {balanceError && (
+                  <p className="mt-2 text-sm text-red-600">{balanceError}</p>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="mt-4 gap-2"
-                  onClick={() => void refreshUser()}
+                  onClick={() => void loadBalance()}
+                  disabled={balanceLoading}
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw
+                    className={`h-4 w-4 ${balanceLoading ? "animate-spin" : ""}`}
+                  />
                   Refresh saldo
                 </Button>
               </CardContent>

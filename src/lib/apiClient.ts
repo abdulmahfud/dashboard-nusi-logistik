@@ -56,6 +56,7 @@ import type {
 import type { StandardizedTrackingResponse } from "@/types/tracking";
 import type { ExpeditionDiscount } from "@/types/discount";
 import type {
+  WalletBalanceResponse,
   WalletTopupResponse,
   WalletTransactionsResponse,
   WalletTransactionItem,
@@ -1366,6 +1367,12 @@ export const requestWalletTopup = async (
     "/admin/wallet/topup",
     { amount }
   );
+  return res.data;
+};
+
+/** Saldo wallet terbaru user login — endpoint khusus wallet */
+export const getWalletBalance = async (): Promise<WalletBalanceResponse> => {
+  const res = await apiClient.get<WalletBalanceResponse>("/admin/wallet/balance");
   return res.data;
 };
 
