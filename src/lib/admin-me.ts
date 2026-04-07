@@ -42,20 +42,16 @@ export async function fetchAdminMe(options?: {
 }): Promise<UserData | null> {
   const force = options?.force ?? false;
 
-  if (force) {
-    cached = null;
-    if (inflight) {
-      await inflight;
-    }
-  }
-
-  if (!force && cached && Date.now() - cached.at < STALE_MS) {
-    return cached.user;
-  }
-
-  if (inflight && !force) {
+  // Dedupe dulu: meskipun force, kalau ada request berjalan, pakai yang itu.
+  // Ini mencegah "force storm" (Strict Mode / multiple effects).
+  if (inflight) {
+    if (force) cached = null;
     return inflight;
   }
+
+  if (force) cached = null;
+
+  if (!force && cached && Date.now() - cached.at < STALE_MS) return cached.user;
 
   inflight = (async () => {
     try {

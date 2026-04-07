@@ -23,7 +23,8 @@ export default function WalletTopupSuccessPage() {
 
   useEffect(() => {
     if (getCookie("token")) {
-      void refreshUser();
+      // Jangan force refresh saat return dari gateway: cukup andalkan cache/dedupe.
+      void refreshUser({ force: false });
     }
   }, [refreshUser]);
 

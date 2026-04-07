@@ -34,7 +34,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = useCallback(async (options?: { force?: boolean }) => {
     setLoading(true);
     try {
-      const u = await fetchAdminMe({ force: options?.force ?? true });
+      // default: jangan force (hindari spam /me)
+      const u = await fetchAdminMe({ force: options?.force ?? false });
       setUser(u);
       return u;
     } finally {
