@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Wallet,
   Plus,
@@ -26,6 +26,8 @@ import { toast } from "sonner";
 import TopNav from "@/components/top-nav";
 import { getBankAccounts, createBankAccount } from "@/lib/apiClient";
 import { BankAccount, BankAccountCreateRequest } from "@/types/bankAccount";
+import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 
 const BANK_LIST = [
   "Bank Mandiri",
@@ -67,6 +69,7 @@ const BANK_LIST = [
 ];
 
 const Rekening = () => {
+  const { user, loading: authLoading, hasPermission } = useAuth();
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -93,22 +96,35 @@ const Rekening = () => {
   const rekeningInputRef = useRef<HTMLInputElement>(null);
   const ktpInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchBankAccounts = async () => {
+  /** Hanya rekening milik user login (bukan daftar admin), meskipun role admin */
+  const fetchBankAccounts = useCallback(async () => {
+    if (!user?.id) {
+      setBankAccounts([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await getBankAccounts();
-      setBankAccounts(response.data);
+      const list = response.data ?? [];
+      const mine = list.filter(
+        (a) =>
+          a.user_id === user.id ||
+          (a.user?.id != null && a.user.id === user.id)
+      );
+      setBankAccounts(mine);
     } catch (error) {
       console.error("Error fetching bank accounts:", error);
       toast.error("Gagal memuat data rekening");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
-    fetchBankAccounts();
-  }, []);
+    if (authLoading) return;
+    void fetchBankAccounts();
+  }, [authLoading, fetchBankAccounts]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -262,7 +278,7 @@ const Rekening = () => {
 
   const hasAccount = bankAccounts.length > 0;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <SidebarProvider>
         <AppSidebar variant="inset" />
@@ -289,7 +305,7 @@ const Rekening = () => {
           <TopNav />
         </div>
 
-        <div className="container mx-auto p-6">
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -297,8 +313,21 @@ const Rekening = () => {
                 Rekening Bank
               </h1>
               <p className="text-gray-600">
-                Kelola rekening bank untuk penarikan saldo
+                Hanya menampilkan rekening Anda sendiri untuk penarikan saldo.
               </p>
+              {hasPermission("bank-accounts.view_all") && (
+                <p className="text-muted-foreground mt-1 max-w-xl text-sm">
+                  Untuk melihat atau menyetujui rekening pengguna lain, gunakan
+                  menu{" "}
+                  <Link
+                    href="/dashboard/akun/semua-rekening"
+                    className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                  >
+                    Semua rekening bank
+                  </Link>
+                  .
+                </p>
+              )}
             </div>
             <Button
               onClick={fetchBankAccounts}

@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDateIdLong } from "@/lib/date";
 import type { WalletTransactionItem } from "@/types/wallet";
 
 export function formatTxCell(v: unknown): string {
@@ -15,6 +16,14 @@ export function formatTxCell(v: unknown): string {
   if (typeof v === "number")
     return new Intl.NumberFormat("id-ID").format(v);
   return String(v);
+}
+
+function formatTxDate(v: unknown): string {
+  // API biasanya mengirim string ISO pada `created_at`
+  if (typeof v === "string" || typeof v === "number" || v instanceof Date) {
+    return formatDateIdLong(v as string | number | Date);
+  }
+  return "—";
 }
 
 type Props = {
@@ -52,7 +61,7 @@ export function WalletTransactionTable({
                 </TableCell>
               )}
               <TableCell className="whitespace-nowrap text-sm">
-                {formatTxCell(row.created_at)}
+                {formatTxDate(row.created_at)}
               </TableCell>
               <TableCell className="max-w-[220px] text-sm">
                 {formatTxCell(row.description ?? row.type ?? "—")}

@@ -2,10 +2,27 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import TopNav from "@/components/top-nav";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   Table,
@@ -15,94 +32,140 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import {
+  approveBankAccount,
+  getBankAccountById,
+  getBankAccountFile,
+  getBankAccountsAll,
+  normalizeBankAccountsAllPage,
+  rejectBankAccount,
+} from "@/lib/apiClient";
+import type { BankAccount, BankAccountsAllQuery } from "@/types/bankAccount";
+import { AxiosError } from "axios";
 import {
   Building2,
-  Eye,
   CheckCircle,
-  XCircle,
+  ChevronLeft,
+  ChevronRight,
   Clock,
-  Search,
-  Filter,
-  ArrowUpDown,
-  RefreshCw,
-  User,
-  Image as ImageIcon,
+  Eye,
   FileText,
+  Filter,
+  Image as ImageIcon,
+  Loader2,
+  RefreshCw,
+  Search,
+  User,
+  XCircle,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import TopNav from "@/components/top-nav";
-import {
-  getBankAccounts,
-  getBankAccountById,
-  approveBankAccount,
-  rejectBankAccount,
-  getBankAccountFile,
-} from "@/lib/apiClient";
-import { BankAccount } from "@/types/bankAccount";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 
-type SortField = "created_at" | "bank_name" | "account_name" | "status";
-type SortOrder = "asc" | "desc";
+type DetailState = (BankAccount & {
+  photo_rekening_url: string;
+  photo_ktp_url: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    whatsapp: string | null;
+    email_verified_at: string | null;
+    balance: string;
+    created_at: string;
+    updated_at: string;
+  };
+}) | null;
 
-const BankAccountList = () => {
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [filteredAccounts, setFilteredAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+function clampPerPage(n: number): number {
+  if (!Number.isFinite(n) || n < 1) return 20;
+  return Math.min(100, Math.floor(n));
+}
 
+function buildBankAccountsAllQuery(
+  pageNum: number,
+  opts: { search: string; status: string; userId: string; perPage: number }
+): BankAccountsAllQuery {
+  const q: BankAccountsAllQuery = {
+    page: pageNum,
+    per_page: clampPerPage(opts.perPage),
+  };
+  const t = opts.search.trim();
+  if (t) q.search = t;
+  if (opts.status !== "all") {
+    q.status = opts.status as "pending" | "approved" | "rejected";
+  }
+  const uid = parseInt(opts.userId.trim(), 10);
+  if (Number.isFinite(uid) && uid > 0) q.user_id = uid;
+  return q;
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "approved":
+      return (
+        <Badge className="border-green-200 bg-green-100 text-green-800">
+          <CheckCircle className="mr-1 h-3 w-3" />
+          Disetujui
+        </Badge>
+      );
+    case "rejected":
+      return (
+        <Badge className="border-red-200 bg-red-100 text-red-800">
+          <XCircle className="mr-1 h-3 w-3" />
+          Ditolak
+        </Badge>
+      );
+    default:
+      return (
+        <Badge className="border-amber-200 bg-amber-100 text-amber-900">
+          <Clock className="mr-1 h-3 w-3" />
+          Menunggu
+        </Badge>
+      );
+  }
+}
+
+function ListBankAccountsInner() {
   const { hasPermission, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  /** Hindari dependency object `searchParams` yang bisa memicu loop */
+  const urlStatusParam = searchParams.get("status") ?? "";
+  const canVerify = hasPermission("bank-accounts.update");
 
-  // Dialog states
-  const [detailDialog, setDetailDialog] = useState(false);
-  const [approveDialog, setApproveDialog] = useState(false);
-  const [rejectDialog, setRejectDialog] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(
-    null
-  );
-  const [selectedAccountDetail, setSelectedAccountDetail] = useState<
-    | (BankAccount & {
-        photo_rekening_url: string;
-        photo_ktp_url: string;
-        user: {
-          id: number;
-          name: string;
-          email: string;
-          whatsapp: string | null;
-          email_verified_at: string | null;
-          balance: string;
-          created_at: string;
-          updated_at: string;
-        };
-      })
-    | null
-  >(null);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [statusDraft, setStatusDraft] = useState<string>("all");
+  const [userIdDraft, setUserIdDraft] = useState("");
+  const [perPageDraft, setPerPageDraft] = useState("20");
+
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<string>("all");
+  const [userId, setUserId] = useState("");
+  const [perPage, setPerPage] = useState(20);
+  const [page, setPage] = useState(1);
+
+  const [rows, setRows] = useState<BankAccount[]>([]);
+  const [meta, setMeta] = useState<{
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState<DetailState>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [selected, setSelected] = useState<BankAccount | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Add state for image loading
   const [imageErrors, setImageErrors] = useState({
     rekening: false,
     ktp: false,
@@ -112,11 +175,7 @@ const BankAccountList = () => {
     ktp: null as string | null,
   });
 
-  // Function to load image as blob when direct URL fails
-  const loadImageAsBlob = async (
-    accountId: number,
-    type: "rekening" | "ktp"
-  ) => {
+  const loadImageAsBlob = async (accountId: number, type: "rekening" | "ktp") => {
     try {
       const blobUrl = await getBankAccountFile(accountId, type);
       setImageBlobUrls((prev) => ({ ...prev, [type]: blobUrl }));
@@ -126,759 +185,645 @@ const BankAccountList = () => {
     }
   };
 
-  const fetchBankAccounts = async () => {
+  const fetchWithQuery = useCallback(async (q: BankAccountsAllQuery) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const response = await getBankAccounts();
-      setBankAccounts(response.data);
-      setFilteredAccounts(response.data);
-    } catch (error) {
-      console.error("Error fetching bank accounts:", error);
-      toast.error("Gagal memuat data rekening bank");
+      const res = await getBankAccountsAll(q);
+      const { rows: list, meta: m } = normalizeBankAccountsAllPage(res);
+      setRows(list);
+      if (m) {
+        setMeta({
+          current_page: m.current_page,
+          last_page: m.last_page,
+          per_page: m.per_page,
+          total: m.total,
+        });
+        setPage(m.current_page);
+      } else {
+        setMeta(null);
+      }
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        const msg = (err.response?.data as { message?: string })?.message;
+        setError(msg || "Gagal memuat daftar rekening.");
+      } else {
+        setError("Gagal memuat daftar rekening.");
+      }
+      setRows([]);
+      setMeta(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!authLoading && !hasPermission("bank-accounts.update")) {
+    if (!authLoading && !hasPermission("bank-accounts.view_all")) {
       router.replace("/dashboard");
     }
   }, [authLoading, hasPermission, router]);
 
+  /** Muat awal + saat ?status= di URL berubah */
   useEffect(() => {
-    fetchBankAccounts();
-  }, []);
-
-  // Filter and sort logic
-  useEffect(() => {
-    let filtered = [...bankAccounts];
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (account) =>
-          account.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          account.account_name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          account.account_number.includes(searchTerm) ||
-          account.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          account.user?.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((account) => account.status === statusFilter);
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue: string | number = a[sortField] as string;
-      let bValue: string | number = b[sortField] as string;
-
-      if (sortField === "created_at") {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
-      } else if (typeof aValue === "string") {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
+    if (authLoading || !hasPermission("bank-accounts.view_all")) return;
+    const st =
+      urlStatusParam === "pending" ||
+        urlStatusParam === "approved" ||
+        urlStatusParam === "rejected"
+        ? urlStatusParam
+        : "all";
+    setStatusDraft(st);
+    setStatus(st);
+    setSearch("");
+    setSearchDraft("");
+    setUserId("");
+    setUserIdDraft("");
+    setPerPage(20);
+    setPerPageDraft("20");
+    const q = buildBankAccountsAllQuery(1, {
+      search: "",
+      status: st,
+      userId: "",
+      perPage: 20,
     });
+    void fetchWithQuery(q);
+  }, [authLoading, hasPermission, urlStatusParam, fetchWithQuery]);
 
-    setFilteredAccounts(filtered);
-  }, [bankAccounts, searchTerm, statusFilter, sortField, sortOrder]);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Disetujui
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-200">
-            <XCircle className="h-3 w-3 mr-1" />
-            Ditolak
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-            <Clock className="h-3 w-3 mr-1" />
-            Menunggu
-          </Badge>
-        );
-    }
+  const applyFilters = () => {
+    const pp = clampPerPage(parseInt(perPageDraft, 10) || 20);
+    setSearch(searchDraft);
+    setStatus(statusDraft);
+    setUserId(userIdDraft);
+    setPerPage(pp);
+    setPerPageDraft(String(pp));
+    setPage(1);
+    void fetchWithQuery(
+      buildBankAccountsAllQuery(1, {
+        search: searchDraft,
+        status: statusDraft,
+        userId: userIdDraft,
+        perPage: pp,
+      })
+    );
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("asc");
-    }
+  const goToPage = (p: number) => {
+    void fetchWithQuery(
+      buildBankAccountsAllQuery(p, {
+        search,
+        status,
+        userId,
+        perPage,
+      })
+    );
   };
 
-  const handleViewDetail = async (account: BankAccount) => {
+  const refreshCurrentPage = () => {
+    const p = meta?.current_page ?? page;
+    void fetchWithQuery(
+      buildBankAccountsAllQuery(p, {
+        search,
+        status,
+        userId,
+        perPage,
+      })
+    );
+  };
+
+  const openDetail = async (account: BankAccount) => {
+    setSelected(account);
+    setDetailLoading(true);
+    setImageErrors({ rekening: false, ktp: false });
+    setImageBlobUrls({ rekening: null, ktp: null });
+    setDetailOpen(true);
     try {
-      setSelectedAccount(account);
-      // Reset image states when opening new account
-      setImageErrors({ rekening: false, ktp: false });
-      setImageBlobUrls({ rekening: null, ktp: null });
-
-      const response = await getBankAccountById(account.id);
-      setSelectedAccountDetail(response.data);
-      setDetailDialog(true);
-    } catch (error) {
-      console.error("Error fetching account detail:", error);
-      toast.error("Gagal memuat detail rekening");
+      const res = await getBankAccountById(account.id);
+      setDetail(res.data);
+    } catch {
+      toast.error("Gagal memuat detail rekening.");
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
     }
-  };
-
-  const handleApprove = (account: BankAccount) => {
-    setSelectedAccount(account);
-    setApproveDialog(true);
-  };
-
-  const handleReject = (account: BankAccount) => {
-    setSelectedAccount(account);
-    setRejectDialog(true);
   };
 
   const confirmApprove = async () => {
-    if (!selectedAccount) return;
-
+    if (!selected) return;
+    setActionLoading(true);
     try {
-      setActionLoading(true);
-      await approveBankAccount(selectedAccount.id);
-      toast.success("Rekening berhasil disetujui");
-      setApproveDialog(false);
-      setSelectedAccount(null);
-      fetchBankAccounts();
-    } catch (error) {
-      console.error("Error approving account:", error);
-      toast.error("Gagal menyetujui rekening");
+      await approveBankAccount(selected.id);
+      toast.success("Rekening berhasil disetujui.");
+      setApproveOpen(false);
+      setSelected(null);
+      refreshCurrentPage();
+    } catch {
+      toast.error("Gagal menyetujui rekening.");
     } finally {
       setActionLoading(false);
     }
   };
 
   const confirmReject = async () => {
-    if (!selectedAccount || !rejectReason.trim()) {
-      toast.error("Alasan penolakan harus diisi");
+    if (!selected || !rejectReason.trim()) {
+      toast.error("Alasan penolakan harus diisi.");
       return;
     }
-
+    setActionLoading(true);
     try {
-      setActionLoading(true);
-      await rejectBankAccount(selectedAccount.id, rejectReason);
-      toast.success("Rekening berhasil ditolak");
-      setRejectDialog(false);
-      setSelectedAccount(null);
+      await rejectBankAccount(selected.id, rejectReason.trim());
+      toast.success("Rekening ditolak.");
+      setRejectOpen(false);
       setRejectReason("");
-      fetchBankAccounts();
-    } catch (error) {
-      console.error("Error rejecting account:", error);
-      toast.error("Gagal menolak rekening");
+      setSelected(null);
+      refreshCurrentPage();
+    } catch {
+      toast.error("Gagal menolak rekening.");
     } finally {
       setActionLoading(false);
     }
   };
 
-  if (authLoading) return null;
-  if (!hasPermission("bank-accounts.update")) return null;
+  if (authLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat…</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
+  if (!hasPermission("bank-accounts.view_all")) {
+    return null;
+  }
+
+  const currentPage = meta?.current_page ?? page;
+  const lastPage = meta?.last_page ?? 1;
+  const total = meta?.total ?? rows.length;
 
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <div className="flex items-center justify-between w-full">
+        <div className="flex w-full items-center justify-between">
           <div className="flex-1">
             <SiteHeader />
           </div>
           <TopNav />
         </div>
 
-        <div className="container mx-auto p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Building2 className="h-6 w-6" />
+              <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+                <Building2 className="h-7 w-7 text-blue-600" />
                 Daftar Rekening Bank
               </h1>
-              <p className="text-gray-600">
-                Kelola verifikasi rekening bank user
-              </p>
             </div>
             <Button
-              onClick={fetchBankAccounts}
+              type="button"
               variant="outline"
               size="sm"
+              className="gap-2"
               disabled={loading}
+              onClick={() => refreshCurrentPage()}
             >
               <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
               />
-              Refresh
+              Muat ulang
             </Button>
           </div>
 
-          {/* Filters */}
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
+          <Card className="border-blue-100 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Filter</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="filter-search">Pencarian</Label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Cari nama bank, nama rekening, nomor rekening, nama user, atau email..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      id="filter-search"
+                      className="pl-9"
+                      placeholder="Nama bank, nama rekening, nomor rekening"
+                      value={searchDraft}
+                      onChange={(e) => setSearchDraft(e.target.value)}
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <Filter className="h-4 w-4 mr-2" />
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={statusDraft} onValueChange={setStatusDraft}>
+                    <SelectTrigger className="w-full">
+                      <Filter className="mr-2 h-4 w-4 shrink-0" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="all">Semua</SelectItem>
                       <SelectItem value="pending">Menunggu</SelectItem>
                       <SelectItem value="approved">Disetujui</SelectItem>
                       <SelectItem value="rejected">Ditolak</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-user">ID pemilik (user_id)</Label>
+                  <Input
+                    id="filter-user"
+                    inputMode="numeric"
+                    placeholder="Opsional"
+                    value={userIdDraft}
+                    onChange={(e) =>
+                      setUserIdDraft(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="filter-per-page">Per halaman</Label>
+                  <Select
+                    value={perPageDraft}
+                    onValueChange={setPerPageDraft}
+                  >
+                    <SelectTrigger id="filter-per-page" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 20, 50, 100].map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              <Button
+                type="button"
+                variant="blueGradientStrong"
+                size="sm"
+                onClick={applyFilters}
+                disabled={loading}>
+                Terapkan filter
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>
-                  Total: {filteredAccounts.length} dari {bankAccounts.length}{" "}
-                  rekening
-                </span>
+          <Card className="border-blue-100 shadow-sm">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-lg">
+                {loading
+                  ? "Memuat…"
+                  : `Menampilkan ${rows.length} entri${meta ? ` · total ${total}` : ""}`}
               </CardTitle>
+              {meta && lastPage > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading || currentPage <= 1}
+                    onClick={() => goToPage(currentPage - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Sebelumnya
+                  </Button>
+                  <span className="text-muted-foreground text-sm tabular-nums">
+                    Halaman {currentPage} / {lastPage}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading || currentPage >= lastPage}
+                    onClick={() => goToPage(currentPage + 1)}
+                  >
+                    Berikutnya
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleSort("bank_name")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Bank
-                          <ArrowUpDown className="h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleSort("account_name")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Nama Rekening
-                          <ArrowUpDown className="h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead>Nomor Rekening</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleSort("status")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Status
-                          <ArrowUpDown className="h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleSort("created_at")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Tanggal
-                          <ArrowUpDown className="h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead>Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAccounts.map((account) => (
-                      <TableRow key={account.id}>
-                        <TableCell className="font-medium">
-                          {account.bank_name}
-                        </TableCell>
-                        <TableCell>{account.account_name}</TableCell>
-                        <TableCell className="font-mono">
-                          {account.account_number}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{account.user?.name}</p>
-                            <p className="text-sm text-gray-500">
-                              {account.user?.email}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(account.status)}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="text-sm">
-                              {new Date(account.created_at).toLocaleDateString(
-                                "id-ID"
-                              )}
-                            </p>
-                            {account.verified_at && (
-                              <p className="text-xs text-green-600">
-                                Disetujui:{" "}
-                                {new Date(
-                                  account.verified_at
-                                ).toLocaleDateString("id-ID")}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleViewDetail(account)}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-green-600 hover:text-green-700"
-                                onClick={() => handleApprove(account)}
-                              >
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 hover:text-red-700"
-                                onClick={() => handleReject(account)}
-                              >
-                                <XCircle className="h-3 w-3" />
-                              </Button>
-                            </>
-                          </div>
-                        </TableCell>
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  Memuat data…
+                </div>
+              ) : error ? (
+                <div
+                  className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+                  role="alert"
+                >
+                  {error}
+                </div>
+              ) : rows.length === 0 ? (
+                <p className="text-muted-foreground py-12 text-center text-sm">
+                  Tidak ada rekening yang cocok dengan filter.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Bank</TableHead>
+                        <TableHead>Nama rekening</TableHead>
+                        <TableHead>No. rekening</TableHead>
+                        <TableHead>Pemilik</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {filteredAccounts.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    Tidak ada data rekening bank yang ditemukan
-                  </div>
-                )}
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((account) => (
+                        <TableRow key={account.id}>
+                          <TableCell className="font-medium">
+                            {account.bank_name}
+                          </TableCell>
+                          <TableCell>{account.account_name}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {account.account_number}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[200px]">
+                              <p className="truncate font-medium">
+                                {account.user?.name ?? "—"}
+                              </p>
+                              <p className="text-muted-foreground truncate text-xs">
+                                {account.user?.email ?? ""}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(account.status)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {account.created_at
+                              ? new Date(account.created_at).toLocaleString(
+                                "id-ID"
+                              )
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex flex-wrap justify-end gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void openDetail(account)}
+                              >
+                                <Eye className="h-3 w-3" />
+                                <span className="sr-only">Detail</span>
+                              </Button>
+                              {canVerify && account.status === "pending" && (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-green-700"
+                                    onClick={() => {
+                                      setSelected(account);
+                                      setApproveOpen(true);
+                                    }}
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-700"
+                                    onClick={() => {
+                                      setSelected(account);
+                                      setRejectOpen(true);
+                                    }}
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Detail Dialog */}
-        <Dialog open={detailDialog} onOpenChange={setDetailDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+        <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+            <DialogHeader className="shrink-0 border-b p-6 text-left">
               <DialogTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Detail Rekening Bank
+                Detail rekening
               </DialogTitle>
+              <DialogDescription>
+                Informasi pemilik dan dokumen verifikasi.
+              </DialogDescription>
             </DialogHeader>
-            {selectedAccountDetail && (
-              <div className="space-y-6">
-                {/* User Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Informasi User
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="grid grid-cols-2 gap-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              {detailLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                </div>
+              ) : detail ? (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <User className="h-4 w-4" />
+                        Pemilik
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Nama
-                        </Label>
-                        <p className="font-medium">
-                          {selectedAccountDetail.user.name}
-                        </p>
+                        <p className="text-muted-foreground">Nama</p>
+                        <p className="font-medium">{detail.user.name}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Email
-                        </Label>
-                        <p>{selectedAccountDetail.user.email}</p>
+                        <p className="text-muted-foreground">Email</p>
+                        <p>{detail.user.email}</p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Bank Account Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Building2 className="h-5 w-5" />
-                      Informasi Rekening
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-base">Rekening</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Bank
-                        </Label>
-                        <p className="font-medium">
-                          {selectedAccountDetail.bank_name}
-                        </p>
+                        <p className="text-muted-foreground">Bank</p>
+                        <p className="font-medium">{detail.bank_name}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Status
-                        </Label>
+                        <p className="text-muted-foreground">Status</p>
                         <div className="mt-1">
-                          {getStatusBadge(selectedAccountDetail.status)}
+                          {getStatusBadge(detail.status)}
                         </div>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Nama Rekening
-                        </Label>
-                        <p className="font-medium">
-                          {selectedAccountDetail.account_name}
-                        </p>
+                        <p className="text-muted-foreground">Nama rekening</p>
+                        <p>{detail.account_name}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Nomor Rekening
-                        </Label>
-                        <p className="font-mono">
-                          {selectedAccountDetail.account_number}
-                        </p>
+                        <p className="text-muted-foreground">Nomor</p>
+                        <p className="font-mono">{detail.account_number}</p>
                       </div>
-                    </div>
-
-                    {selectedAccountDetail.rejected_reason && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                        <Label className="text-sm font-medium text-red-800">
-                          Alasan Penolakan:
-                        </Label>
-                        <p className="text-sm text-red-700 mt-1">
-                          {selectedAccountDetail.rejected_reason}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Photos */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <ImageIcon className="h-5 w-5" />
-                      Dokumen
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-500 flex items-center gap-1 mb-2">
-                          <FileText className="h-4 w-4" />
-                          Foto Rekening
-                        </Label>
-                        <div className="border rounded-lg p-4 bg-gray-50">
-                          {selectedAccountDetail.photo_rekening_url ? (
-                            <div className="relative">
-                              {!imageErrors.rekening ? (
-                                <img
-                                  src={
-                                    imageBlobUrls.rekening ||
-                                    selectedAccountDetail.photo_rekening_url
-                                  }
-                                  alt="Foto Rekening"
-                                  className="w-full h-auto rounded-md shadow-sm max-h-96 object-contain"
-                                  onError={() => {
-                                    if (!imageBlobUrls.rekening) {
-                                      loadImageAsBlob(
-                                        selectedAccountDetail.id,
-                                        "rekening"
-                                      );
-                                    } else {
-                                      setImageErrors((prev) => ({
-                                        ...prev,
-                                        rekening: true,
-                                      }));
-                                    }
-                                  }}
-                                  onLoad={() => {
-                                    setImageErrors((prev) => ({
-                                      ...prev,
-                                      rekening: false,
-                                    }));
-                                  }}
-                                />
-                              ) : (
-                                <div className="error-placeholder text-center text-gray-500 py-8">
-                                  <FileText className="h-12 w-12 mx-auto mb-2" />
-                                  <p>Gagal memuat foto rekening</p>
-                                  <div className="flex gap-2 mt-2 justify-center">
+                      {detail.rejected_reason && (
+                        <div className="sm:col-span-2 rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
+                          <p className="text-xs font-medium">Alasan penolakan</p>
+                          <p className="mt-1">{detail.rejected_reason}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <ImageIcon className="h-4 w-4" />
+                        Dokumen
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-6 md:grid-cols-2">
+                      {(["rekening", "ktp"] as const).map((type) => {
+                        const urlField =
+                          type === "rekening"
+                            ? detail.photo_rekening_url
+                            : detail.photo_ktp_url;
+                        const label =
+                          type === "rekening" ? "Foto rekening" : "Foto KTP";
+                        const blob =
+                          type === "rekening"
+                            ? imageBlobUrls.rekening
+                            : imageBlobUrls.ktp;
+                        const err =
+                          type === "rekening"
+                            ? imageErrors.rekening
+                            : imageErrors.ktp;
+                        return (
+                          <div key={type}>
+                            <Label className="mb-2 flex items-center gap-1 text-muted-foreground">
+                              <FileText className="h-3 w-3" />
+                              {label}
+                            </Label>
+                            <div className="rounded-lg border bg-slate-50 p-3">
+                              {urlField ? (
+                                !err ? (
+                                  // eslint-disable-next-line @next/next/no-img-element -- blob / signed URL dari API
+                                  <img
+                                    src={blob || urlField}
+                                    alt={label}
+                                    className="max-h-72 w-full rounded object-contain"
+                                    onError={() => {
+                                      if (!blob) {
+                                        void loadImageAsBlob(detail.id, type);
+                                      } else {
+                                        setImageErrors((prev) => ({
+                                          ...prev,
+                                          [type]: true,
+                                        }));
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="space-y-2 py-6 text-center text-sm text-muted-foreground">
+                                    <p>Gagal memuat gambar.</p>
                                     <Button
+                                      type="button"
                                       size="sm"
                                       variant="outline"
                                       onClick={() =>
-                                        window.open(
-                                          selectedAccountDetail.photo_rekening_url,
-                                          "_blank"
-                                        )
+                                        window.open(urlField, "_blank")
                                       }
                                     >
-                                      Buka di Tab Baru
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        loadImageAsBlob(
-                                          selectedAccountDetail.id,
-                                          "rekening"
-                                        )
-                                      }
-                                    >
-                                      Coba Lagi
+                                      Buka di tab baru
                                     </Button>
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-center text-gray-500 py-8">
-                              <FileText className="h-12 w-12 mx-auto mb-2" />
-                              <p>Foto rekening tidak tersedia</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-500 flex items-center gap-1 mb-2">
-                          <FileText className="h-4 w-4" />
-                          Foto KTP
-                        </Label>
-                        <div className="border rounded-lg p-4 bg-gray-50">
-                          {selectedAccountDetail.photo_ktp_url ? (
-                            <div className="relative">
-                              {!imageErrors.ktp ? (
-                                <img
-                                  src={
-                                    imageBlobUrls.ktp ||
-                                    selectedAccountDetail.photo_ktp_url
-                                  }
-                                  alt="Foto KTP"
-                                  className="w-full h-auto rounded-md shadow-sm max-h-96 object-contain"
-                                  onError={() => {
-                                    if (!imageBlobUrls.ktp) {
-                                      loadImageAsBlob(
-                                        selectedAccountDetail.id,
-                                        "ktp"
-                                      );
-                                    } else {
-                                      setImageErrors((prev) => ({
-                                        ...prev,
-                                        ktp: true,
-                                      }));
-                                    }
-                                  }}
-                                  onLoad={() => {
-                                    setImageErrors((prev) => ({
-                                      ...prev,
-                                      ktp: false,
-                                    }));
-                                  }}
-                                />
+                                )
                               ) : (
-                                <div className="error-placeholder text-center text-gray-500 py-8">
-                                  <FileText className="h-12 w-12 mx-auto mb-2" />
-                                  <p>Gagal memuat foto KTP</p>
-                                  <div className="flex gap-2 mt-2 justify-center">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        window.open(
-                                          selectedAccountDetail.photo_ktp_url,
-                                          "_blank"
-                                        )
-                                      }
-                                    >
-                                      Buka di Tab Baru
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        loadImageAsBlob(
-                                          selectedAccountDetail.id,
-                                          "ktp"
-                                        )
-                                      }
-                                    >
-                                      Coba Lagi
-                                    </Button>
-                                  </div>
-                                </div>
+                                <p className="py-6 text-center text-sm text-muted-foreground">
+                                  Tidak tersedia
+                                </p>
                               )}
                             </div>
-                          ) : (
-                            <div className="text-center text-gray-500 py-8">
-                              <FileText className="h-12 w-12 mx-auto mb-2" />
-                              <p>Foto KTP tidak tersedia</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : null}
+            </div>
           </DialogContent>
         </Dialog>
 
-        {/* Approve Dialog */}
-        <Dialog open={approveDialog} onOpenChange={setApproveDialog}>
-          <DialogContent>
+        <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                Setujui Rekening Bank
-              </DialogTitle>
+              <DialogTitle>Setujui rekening?</DialogTitle>
               <DialogDescription>
-                Apakah Anda yakin ingin menyetujui rekening bank ini?
+                Rekening akan ditandai disetujui. Tindakan ini mengikuti
+                kebijakan internal Anda.
               </DialogDescription>
             </DialogHeader>
-            {selectedAccount && (
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p>
-                    <strong>Bank:</strong> {selectedAccount.bank_name}
-                  </p>
-                  <p>
-                    <strong>Nama Rekening:</strong>{" "}
-                    {selectedAccount.account_name}
-                  </p>
-                  <p>
-                    <strong>Nomor Rekening:</strong>{" "}
-                    {selectedAccount.account_number}
-                  </p>
-                  <p>
-                    <strong>User:</strong> {selectedAccount.user?.name}
-                  </p>
-                </div>
-              </div>
-            )}
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
+                type="button"
                 variant="outline"
-                onClick={() => setApproveDialog(false)}
+                onClick={() => setApproveOpen(false)}
                 disabled={actionLoading}
               >
                 Batal
               </Button>
               <Button
-                onClick={confirmApprove}
-                disabled={actionLoading}
+                type="button"
                 className="bg-green-600 hover:bg-green-700"
+                disabled={actionLoading}
+                onClick={() => void confirmApprove()}
               >
                 {actionLoading ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Memproses...
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Setujui
-                  </>
+                  "Setujui"
                 )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Reject Dialog */}
-        <Dialog open={rejectDialog} onOpenChange={setRejectDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <XCircle className="h-5 w-5 text-red-600" />
-                Tolak Rekening Bank
-              </DialogTitle>
+        <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+          <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-md">
+            <DialogHeader className="shrink-0 text-left">
+              <DialogTitle>Tolak rekening</DialogTitle>
               <DialogDescription>
-                Berikan alasan penolakan untuk rekening bank ini.
+                Berikan alasan penolakan yang jelas untuk pemilik rekening.
               </DialogDescription>
             </DialogHeader>
-            {selectedAccount && (
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p>
-                    <strong>Bank:</strong> {selectedAccount.bank_name}
-                  </p>
-                  <p>
-                    <strong>Nama Rekening:</strong>{" "}
-                    {selectedAccount.account_name}
-                  </p>
-                  <p>
-                    <strong>Nomor Rekening:</strong>{" "}
-                    {selectedAccount.account_number}
-                  </p>
-                  <p>
-                    <strong>User:</strong> {selectedAccount.user?.name}
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="reason">Alasan Penolakan *</Label>
-                  <Textarea
-                    id="reason"
-                    placeholder="Masukkan alasan penolakan..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            )}
-            <DialogFooter>
+            <div className="min-h-0 flex-1 overflow-y-auto py-2">
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Alasan penolakan…"
+                rows={5}
+                className="resize-none"
+              />
+            </div>
+            <DialogFooter className="shrink-0 gap-2 border-t pt-4">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => {
-                  setRejectDialog(false);
+                  setRejectOpen(false);
                   setRejectReason("");
                 }}
                 disabled={actionLoading}
@@ -886,20 +831,15 @@ const BankAccountList = () => {
                 Batal
               </Button>
               <Button
-                onClick={confirmReject}
-                disabled={actionLoading || !rejectReason.trim()}
-                className="bg-red-600 hover:bg-red-700"
+                type="button"
+                variant="destructive"
+                disabled={actionLoading}
+                onClick={() => void confirmReject()}
               >
                 {actionLoading ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Memproses...
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Tolak
-                  </>
+                  "Tolak"
                 )}
               </Button>
             </DialogFooter>
@@ -908,6 +848,24 @@ const BankAccountList = () => {
       </SidebarInset>
     </SidebarProvider>
   );
-};
+}
 
-export default BankAccountList;
+export default function ListBankAccountsPage() {
+  return (
+    <Suspense
+      fallback={
+        <SidebarProvider>
+          <AppSidebar variant="inset" />
+          <SidebarInset>
+            <div className="flex min-h-[40vh] items-center justify-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <span>Memuat…</span>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      }
+    >
+      <ListBankAccountsInner />
+    </Suspense>
+  );
+}

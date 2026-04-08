@@ -85,3 +85,46 @@ export type WalletAllTransactionsQuery = {
   page?: number;
   per_page?: number;
 };
+
+/** POST /admin/wallet/withdraw — body mengikuti collection */
+export interface WalletWithdrawRequest {
+  amount: number;
+  bank_account_id: number;
+  description?: string;
+}
+
+export interface WalletWithdrawResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+/** GET /admin/withdraws — struktur mengikuti response API */
+export interface WithdrawRecord {
+  id: number | string;
+  amount?: number | string;
+  status?: string;
+  description?: string | null;
+  bank_account_id?: number;
+  user_id?: number;
+  created_at?: string;
+  updated_at?: string;
+  user?: {
+    id?: number;
+    name?: string;
+    email?: string;
+  };
+  bank_account?: {
+    id?: number;
+    bank_name?: string;
+    account_name?: string;
+    account_number?: string;
+  };
+  [key: string]: unknown;
+}
+
+export interface WithdrawListResponse {
+  success?: boolean;
+  message?: string;
+  data?: WithdrawRecord[] | LaravelPaginator<WithdrawRecord>;
+}

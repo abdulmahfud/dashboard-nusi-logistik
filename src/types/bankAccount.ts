@@ -67,3 +67,33 @@ export interface BankAccountActionResponse {
   success: boolean;
   message: string;
 }
+
+/** Query GET /admin/bank-accounts/all — mengikuti collection */
+export type BankAccountsAllQuery = {
+  user_id?: number;
+  status?: "pending" | "approved" | "rejected";
+  search?: string;
+  page?: number;
+  /** 1–100, default backend 20 */
+  per_page?: number;
+};
+
+export interface BankAccountPaginatorMeta {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from?: number | null;
+  to?: number | null;
+}
+
+export type BankAccountLaravelPaginator = BankAccountPaginatorMeta & {
+  data: BankAccount[];
+};
+
+/** Response GET /admin/bank-accounts/all */
+export interface BankAccountAllListResponse {
+  success?: boolean;
+  message?: string;
+  data?: BankAccountLaravelPaginator | BankAccount[];
+}

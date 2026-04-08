@@ -52,6 +52,9 @@ import type {
   BankAccountCreateRequest,
   BankAccountCreateResponse,
   BankAccount,
+  BankAccountsAllQuery,
+  BankAccountAllListResponse,
+  BankAccountLaravelPaginator,
 } from "@/types/bankAccount";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
 import type { ExpeditionDiscount } from "@/types/discount";
@@ -64,6 +67,10 @@ import type {
   WalletAllTransactionsQuery,
   LaravelPaginator,
   LaravelPaginatorMeta,
+  WalletWithdrawRequest,
+  WalletWithdrawResponse,
+  WithdrawListResponse,
+  WithdrawRecord,
 } from "@/types/wallet";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 
@@ -950,6 +957,35 @@ export const getBankAccounts = async (): Promise<BankAccountListResponse> => {
   return res.data;
 };
 
+/** Semua rekening (semua user), paginasi & filter — GET /admin/bank-accounts/all (bank-accounts.view_all) */
+export const getBankAccountsAll = async (
+  params?: BankAccountsAllQuery
+): Promise<BankAccountAllListResponse> => {
+  const res = await apiClient.get<BankAccountAllListResponse>(
+    "/admin/bank-accounts/all",
+    { params }
+  );
+  return res.data;
+};
+
+export function normalizeBankAccountsAllPage(
+  payload: BankAccountAllListResponse | undefined
+): { rows: BankAccount[]; meta: BankAccountLaravelPaginator | null } {
+  if (!payload?.data) return { rows: [], meta: null };
+  const d = payload.data;
+  if (Array.isArray(d)) {
+    return { rows: d, meta: null };
+  }
+  if (
+    typeof d === "object" &&
+    "data" in d &&
+    Array.isArray((d as BankAccountLaravelPaginator).data)
+  ) {
+    return { rows: (d as BankAccountLaravelPaginator).data, meta: d as BankAccountLaravelPaginator };
+  }
+  return { rows: [], meta: null };
+}
+
 export const createBankAccount = async (
   data: BankAccountCreateRequest
 ): Promise<BankAccountCreateResponse> => {
@@ -1397,6 +1433,55 @@ export const getAllWalletTransactions = async (
   );
   return res.data;
 };
+
+/** Tarik saldo — POST /admin/wallet/withdraw */
+export const requestWalletWithdraw = async (
+  body: WalletWithdrawRequest
+): Promise<WalletWithdrawResponse> => {
+  const res = await apiClient.post<WalletWithdrawResponse>(
+    "/admin/wallet/withdraw",
+    body
+  );
+  return res.data;
+};
+
+/** Daftar permintaan withdraw (admin) — GET /admin/withdraws */
+export const getWithdraws = async (): Promise<WithdrawListResponse> => {
+  const res = await apiClient.get<WithdrawListResponse>("/admin/withdraws");
+  return res.data;
+};
+
+/** POST /admin/withdraws/:id/approve */
+export const approveWithdraw = async (
+  id: number | string
+): Promise<{ success: boolean; message: string }> => {
+  const res = await apiClient.post(`/admin/withdraws/${id}/approve`);
+  return res.data;
+};
+
+/** POST /admin/withdraws/:id/reject */
+export const rejectWithdraw = async (
+  id: number | string
+): Promise<{ success: boolean; message: string }> => {
+  const res = await apiClient.post(`/admin/withdraws/${id}/reject`);
+  return res.data;
+};
+
+export function normalizeWithdrawRecords(
+  payload: WithdrawListResponse | undefined
+): WithdrawRecord[] {
+  if (!payload?.data) return [];
+  const d = payload.data;
+  if (Array.isArray(d)) return d;
+  if (
+    typeof d === "object" &&
+    "data" in d &&
+    Array.isArray((d as LaravelPaginator<WithdrawRecord>).data)
+  ) {
+    return (d as LaravelPaginator<WithdrawRecord>).data;
+  }
+  return [];
+}
 
 /** Normalisasi array transaksi dari response Laravel (array atau paginator). */
 export function normalizeWalletTransactions(

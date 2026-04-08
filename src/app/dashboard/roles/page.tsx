@@ -248,7 +248,7 @@ export default function RolesPage() {
           <TopNav />
         </div>
 
-        <div className="container mx-auto p-6">
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-2xl font-bold">Management Roles</h1>

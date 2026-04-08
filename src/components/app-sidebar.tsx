@@ -23,8 +23,10 @@ import {
   Banknote,
   MessageCircle,
   BadgePercent,
+  ArrowDownToLine,
 } from "lucide-react";
 import * as React from "react";
+import { usePathname } from "next/navigation";
 
 import { NavAccount } from "@/components/nav-account";
 import { NavData } from "@/components/nav-data";
@@ -71,7 +73,7 @@ const data = {
       title: "Cek Kode Pos",
       url: "/dashboard/cek-kode-pos",
       icon: FileSearch,
-      permission: "expedition.shipment_cost",
+      permission: "expedition.shipment_cost.calculate",
     },
   ],
   wallet: [
@@ -80,7 +82,7 @@ const data = {
       url: "/dashboard/wallet",
       icon: Wallet,
       matchPrefix: true,
-      permission: "wallet.topup",
+      permissionAny: ["wallet.topup", "wallet.withdraw"],
     },
     {
       title: "Riwayat Dompet",
@@ -95,6 +97,12 @@ const data = {
       icon: Globe,
       exact: true,
       permission: "wallet.transactions.view_all",
+    },
+    {
+      title: "Permintaan withdraw",
+      url: "/dashboard/withdraws",
+      icon: ArrowDownToLine,
+      permission: "withdraws.update",
     },
   ],
   sendPackage: [
@@ -162,7 +170,7 @@ const data = {
       title: "Profil",
       url: "/dashboard/akun/profil",
       icon: User,
-      permission: "users.show",
+      permission: "users.index",
     },
     {
       title: "Rekening",
@@ -187,16 +195,16 @@ const data = {
   ],
   managementUser: [
     {
-      title: "List Bank Account",
+      title: "Semua Rekening Bank",
       url: "/dashboard/list-bank-accounts",
       icon: Banknote,
-      permission: "bank-accounts.index",
+      permission: "bank-accounts.view_all",
     },
     {
       title: "List User",
       url: "/dashboard/users",
       icon: UserRoundSearch,
-      permission: "users.index",
+      permission: "users.store",
     },
     {
       title: "Tambah User",
@@ -227,6 +235,19 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { hasPermission, loading: authLoading } = useAuth();
+  const pathname = usePathname();
+
+  /** Agar item menu aktif (biasanya di bawah) langsung terlihat di area scroll sidebar */
+  React.useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      const root = document.querySelector('[data-sidebar="content"]');
+      const active = root?.querySelector<HTMLElement>(
+        '[aria-current="page"]'
+      );
+      active?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [pathname]);
 
   const filteredNavMain = filterSidebarByPermission(
     data.navMain,

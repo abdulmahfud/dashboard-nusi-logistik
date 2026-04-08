@@ -29,12 +29,15 @@ export function NavAccount({
         <SidebarGroupLabel>Data Akun</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = pathname === item.url;
+            const isActive =
+              pathname === item.url ||
+              pathname.startsWith(`${item.url}/`);
 
             return (
               <SidebarMenuItem key={item.title}>
                 <Link
                   href={item.url}
+                  aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-md p-2 text-base font-semibold transition
                     ${
                       isActive

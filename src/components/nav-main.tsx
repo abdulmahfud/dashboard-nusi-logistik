@@ -39,6 +39,7 @@ export function NavMain({
               <SidebarMenuItem key={item.title}>
                 <Link
                   href={item.url}
+                  aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-2 rounded-md p-2 text-base font-semibold transition
                     ${
                       isActive
