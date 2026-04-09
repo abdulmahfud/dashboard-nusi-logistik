@@ -159,6 +159,12 @@ const data = {
       permission: "wallet.view",
     },
     {
+      title: "Laporan Semua Mutasi",
+      url: "/dashboard/laporan/laporan-semua-mutasi",
+      icon: History,
+      permission: "payments.view_all",
+    },
+    {
       title: "Laporan Pengiriman",
       url: "/dashboard/laporan/laporan-pengiriman",
       icon: FileText,

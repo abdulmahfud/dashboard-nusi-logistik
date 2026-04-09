@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { CloudDownload } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
+import { getPaymentHistory } from "@/lib/apiClient";
+import { AxiosError } from "axios";
+import type { PaymentStatus } from "@/types/payment";
 
 type BalanceHistory = {
   mutation: string;
@@ -20,47 +23,78 @@ type BalanceHistory = {
   releasedAt: string;
 };
 
-const data: BalanceHistory[] = [
-  {
-    mutation: "Penambahan Saldo dari Pesanan #DID-812343",
-    value: 150000,
-    status: "Pending",
-    createdAt: "2025-03-20",
-    releasedAt: "2025-03-25",
-  },
-  {
-    mutation: "Penambahan Saldo dari Pesanan #DID-812344",
-    value: 200000,
-    status: "Sukses",
-    createdAt: "2025-03-18",
-    releasedAt: "2025-03-21",
-  },
-  {
-    mutation: "Penambahan Saldo dari Pesanan #DID-812345",
-    value: 175000,
-    status: "Tertahan",
-    createdAt: "2025-03-17",
-    releasedAt: "2025-03-20",
-  },
-  {
-    mutation: "Penambahan Saldo dari Pesanan #DID-812346",
-    value: 220000,
-    status: "Sukses",
-    createdAt: "2025-03-15",
-    releasedAt: "2025-03-18",
-  },
-  {
-    mutation: "Penambahan Saldo dari Pesanan #DID-812347",
-    value: 180000,
-    status: "Pending",
-    createdAt: "2025-03-10",
-    releasedAt: "2025-03-14",
-  },
-];
-
 const LaporanMutasiSaldo = () => {
   const [statusFilter, setStatusFilter] = useState<string>("Semua Status");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [data, setData] = useState<BalanceHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mapStatusLabel = (status?: string): string => {
+    const s = (status || "").toLowerCase();
+    if (s === "success" || s === "paid") return "Sukses";
+    if (s === "failed") return "Gagal";
+    if (s === "expired") return "Gagal";
+    if (s === "pending") return "Pending";
+    return status || "Pending";
+  };
+
+  const mapMutation = (item: PaymentStatus): string => {
+    if (item.reference_no) return `Pembayaran ${String(item.reference_no)}`;
+    if (item.invoice_id) return `Invoice ${String(item.invoice_id)}`;
+    return "Mutasi pembayaran";
+  };
+
+  useEffect(() => {
+    const loadMutasi = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const statusParam: string | undefined =
+          statusFilter === "Semua Status"
+            ? undefined
+            : statusFilter === "Sukses"
+              ? "paid"
+              : statusFilter === "Gagal"
+                ? "failed"
+                : "pending";
+
+        const res = await getPaymentHistory({
+          status: statusParam,
+          per_page: 100,
+        });
+        const rows = (res.data ?? []) as unknown as PaymentStatus[];
+
+        setData(
+          rows.map((item) => ({
+            mutation: mapMutation(item),
+            value: Number(item.amount ?? 0) || 0,
+            status: mapStatusLabel(item.status),
+            createdAt:
+              typeof item.created_at === "string" ? item.created_at : "-",
+            releasedAt:
+              typeof item.paid_at === "string"
+                ? item.paid_at
+                : typeof item.expired_at === "string"
+                  ? item.expired_at
+                  : "-",
+          }))
+        );
+      } catch (e) {
+        if (e instanceof AxiosError) {
+          const msg = (e.response?.data as { message?: string })?.message;
+          setError(msg || "Gagal memuat data mutasi saldo.");
+        } else {
+          setError("Gagal memuat data mutasi saldo.");
+        }
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadMutasi();
+  }, [statusFilter]);
 
   return (
     <SidebarProvider>
@@ -120,6 +154,8 @@ const LaporanMutasiSaldo = () => {
                   setStatusFilter={setStatusFilter}
                   dateRange={dateRange}
                   setDateRange={setDateRange}
+                  loading={loading}
+                  error={error}
                 />
               </Card>
             </div>

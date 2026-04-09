@@ -1149,17 +1149,22 @@ export const trackJntExpress = async (
 export const createPayment = async (data: {
   shipping_data: Record<string, unknown>;
   amount: number;
+  payment_method?: "xendit" | "wallet";
 }): Promise<{
   success: boolean;
   message: string;
   data?: {
     payment_id: number;
     reference_no: string;
-    invoice_id: string;
-    invoice_url: string;
-    amount: number;
-    expired_at: string;
-    status: string;
+    invoice_id: string | null;
+    invoice_url?: string | null;
+    amount: number | string;
+    expired_at?: string | null;
+    status: "pending" | "paid" | string;
+    payment_method: "wallet" | "xendit";
+    requires_action: boolean;
+    action_url: string | null;
+    order_id?: number | null;
   };
   errors?: Record<string, unknown>;
 }> => {
@@ -1204,6 +1209,32 @@ export const getPaymentHistory = async (params?: {
   };
 }> => {
   const res = await apiClient.get("/admin/payments/history", { params });
+  return res.data;
+};
+
+export const getAllPayments = async (params?: {
+  user_id?: number;
+  status?: string;
+  payment_method?: string;
+  date_from?: string;
+  date_to?: string;
+  amount_min?: number;
+  amount_max?: number;
+  reference_no?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<{
+  success?: boolean;
+  message?: string;
+  data?: Record<string, unknown>[];
+  pagination?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}> => {
+  const res = await apiClient.get("/admin/payments/all", { params });
   return res.data;
 };
 

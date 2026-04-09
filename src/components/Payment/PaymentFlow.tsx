@@ -65,15 +65,15 @@ export default function PaymentFlow({
       if (result.success && result.data) {
         const paymentData: PaymentStatus = {
           reference_no: result.data.reference_no,
-          invoice_id: result.data.invoice_id,
-          amount: result.data.amount,
+          invoice_id: result.data.invoice_id ?? "-",
+          amount: Number(result.data.amount) || 0,
           status: result.data.status as
             | "pending"
             | "paid"
             | "expired"
             | "failed",
-          invoice_url: result.data.invoice_url,
-          expired_at: result.data.expired_at,
+          invoice_url: result.data.invoice_url ?? undefined,
+          expired_at: result.data.expired_at ?? undefined,
           created_at: new Date().toISOString(),
         };
 

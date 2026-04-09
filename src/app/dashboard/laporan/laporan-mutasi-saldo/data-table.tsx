@@ -43,6 +43,8 @@ interface DataTableProps<TData extends BalanceHistory, TValue> {
   setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
   dateRange?: DateRange;
   setDateRange: React.Dispatch<React.SetStateAction<DateRange | undefined>>;
+  loading?: boolean;
+  error?: string | null;
 }
 
 type BalanceHistory = {
@@ -56,12 +58,14 @@ type BalanceHistory = {
 export function DataTable<TData extends BalanceHistory, TValue>({
   columns,
   data,
+  statusFilter,
+  setStatusFilter,
   dateRange,
   setDateRange,
+  loading = false,
+  error = null,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
-  const [statusFilter, setStatusFilter] =
-    React.useState<string>("Semua Status");
 
   // ✨ Filter Data Berdasarkan Status dan Date
   const filteredData = React.useMemo(() => {
@@ -140,7 +144,6 @@ export function DataTable<TData extends BalanceHistory, TValue>({
                     "Semua Status",
                     "Pending",
                     "Sukses",
-                    "Tertahan",
                     "Gagal",
                   ].map((status) => (
                     <Button
@@ -177,7 +180,25 @@ export function DataTable<TData extends BalanceHistory, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {data.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  Memuat data mutasi saldo...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-red-600"
+                >
+                  {error}
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (

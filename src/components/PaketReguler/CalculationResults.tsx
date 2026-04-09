@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -21,15 +22,20 @@ import {
   Tag,
   Loader2,
   ClipboardList,
+  Wallet,
+  ExternalLink,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  createPayment,
   createOrderWithPendingPayment,
   getAvailableDiscounts,
+  getWalletBalance,
 } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
+import { AxiosError } from "axios";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -172,6 +178,12 @@ export default function CalculationResults({
   );
   const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "xendit">(
+    "xendit"
+  );
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
 
   // Reset selection state when form data or result changes
   useEffect(() => {
@@ -183,7 +195,41 @@ export default function CalculationResults({
     setOrderResult(null);
     setShowSuccessDialog(false);
     setTermsAccepted(false);
+    setPaymentMethod("xendit");
+    setWalletBalance(0);
+    setWalletError(null);
   }, [result]); // Only depend on result changes, not isSearching or formData
+
+  const isCOD = formData?.formData?.paymentMethod === "cod";
+
+  useEffect(() => {
+    if (!showPaymentSection || isCOD) return;
+
+    const loadWalletBalance = async () => {
+      setWalletLoading(true);
+      setWalletError(null);
+      try {
+        const res = await getWalletBalance();
+        const balanceRaw = res.data?.balance ?? 0;
+        const balance =
+          typeof balanceRaw === "string"
+            ? Number(balanceRaw.replace(/,/g, ""))
+            : Number(balanceRaw);
+        setWalletBalance(Number.isFinite(balance) ? balance : 0);
+      } catch (err) {
+        const msg =
+          err instanceof AxiosError
+            ? (err.response?.data as { message?: string } | undefined)?.message
+            : undefined;
+        setWalletBalance(0);
+        setWalletError(msg || "Gagal memuat saldo wallet.");
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+
+    void loadWalletBalance();
+  }, [showPaymentSection, isCOD]);
 
   // Build shippingOptions from API result if present
   const shippingOptions: ShippingOption[] = useMemo(() => {
@@ -1121,8 +1167,6 @@ export default function CalculationResults({
     setIsSubmittingOrder(true);
     try {
       const shippingData = buildShippingData();
-      const isCOD = formData?.formData?.paymentMethod === "cod";
-
       if (!shippingData) {
         toast.error("Gagal membangun data pengiriman");
         return;
@@ -1160,49 +1204,66 @@ export default function CalculationResults({
           toast.error(errorMessage);
         }
       } else {
-        // For non-COD: Create order with pending payment status
+        // Non-COD: response-driven create payment (wallet / xendit)
         const totalAmount = calculateTotal();
-        const orderResponse = await createOrderWithPendingPayment({
+        if (paymentMethod === "wallet" && walletBalance < totalAmount) {
+          toast.error("Saldo tidak cukup, silakan topup atau pilih Xendit.");
+          return;
+        }
+
+        const paymentResponse = await createPayment({
           shipping_data: shippingData,
           amount: totalAmount,
+          payment_method: paymentMethod,
         });
 
-        if (orderResponse.success && orderResponse.data) {
-          handleOrderSuccess({
-            order_id: orderResponse.data.order_id,
-            reference_no: orderResponse.data.reference_no,
-          });
+        if (!paymentResponse.success || !paymentResponse.data) {
+          toast.error(paymentResponse.message || "Gagal memproses pembayaran");
+          return;
+        }
+
+        const p = paymentResponse.data;
+        const actionUrl = p.action_url || p.invoice_url || null;
+
+        if (p.requires_action) {
+          if (!actionUrl) {
+            toast.error("Link pembayaran tidak tersedia, silakan coba lagi.");
+            return;
+          }
+          window.location.href = actionUrl;
         } else {
-          toast.error(orderResponse.message || "Gagal membuat order");
+          toast.success(
+            paymentMethod === "wallet"
+              ? "Pembayaran wallet berhasil."
+              : "Pembayaran berhasil."
+          );
+          router.push(
+            `/dashboard/payment/success?reference_no=${encodeURIComponent(p.reference_no)}`
+          );
         }
       }
     } catch (error) {
       console.error("Error creating order:", error);
-      toast.error("Terjadi kesalahan saat membuat order");
+      if (error instanceof AxiosError) {
+        const message =
+          (error.response?.data as { message?: string } | undefined)?.message ||
+          error.message;
+        const lower = message.toLowerCase();
+        if (
+          lower.includes("saldo") &&
+          (lower.includes("kurang") || lower.includes("tidak cukup"))
+        ) {
+          toast.error("Saldo tidak cukup, silakan topup atau pilih Xendit.");
+          setPaymentMethod("xendit");
+        } else {
+          toast.error(message || "Terjadi kesalahan saat membuat order");
+        }
+      } else {
+        toast.error("Terjadi kesalahan saat membuat order");
+      }
     } finally {
       setIsSubmittingOrder(false);
     }
-  };
-
-  const handleOrderSuccess = (orderData: {
-    order_id: number;
-    reference_no: string;
-  }) => {
-    toast.success(
-      "Order berhasil dibuat! Silakan lakukan pembayaran di menu Pembayaran Paket."
-    );
-
-    // Set order result to show success with order ID
-    setOrderResult({
-      success: true,
-      message: "Order berhasil dibuat! Silakan lakukan pembayaran.",
-      awb_no: undefined, // AWB will be available after payment and expedition processing
-      order_id: orderData.order_id,
-      reference_no: orderData.reference_no,
-      flow: "payment",
-    });
-
-    setShowSuccessDialog(true);
   };
 
   const handleOrderSuccessCOD = (orderData: {
@@ -1370,23 +1431,105 @@ export default function CalculationResults({
           </Card>
 
 
-          {/* Promo Section */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="text-lg font-semibold mb-3">Pembayaran</h3>
-              <div className="bg-yellow-100 p-3 rounded-lg flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl">💡</span>
-                  <span className="text-sm font-medium">
-                    Lebih hemat, gunakan voucher promo
-                  </span>
-                </div>
-                <Button variant="ghost" size="sm">
-                  <span className="text-lg">➤</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Pilihan metode bayar untuk NON-COD */}
+          {!isCOD && (
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <h3 className="text-lg font-semibold">Metode Pembayaran</h3>
+                <RadioGroup
+                  value={paymentMethod}
+                  onValueChange={(v) =>
+                    setPaymentMethod(v as "wallet" | "xendit")
+                  }
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                >
+                  <label
+                    htmlFor="pay-wallet"
+                    className={`rounded-lg border p-3 transition ${
+                      paymentMethod === "wallet"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200"
+                    } ${walletLoading ? "opacity-70" : ""}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <RadioGroupItem
+                        value="wallet"
+                        id="pay-wallet"
+                        className="mt-0.5"
+                        disabled={walletLoading || walletBalance < calculateTotal()}
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 font-medium">
+                          <Wallet className="h-4 w-4" />
+                          Saldo Wallet
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {walletLoading
+                            ? "Memuat saldo..."
+                            : `Saldo: Rp${walletBalance.toLocaleString("id-ID")}`}
+                        </p>
+                        {!walletLoading && walletBalance < calculateTotal() && (
+                          <p className="text-xs text-red-600">
+                            Saldo tidak cukup untuk total pembayaran.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    htmlFor="pay-xendit"
+                    className={`rounded-lg border p-3 transition ${
+                      paymentMethod === "xendit"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <RadioGroupItem
+                        value="xendit"
+                        id="pay-xendit"
+                        className="mt-0.5"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 font-medium">
+                          <ExternalLink className="h-4 w-4" />
+                          Pembayaran Online
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Lanjut ke halaman pembayaran gateway.
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+                </RadioGroup>
+                {walletError && (
+                  <p className="text-xs text-red-600">{walletError}</p>
+                )}
+                {!walletLoading && walletBalance < calculateTotal() && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
+                    <span>Saldo tidak cukup, silakan topup atau pilih Xendit.</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push("/dashboard/wallet")}
+                    >
+                      Topup saldo
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPaymentMethod("xendit")}
+                    >
+                      Pembayaran Online
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Payment Summary */}
           <Card>
