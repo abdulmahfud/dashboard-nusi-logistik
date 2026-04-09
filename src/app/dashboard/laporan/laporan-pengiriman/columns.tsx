@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Clock, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { formatDateIdLong } from "@/lib/date";
+import { formatRupiah } from "@/lib/currency";
 
 // Kolom tabel
 export const columns: ColumnDef<DeliveryReport>[] = [
@@ -34,10 +35,7 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "totalShipment",
     header: "HARGA",
-    cell: ({ row }) => {
-      const amount = row.original.totalShipment;
-      return `Rp${amount.toLocaleString()}`;
-    },
+    cell: ({ row }) => formatRupiah(row.original.totalShipment),
   },
   {
     accessorKey: "shippingMethod",

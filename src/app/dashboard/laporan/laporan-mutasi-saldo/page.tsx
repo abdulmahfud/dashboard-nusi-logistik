@@ -3,10 +3,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { CloudDownload } from "lucide-react";
+import { ClipboardListIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { columns } from "./columns";
@@ -106,11 +105,19 @@ const LaporanMutasiSaldo = () => {
           </div>
           <TopNav />
         </div>
-        <div className="flex flex-1 flex-col bg-blue-100">
+        <div className="flex flex-1 flex-col bg-blue-50/80">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 md:px-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold">Laporan Mutasi Saldo</h2>
+              <div className="flex items-center gap-2">
+                <ClipboardListIcon className="h-7 w-7 text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Laporan Mutasi Saldo
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    Riwayat mutasi saldo dengan filter admin.
+                  </p>
+                </div>
               </div>
               <Card>
                 <DataTable

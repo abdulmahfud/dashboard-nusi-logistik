@@ -16,6 +16,8 @@ import {
   Truck,
   XCircle,
   Hourglass,
+  ClipboardListIcon,
+  ClipboardCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
@@ -340,19 +342,20 @@ const LaporanPengiriman = () => {
           </div>
           <TopNav />
         </div>
-        <div className="flex flex-1 flex-col bg-blue-100">
+        <div className="flex flex-1 flex-col bg-blue-50/80">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 py-3 sm:py-4 md:py-6 px-3 md:px-6">
               {/* Header - Mobile responsive */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h2 className="text-lg sm:text-xl font-bold">
-                  Laporan Pengiriman
-                </h2>
-                {/* <Button className="rounded-full px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm">
-                  <CloudDownload className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Export Data</span>
-                  <span className="sm:hidden">Export</span>
-                </Button> */}
+              <div className="flex items-center gap-2">
+                <ClipboardListIcon className="h-7 w-7 text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Laporan Pengiriman
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    Riwayat pengiriman dengan filter admin.
+                  </p>
+                </div>
               </div>
 
               {/* Kartu Statistik Pengiriman - Responsive Grid */}
@@ -384,9 +387,17 @@ const LaporanPengiriman = () => {
                 ))}
               </div>
 
-              <h2 className="text-lg sm:text-xl font-bold">
-                Status Pengiriman
-              </h2>
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-7 w-7 text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Status Pengiriman
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    Status pengiriman dengan filter admin.
+                  </p>
+                </div>
+              </div>
               {/* Kartu Status Pengiriman - Better Mobile Layout */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
                 {statusData.map((status, index) => (

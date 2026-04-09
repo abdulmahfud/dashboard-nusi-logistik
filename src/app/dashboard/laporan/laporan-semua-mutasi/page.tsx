@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AxiosError } from "axios";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -108,58 +108,60 @@ export default function LaporanSemuaMutasiPage() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const loadData = async (
-    targetPage = page,
-    activeFilters: FilterState = filters
-  ) => {
-    if (!canViewAll) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getAllPayments({
-        user_id: activeFilters.user_id ? Number(activeFilters.user_id) : undefined,
-        status: activeFilters.status === "all" ? undefined : activeFilters.status,
-        payment_method:
-          activeFilters.payment_method === "all"
-            ? undefined
-            : activeFilters.payment_method,
-        date_from: activeFilters.date_from || undefined,
-        date_to: activeFilters.date_to || undefined,
-        amount_min: activeFilters.amount_min
-          ? Number(activeFilters.amount_min)
-          : undefined,
-        amount_max: activeFilters.amount_max
-          ? Number(activeFilters.amount_max)
-          : undefined,
-        reference_no: activeFilters.reference_no || undefined,
-        page: targetPage,
-        per_page: perPage,
-      });
-      setRows(normalizeAllPayments(res) as PaymentAllItem[]);
-      const pg = extractPagination(res);
-      setPage(pg.currentPage);
-      setLastPage(pg.lastPage);
-      setTotal(pg.total);
-    } catch (e) {
-      if (e instanceof AxiosError) {
-        const msg = (e.response?.data as { message?: string })?.message;
-        setError(msg || "Gagal memuat laporan semua mutasi.");
-      } else {
-        setError("Gagal memuat laporan semua mutasi.");
+  const loadData = useCallback(
+    async (targetPage = page, activeFilters: FilterState = filters) => {
+      if (!canViewAll) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getAllPayments({
+          user_id: activeFilters.user_id
+            ? Number(activeFilters.user_id)
+            : undefined,
+          status: activeFilters.status === "all" ? undefined : activeFilters.status,
+          payment_method:
+            activeFilters.payment_method === "all"
+              ? undefined
+              : activeFilters.payment_method,
+          date_from: activeFilters.date_from || undefined,
+          date_to: activeFilters.date_to || undefined,
+          amount_min: activeFilters.amount_min
+            ? Number(activeFilters.amount_min)
+            : undefined,
+          amount_max: activeFilters.amount_max
+            ? Number(activeFilters.amount_max)
+            : undefined,
+          reference_no: activeFilters.reference_no || undefined,
+          page: targetPage,
+          per_page: perPage,
+        });
+        setRows(normalizeAllPayments(res) as PaymentAllItem[]);
+        const pg = extractPagination(res);
+        setPage(pg.currentPage);
+        setLastPage(pg.lastPage);
+        setTotal(pg.total);
+      } catch (e) {
+        if (e instanceof AxiosError) {
+          const msg = (e.response?.data as { message?: string })?.message;
+          setError(msg || "Gagal memuat laporan semua mutasi.");
+        } else {
+          setError("Gagal memuat laporan semua mutasi.");
+        }
+        setRows([]);
+        setLastPage(1);
+        setTotal(0);
+      } finally {
+        setLoading(false);
       }
-      setRows([]);
-      setLastPage(1);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [canViewAll, filters, page, perPage]
+  );
 
   useEffect(() => {
     if (!authLoading && canViewAll) {
       void loadData();
     }
-  }, [authLoading, canViewAll]);
+  }, [authLoading, canViewAll, loadData]);
 
   if (authLoading) {
     return (
