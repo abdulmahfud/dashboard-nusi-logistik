@@ -41,13 +41,13 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-    compoundVariants: [
-      {
-        variant: "blueGradient",
-        class:
-          "h-12 min-h-12 rounded-full px-6 py-4 text-lg text-white [&_svg]:size-5",
-      },
-    ],
+    // compoundVariants: [
+    //   {
+    //     variant: "blueGradient",
+    //     class:
+    //       "h-12 min-h-12 rounded-full px-6 py-4 text-lg text-white [&_svg]:size-5",
+    //   },
+    // ],
   }
 )
 

@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatRupiah } from "@/lib/currency";
 import { formatDateIdLong } from "@/lib/date";
 import type { WalletTransactionItem } from "@/types/wallet";
 
@@ -67,7 +68,11 @@ export function WalletTransactionTable({
                 {formatTxCell(row.description ?? row.type ?? "—")}
               </TableCell>
               <TableCell className="text-right text-sm tabular-nums">
-                {formatTxCell(row.amount)}
+                {formatRupiah(
+                  typeof row.amount === "string" || typeof row.amount === "number"
+                    ? row.amount
+                    : 0
+                )}
               </TableCell>
               <TableCell className="text-sm">
                 {formatTxCell(row.status)}

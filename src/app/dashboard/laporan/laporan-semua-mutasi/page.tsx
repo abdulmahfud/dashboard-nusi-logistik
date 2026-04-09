@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { getAllPayments } from "@/lib/apiClient";
+import { getAllPayments, normalizeAllPayments } from "@/lib/apiClient";
 import type { PaymentAllItem } from "@/types/payment";
 import { formatDateIdLong } from "@/lib/date";
 import { ClipboardListIcon, Loader2, RefreshCw } from "lucide-react";
@@ -57,6 +57,44 @@ function formatAmount(value: number | string | undefined): string {
   }).format(n);
 }
 
+function extractPagination(payload: unknown): {
+  currentPage: number;
+  lastPage: number;
+  total: number;
+} {
+  const fallback = { currentPage: 1, lastPage: 1, total: 0 };
+  if (!payload || typeof payload !== "object") return fallback;
+
+  const root = payload as Record<string, unknown>;
+  const direct = root.pagination;
+  if (direct && typeof direct === "object") {
+    const p = direct as Record<string, unknown>;
+    const currentPage = Number(p.current_page);
+    const lastPage = Number(p.last_page);
+    const total = Number(p.total);
+    return {
+      currentPage: Number.isFinite(currentPage) && currentPage > 0 ? currentPage : 1,
+      lastPage: Number.isFinite(lastPage) && lastPage > 0 ? lastPage : 1,
+      total: Number.isFinite(total) && total >= 0 ? total : 0,
+    };
+  }
+
+  const data = root.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const d = data as Record<string, unknown>;
+    const currentPage = Number(d.current_page);
+    const lastPage = Number(d.last_page);
+    const total = Number(d.total);
+    return {
+      currentPage: Number.isFinite(currentPage) && currentPage > 0 ? currentPage : 1,
+      lastPage: Number.isFinite(lastPage) && lastPage > 0 ? lastPage : 1,
+      total: Number.isFinite(total) && total >= 0 ? total : 0,
+    };
+  }
+
+  return fallback;
+}
+
 export default function LaporanSemuaMutasiPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canViewAll = hasPermission("payments.view_all");
@@ -65,25 +103,43 @@ export default function LaporanSemuaMutasiPage() {
   const [rows, setRows] = useState<PaymentAllItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadData = async () => {
+  const loadData = async (
+    targetPage = page,
+    activeFilters: FilterState = filters
+  ) => {
     if (!canViewAll) return;
     setLoading(true);
     setError(null);
     try {
       const res = await getAllPayments({
-        user_id: filters.user_id ? Number(filters.user_id) : undefined,
-        status: filters.status === "all" ? undefined : filters.status,
+        user_id: activeFilters.user_id ? Number(activeFilters.user_id) : undefined,
+        status: activeFilters.status === "all" ? undefined : activeFilters.status,
         payment_method:
-          filters.payment_method === "all" ? undefined : filters.payment_method,
-        date_from: filters.date_from || undefined,
-        date_to: filters.date_to || undefined,
-        amount_min: filters.amount_min ? Number(filters.amount_min) : undefined,
-        amount_max: filters.amount_max ? Number(filters.amount_max) : undefined,
-        reference_no: filters.reference_no || undefined,
-        per_page: 100,
+          activeFilters.payment_method === "all"
+            ? undefined
+            : activeFilters.payment_method,
+        date_from: activeFilters.date_from || undefined,
+        date_to: activeFilters.date_to || undefined,
+        amount_min: activeFilters.amount_min
+          ? Number(activeFilters.amount_min)
+          : undefined,
+        amount_max: activeFilters.amount_max
+          ? Number(activeFilters.amount_max)
+          : undefined,
+        reference_no: activeFilters.reference_no || undefined,
+        page: targetPage,
+        per_page: perPage,
       });
-      setRows((res.data ?? []) as PaymentAllItem[]);
+      setRows(normalizeAllPayments(res) as PaymentAllItem[]);
+      const pg = extractPagination(res);
+      setPage(pg.currentPage);
+      setLastPage(pg.lastPage);
+      setTotal(pg.total);
     } catch (e) {
       if (e instanceof AxiosError) {
         const msg = (e.response?.data as { message?: string })?.message;
@@ -92,6 +148,8 @@ export default function LaporanSemuaMutasiPage() {
         setError("Gagal memuat laporan semua mutasi.");
       }
       setRows([]);
+      setLastPage(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -236,7 +294,8 @@ export default function LaporanSemuaMutasiPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  onClick={() => void loadData()}
+                  variant="blueGradient"
+                  onClick={() => void loadData(1)}
                   disabled={loading}
                 >
                   {loading ? (
@@ -252,8 +311,9 @@ export default function LaporanSemuaMutasiPage() {
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setFilters(initialFilters);
-                    setTimeout(() => void loadData(), 0);
+                    const nextFilters = { ...initialFilters };
+                    setFilters(nextFilters);
+                    void loadData(1, nextFilters);
                   }}
                   disabled={loading}
                 >
@@ -262,7 +322,7 @@ export default function LaporanSemuaMutasiPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => void loadData()}
+                  onClick={() => void loadData(page)}
                   disabled={loading}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -274,7 +334,7 @@ export default function LaporanSemuaMutasiPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Data Mutasi ({rows.length})</CardTitle>
+              <CardTitle>Data Mutasi ({total})</CardTitle>
             </CardHeader>
             <CardContent>
               {error ? (
@@ -328,6 +388,29 @@ export default function LaporanSemuaMutasiPage() {
                   </Table>
                 </div>
               )}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Halaman {page} dari {lastPage}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void loadData(page - 1)}
+                    disabled={loading || page <= 1}
+                  >
+                    Sebelumnya
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void loadData(page + 1)}
+                    disabled={loading || page >= lastPage}
+                  >
+                    Berikutnya
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

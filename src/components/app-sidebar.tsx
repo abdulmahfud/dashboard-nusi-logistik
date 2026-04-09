@@ -159,7 +159,7 @@ const data = {
       permission: "wallet.view",
     },
     {
-      title: "Laporan Semua Mutasi",
+      title: "Semua Mutasi",
       url: "/dashboard/laporan/laporan-semua-mutasi",
       icon: History,
       permission: "payments.view_all",

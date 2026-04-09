@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, Clock, CreditCard } from "lucide-react";
 import Link from "next/link";
+import { formatDateIdLong } from "@/lib/date";
 
 // Kolom tabel
 export const columns: ColumnDef<DeliveryReport>[] = [
@@ -115,6 +116,7 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "createdAt",
     header: "TANGGAL DIBUAT",
+    cell: ({ row }) => formatDateIdLong(row.original.createdAt),
   },
   {
     id: "tracking",

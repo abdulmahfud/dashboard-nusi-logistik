@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { formatDateIdLong } from "@/lib/date";
+import { formatRupiah } from "@/lib/currency";
 
 // Tipe data, contoh dummy
 type BalanceHistory = {
@@ -23,10 +25,7 @@ export const columns: ColumnDef<BalanceHistory>[] = [
   {
     accessorKey: "value",
     header: "NILAI",
-    cell: ({ row }) => {
-      const amount = row.original.value;
-      return `Rp${amount.toLocaleString()}`;
-    },
+    cell: ({ row }) => formatRupiah(row.original.value),
   },
   {
     accessorKey: "status",
@@ -35,9 +34,11 @@ export const columns: ColumnDef<BalanceHistory>[] = [
   {
     accessorKey: "createdAt",
     header: "TANGGAL DIBUAT/ESTIMASI",
+    cell: ({ row }) => formatDateIdLong(row.original.createdAt),
   },
   {
     accessorKey: "releasedAt",
     header: "TANGGAL RILIS",
+    cell: ({ row }) => formatDateIdLong(row.original.releasedAt),
   },
 ];

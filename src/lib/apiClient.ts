@@ -1238,6 +1238,28 @@ export const getAllPayments = async (params?: {
   return res.data;
 };
 
+export function normalizeAllPayments(
+  payload:
+    | {
+        data?: Record<string, unknown>[] | { data?: Record<string, unknown>[] };
+      }
+    | undefined
+): Record<string, unknown>[] {
+  if (!payload?.data) return [];
+  if (Array.isArray(payload.data)) return payload.data;
+
+  if (
+    typeof payload.data === "object" &&
+    payload.data !== null &&
+    "data" in payload.data &&
+    Array.isArray((payload.data as { data?: Record<string, unknown>[] }).data)
+  ) {
+    return (payload.data as { data?: Record<string, unknown>[] }).data ?? [];
+  }
+
+  return [];
+}
+
 export const cancelPayment = async (
   referenceNo: string
 ): Promise<{
