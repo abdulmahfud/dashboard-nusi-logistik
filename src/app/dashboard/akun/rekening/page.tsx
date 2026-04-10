@@ -330,7 +330,7 @@ const Rekening = () => {
             </div>
             <Button
               onClick={fetchBankAccounts}
-              variant="outline"
+              variant="blueGradientOutline"
               size="sm"
               disabled={loading}
             >
@@ -439,7 +439,7 @@ const Rekening = () => {
                       <div className="flex gap-2 mt-3">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="blueGradientOutline"
                           className="border-amber-300 text-amber-700 hover:bg-amber-100"
                           onClick={() =>
                             window.open("https://wa.me/6281330323559", "_blank")
@@ -449,7 +449,7 @@ const Rekening = () => {
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="blueGradientOutline"
                           className="border-amber-300 text-amber-700 hover:bg-amber-100"
                           onClick={() =>
                             window.open(

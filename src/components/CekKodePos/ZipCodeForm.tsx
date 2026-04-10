@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Card, CardContent, CardTitle } from "../ui/card";
 import { searchAddressNew } from "@/lib/apiClient";
+import { Button } from "../ui/button";
 
 type ZipCode = {
   desa: string;
@@ -171,7 +172,7 @@ export default function ZipCodeForm({ onSelectZip }: ZipCodeFormProps) {
           </div>
 
           {/* Tombol Reset */}
-          <button
+          <Button
             onClick={() => {
               setQuery("");
               setFilteredResults([]);
@@ -183,10 +184,10 @@ export default function ZipCodeForm({ onSelectZip }: ZipCodeFormProps) {
                 postalCode: "",
               });
             }}
-            className="mt-3 px-4 py-2 border font-semibold bg-blue-400 border-blue-500 text-white rounded-lg hover:bg-blue-500 hover:text-white transition duration-200"
+            variant="blueGradient"
           >
             Reset
-          </button>
+          </Button>
         </div>
       </CardContent>
     </Card>

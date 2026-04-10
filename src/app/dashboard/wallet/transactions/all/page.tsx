@@ -339,13 +339,13 @@ export default function WalletAllTransactionsPage() {
                 <Button
                   type="button"
                   onClick={applyFilters}
-                  className="bg-indigo-600 hover:bg-indigo-700"
+                  variant="blueGradient"
                 >
                   Terapkan filter
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="blueGradientOutline"
                   onClick={() => {
                     setUserId("");
                     setAmountMin("");
@@ -363,7 +363,7 @@ export default function WalletAllTransactionsPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="blueGradientOutline"
                   onClick={() => setFilterTick((t) => t + 1)}
                   disabled={loading}
                 >
@@ -405,7 +405,7 @@ export default function WalletAllTransactionsPage() {
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="blueGradientOutline"
                         size="sm"
                         disabled={page <= 1 || loading}
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -417,7 +417,7 @@ export default function WalletAllTransactionsPage() {
                       </span>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="blueGradientOutline"
                         size="sm"
                         disabled={page >= lastPage || loading}
                         onClick={() =>

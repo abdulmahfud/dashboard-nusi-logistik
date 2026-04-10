@@ -1,28 +1,28 @@
 "use client";
 
-import Link from "next/link";
 import { type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import Link from "next/link";
 
-export function NavMain({
+export function NavSupportTickets({
   items,
 }: {
   items: {
     title: string;
     url: string;
     icon?: LucideIcon;
-    /** aktif juga untuk sub-path (mis. /dashboard/wallet/riwayat untuk url /dashboard/wallet) */
+    /** pathname aktif jika sama dengan url atau sub-path (mis. /tickets/5) */
     matchPrefix?: boolean;
-    /** diisi di app-sidebar, tidak dipakai di sini */
-    permission?: string;
-    permissionAny?: string[];
+    /** hanya pathname sama persis */
+    exact?: boolean;
   }[];
 }) {
   const pathname = usePathname();
@@ -30,11 +30,17 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
+        <SidebarGroupLabel>Bantuan</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = item.matchPrefix
-              ? pathname === item.url || pathname.startsWith(`${item.url}/`)
-              : pathname === item.url;
+            const usePrefix = item.matchPrefix === true;
+            const exactOnly = item.exact === true;
+            const isActive = exactOnly
+              ? pathname === item.url
+              : usePrefix
+                ? pathname === item.url ||
+                  pathname.startsWith(`${item.url}/`)
+                : pathname === item.url;
 
             return (
               <SidebarMenuItem key={item.title}>

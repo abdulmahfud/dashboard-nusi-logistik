@@ -41,9 +41,8 @@ export function CurrencyInput({
 
   // Update display value when prop value changes
   useEffect(() => {
-    if (value !== parseNumber(displayValue)) {
-      setDisplayValue(formatNumber(value));
-    }
+    const next = formatNumber(value);
+    setDisplayValue((prev) => (prev === next ? prev : next));
   }, [value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

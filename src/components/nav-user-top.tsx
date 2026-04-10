@@ -47,7 +47,7 @@ export function NavUserTop() {
   if (loading) {
 
     return (
-      <SidebarMenu>
+      <SidebarMenu className="sticky top-0 z-40">
         <SidebarMenuItem>
           <Skeleton className="h-8 w-8 rounded-lg" />
         </SidebarMenuItem>
@@ -63,7 +63,7 @@ export function NavUserTop() {
     );
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className="sticky top-0 z-40">
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

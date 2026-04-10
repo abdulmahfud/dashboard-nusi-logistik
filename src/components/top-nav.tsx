@@ -28,8 +28,8 @@ export default function TopVav() {
   const isMobile = useIsMobile();
 
   return (
-    <div>
-      <div className="flex items-center flex-shrink-0">
+    <div className="fixed right-3 top-2 z-50 rounded-xl border border-slate-200 bg-white/95 px-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85 md:right-6">
+      <div className="flex items-center flex-shrink-0 py-1">
         <Image
           src="/images/BhisaKirim_3.png"
           alt="Logo Bisakirim"

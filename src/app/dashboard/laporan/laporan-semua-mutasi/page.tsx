@@ -311,7 +311,7 @@ export default function LaporanSemuaMutasiPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="blueGradientOutline"
                   onClick={() => {
                     const nextFilters = { ...initialFilters };
                     setFilters(nextFilters);
@@ -323,7 +323,7 @@ export default function LaporanSemuaMutasiPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="blueGradientOutline"
                   onClick={() => void loadData(page)}
                   disabled={loading}
                 >

@@ -77,6 +77,7 @@ import type {
   ExpeditionVendorSettingPatchBody,
   ExpeditionVendorSettingPatchResponse,
 } from "@/types/expeditionVendorSettings";
+import type { SupportTicketPatchBody } from "@/types/supportTicket";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 
 // Ambil URL dari .env
@@ -1600,5 +1601,64 @@ export function getWalletPaginatorMeta(
   }
   return null;
 }
+
+/** GET /admin/support/tickets — support.tickets.view / manage */
+export const getSupportTickets = async (params?: {
+  user_id?: number;
+  status?: string;
+  department?: string;
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<unknown> => {
+  const res = await apiClient.get("/admin/support/tickets", { params });
+  return res.data;
+};
+
+/** GET /admin/support/tickets/:id */
+export const getSupportTicket = async (
+  id: number | string
+): Promise<unknown> => {
+  const res = await apiClient.get(`/admin/support/tickets/${id}`);
+  return res.data;
+};
+
+/** POST /admin/support/tickets — multipart: title, department, message?, attachments[] */
+export const createSupportTicket = async (
+  formData: FormData
+): Promise<unknown> => {
+  const res = await apiClient.post("/admin/support/tickets", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return res.data;
+};
+
+/** PATCH /admin/support/tickets/:id — support.tickets.manage */
+export const patchSupportTicket = async (
+  id: number | string,
+  body: SupportTicketPatchBody
+): Promise<unknown> => {
+  const res = await apiClient.patch(`/admin/support/tickets/${id}`, body);
+  return res.data;
+};
+
+/** POST /admin/support/tickets/:id/messages — multipart: message?, attachments[] */
+export const postSupportTicketMessage = async (
+  id: number | string,
+  formData: FormData
+): Promise<unknown> => {
+  const res = await apiClient.post(
+    `/admin/support/tickets/${id}/messages`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return res.data;
+};
 
 export default apiClient;

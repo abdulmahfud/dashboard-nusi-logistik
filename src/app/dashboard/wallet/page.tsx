@@ -315,7 +315,7 @@ export default function WalletPage() {
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="blueGradientOutline"
                     size="sm"
                     className="gap-2"
                     onClick={() => void loadBalance()}
@@ -341,7 +341,7 @@ export default function WalletPage() {
                   {canViewOwn && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="blueGradientOutline"
                       size="sm"
                       className="gap-2"
                       asChild

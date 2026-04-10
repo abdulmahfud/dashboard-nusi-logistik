@@ -152,7 +152,7 @@ export default function WalletRiwayatPage() {
               </div>
               <Button
                 type="button"
-                variant="outline"
+                variant="blueGradientOutline"
                 size="sm"
                 onClick={() => void load()}
                 disabled={loading}
@@ -185,7 +185,7 @@ export default function WalletRiwayatPage() {
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="blueGradientOutline"
                         size="sm"
                         disabled={page <= 1 || loading}
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -197,7 +197,7 @@ export default function WalletRiwayatPage() {
                       </span>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="blueGradientOutline"
                         size="sm"
                         disabled={page >= lastPage || loading}
                         onClick={() =>

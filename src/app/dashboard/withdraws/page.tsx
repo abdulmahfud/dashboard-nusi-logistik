@@ -207,7 +207,7 @@ export default function WithdrawsAdminPage() {
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="blueGradientOutline"
               size="sm"
               className="gap-2"
               onClick={() => void fetchList()}
@@ -319,7 +319,7 @@ export default function WithdrawsAdminPage() {
                                   <Button
                                     type="button"
                                     size="sm"
-                                    variant="outline"
+                                    variant="blueGradientOutline"
                                     disabled={busy}
                                     onClick={() => {
                                       setRejectTarget(row);
@@ -376,7 +376,7 @@ export default function WithdrawsAdminPage() {
             <DialogFooter className="shrink-0 gap-2 border-t pt-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="blueGradientOutline"
                 onClick={() => {
                   setRejectOpen(false);
                   setRejectTarget(null);

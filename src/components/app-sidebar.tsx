@@ -24,6 +24,7 @@ import {
   MessageCircle,
   BadgePercent,
   ArrowDownToLine,
+  Ticket,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -36,6 +37,7 @@ import { NavReport } from "@/components/nav-report";
 import { NavWallet } from "@/components/nav-wallet";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavSendPackage } from "@/components/nav-send-package";
+import { NavSupportTickets } from "@/components/nav-support-tickets";
 import { NavUser } from "@/components/nav-user";
 
 import { useAuth } from "@/context/AuthContext";
@@ -74,6 +76,22 @@ const data = {
       url: "/dashboard/cek-kode-pos",
       icon: FileSearch,
       permission: "expedition.shipment_cost.calculate",
+    },
+  ],
+  supportTickets: [
+    {
+      title: "Tiket Masuk",
+      url: "/dashboard/support/tickets",
+      icon: Ticket,
+      matchPrefix: true,
+      permission: "support.tickets.manage",
+    },
+    {
+      title: "Buat Tiket Bantuan",
+      url: "/dashboard/support/tickets/new",
+      icon: Ticket,
+      exact: true,
+      permission: "support.tickets.create",
     },
   ],
   wallet: [
@@ -128,7 +146,7 @@ const data = {
       title: "Diskon Pengiriman",
       url: "/dashboard/paket/diskon-pengiriman",
       icon: BadgePercent,
-      permission: "discounts.view",
+      permission: "discounts.create",
     },
   ],
   navSecondary: [
@@ -266,6 +284,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasPermission,
     authLoading
   );
+  const filteredSupportTickets = filterSidebarByPermission(
+    data.supportTickets,
+    hasPermission,
+    authLoading
+  );
   const filteredSendPackage = filterSidebarByPermission(
     data.sendPackage,
     hasPermission,
@@ -314,6 +337,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {filteredNavMain.length > 0 && <NavMain items={filteredNavMain} />}
+        {filteredSupportTickets.length > 0 && (
+          <NavSupportTickets items={filteredSupportTickets} />
+        )}
         {filteredSendPackage.length > 0 && (
           <NavSendPackage items={filteredSendPackage} />
         )}
