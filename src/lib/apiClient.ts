@@ -72,6 +72,11 @@ import type {
   WithdrawListResponse,
   WithdrawRecord,
 } from "@/types/wallet";
+import type {
+  ExpeditionVendorSettingsListResponse,
+  ExpeditionVendorSettingPatchBody,
+  ExpeditionVendorSettingPatchResponse,
+} from "@/types/expeditionVendorSettings";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 
 // Ambil URL dari .env
@@ -1299,6 +1304,27 @@ export const createOrderWithPendingPayment = async (data: {
   errors?: Record<string, unknown>;
 }> => {
   const res = await apiClient.post("/admin/orders/create-pending", data);
+  return res.data;
+};
+
+/** GET /admin/expedition-vendor-settings — expedition.settings.view */
+export const getExpeditionVendorSettings =
+  async (): Promise<ExpeditionVendorSettingsListResponse> => {
+    const res = await apiClient.get<ExpeditionVendorSettingsListResponse>(
+      "/admin/expedition-vendor-settings"
+    );
+    return res.data;
+  };
+
+/** PATCH /admin/expedition-vendor-settings/{vendor} — expedition.settings.update */
+export const patchExpeditionVendorSettings = async (
+  vendor: string,
+  body: ExpeditionVendorSettingPatchBody
+): Promise<ExpeditionVendorSettingPatchResponse> => {
+  const res = await apiClient.patch<ExpeditionVendorSettingPatchResponse>(
+    `/admin/expedition-vendor-settings/${encodeURIComponent(vendor)}`,
+    body
+  );
   return res.data;
 };
 

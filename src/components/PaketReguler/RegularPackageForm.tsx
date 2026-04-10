@@ -53,6 +53,7 @@ import {
   getNinjaShipmentCost,
   searchAddressNew,
 } from "@/lib/apiClient";
+import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 import { deliveryTypeToPickup, type DeliveryType } from "@/lib/utils";
 import type {
   Shipper,
@@ -771,7 +772,17 @@ export default function RegularPackageForm({
         getNinjaShipmentCost(shipmentPayload),
       ]);
 
-      // Handle individual API errors (silent - errors are handled by Promise.allSettled)
+      notifyShipmentCost422Rejections([
+        { label: "J&T Express", settled: jntResult },
+        { label: "Paxel", settled: paxelResult },
+        { label: "Lion Parcel", settled: lionResult },
+        { label: "SAP", settled: sapResult },
+        { label: "Pos Indonesia", settled: posIndonesiaResult },
+        { label: "JNE", settled: jneResult },
+        { label: "ID Express", settled: idexpressResult },
+        { label: "Anteraja", settled: anterajaResult },
+        { label: "Ninja", settled: ninjaResult },
+      ]);
 
       // Combine results from all APIs - same format as ShippingForm.tsx
       const combinedResult = {

@@ -252,14 +252,16 @@ export default function PermissionsPage() {
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <Shield className="h-6 w-6" />
-                Permissions
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Manage system permissions
-              </p>
+            <div className="flex items-center gap-2">
+              <Shield className="h-7 w-7 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Permissions
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Manage system permissions
+                </p>
+              </div>
             </div>
             <Button
               onClick={fetchPermissions}
@@ -331,9 +333,9 @@ export default function PermissionsPage() {
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       );
                     })}

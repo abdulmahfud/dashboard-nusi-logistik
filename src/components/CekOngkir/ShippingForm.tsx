@@ -24,6 +24,7 @@ import {
   getNinjaShipmentCost,
   searchAddressNew,
 } from "@/lib/apiClient";
+import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 
 interface ShippingFormProps {
   onResult?: (result: Record<string, unknown>) => void;
@@ -242,6 +243,18 @@ export default function ShippingForm({
         getIdexpressShipmentCost(shipmentPayload),
         getAnterajaShipmentCost(shipmentPayload),
         getNinjaShipmentCost(shipmentPayload),
+      ]);
+
+      notifyShipmentCost422Rejections([
+        { label: "J&T Express", settled: jntResult },
+        { label: "Paxel", settled: paxelResult },
+        { label: "Lion Parcel", settled: lionResult },
+        { label: "SAP", settled: sapResult },
+        { label: "Pos Indonesia", settled: posIndonesiaResult },
+        { label: "JNE", settled: jneResult },
+        { label: "ID Express", settled: idexpressResult },
+        { label: "Anteraja", settled: anterajaResult },
+        { label: "Ninja", settled: ninjaResult },
       ]);
 
       // Combine results from all APIs

@@ -10,7 +10,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Wallet,
   Plus,
   Building2,
   Phone,
@@ -306,13 +305,13 @@ const Rekening = () => {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Wallet className="h-6 w-6" />
+                <Building2 className="h-7 w-7 text-blue-600" />
                 Rekening Bank
               </h1>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground text-sm">
                 Hanya menampilkan rekening Anda sendiri untuk penarikan saldo.
               </p>
               {hasPermission("bank-accounts.view_all") && (

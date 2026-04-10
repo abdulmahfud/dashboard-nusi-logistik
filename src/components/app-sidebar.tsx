@@ -201,6 +201,12 @@ const data = {
   ],
   managementUser: [
     {
+      title: "Pengaturan ekspedisi",
+      url: "/dashboard/expedition/vendor-settings",
+      icon: Truck,
+      permission: "expedition.settings.view",
+    },
+    {
       title: "Semua Rekening Bank",
       url: "/dashboard/list-bank-accounts",
       icon: Banknote,

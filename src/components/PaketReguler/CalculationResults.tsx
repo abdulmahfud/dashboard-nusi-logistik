@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
 import { AxiosError } from "axios";
+import { getAxiosErrorMessage } from "@/lib/apiError";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -1245,9 +1246,10 @@ export default function CalculationResults({
     } catch (error) {
       console.error("Error creating order:", error);
       if (error instanceof AxiosError) {
-        const message =
-          (error.response?.data as { message?: string } | undefined)?.message ||
-          error.message;
+        const message = getAxiosErrorMessage(
+          error,
+          "Terjadi kesalahan saat membuat order"
+        );
         const lower = message.toLowerCase();
         if (
           lower.includes("saldo") &&

@@ -26,7 +26,7 @@ export function NavManagementUser({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarGroupLabel>Management User</SidebarGroupLabel>
+        <SidebarGroupLabel>Management</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => {
             const isActive = pathname === item.url;

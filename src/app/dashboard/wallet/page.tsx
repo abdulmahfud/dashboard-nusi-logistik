@@ -275,14 +275,17 @@ export default function WalletPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Dompet & saldo
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-            Saldo bertambah setelah
-            pembayaran dikonfirmasi sistem.
-            </p>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-7 w-7 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Dompet & saldo
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Saldo bertambah setelah
+                pembayaran dikonfirmasi sistem.
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-6">

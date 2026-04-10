@@ -18,6 +18,7 @@ import {
   User as UserIcon,
   CheckCircle,
   XCircle,
+  UserCog,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -30,15 +31,15 @@ export default function UserProfilePage() {
   // Convert AuthContext user to User type for compatibility
   const user: User | null = authUser
     ? {
-        id: authUser.id,
-        name: authUser.name,
-        email: authUser.email,
-        whatsapp: authUser.whatsapp || "",
-        email_verified_at: authUser.email_verified_at,
-        created_at: authUser.created_at || "",
-        updated_at: authUser.updated_at || "",
-        roles: [], // AuthContext doesn't include roles, but that's ok for profile
-      }
+      id: authUser.id,
+      name: authUser.name,
+      email: authUser.email,
+      whatsapp: authUser.whatsapp || "",
+      email_verified_at: authUser.email_verified_at,
+      created_at: authUser.created_at || "",
+      updated_at: authUser.updated_at || "",
+      roles: [], // AuthContext doesn't include roles, but that's ok for profile
+    }
     : null;
 
   useEffect(() => {
@@ -97,109 +98,115 @@ export default function UserProfilePage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">Profil Saya</h1>
-              <p className="text-gray-600">Kelola informasi profil Anda</p>
-            </div>
-            <Button
-              onClick={() => router.push(`/dashboard/akun/profil/edit`)}
-              className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-            >
-              <Edit className="h-4 w-4" />
-              Edit Profil
-            </Button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCog className="h-7 w-7 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Profil
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Informasi pribadi Anda.
+                </p>
+              </div>
+          </div>
+          <Button
+            onClick={() => router.push(`/dashboard/akun/profil/edit`)}
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+          >
+            <Edit className="h-4 w-4" />
+            Edit Profil
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main User Info */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserIcon className="h-5 w-5" />
+                  Informasi Pribadi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Nama Lengkap
+                    </label>
+                    <p className="text-lg font-medium">{user.name}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                      <Mail className="h-4 w-4" />
+                      Email
+                    </label>
+                    <p className="text-lg">{user.email}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      WhatsApp
+                    </label>
+                    <p className="text-lg font-mono">{user.whatsapp}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main User Info */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserIcon className="h-5 w-5" />
-                    Informasi Pribadi
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">
-                        Nama Lengkap
-                      </label>
-                      <p className="text-lg font-medium">{user.name}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                        <Mail className="h-4 w-4" />
-                        Email
-                      </label>
-                      <p className="text-lg">{user.email}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        WhatsApp
-                      </label>
-                      <p className="text-lg font-mono">{user.whatsapp}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar Info */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Status Akun</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Status Email</span>
-                    <Badge
-                      variant={isVerified ? "default" : "secondary"}
-                      className={`flex items-center gap-1 ${
-                        isVerified
-                          ? "bg-green-100 text-green-800 hover:bg-green-200"
-                          : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+          {/* Sidebar Info */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Status Akun</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Status Email</span>
+                  <Badge
+                    variant={isVerified ? "default" : "secondary"}
+                    className={`flex items-center gap-1 ${isVerified
+                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                        : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
                       }`}
-                    >
-                      {isVerified ? (
-                        <CheckCircle className="h-3 w-3" />
-                      ) : (
-                        <XCircle className="h-3 w-3" />
+                  >
+                    {isVerified ? (
+                      <CheckCircle className="h-3 w-3" />
+                    ) : (
+                      <XCircle className="h-3 w-3" />
+                    )}
+                    {isVerified ? "Terverifikasi" : "Belum Verifikasi"}
+                  </Badge>
+                </div>
+
+                {isVerified && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Tanggal Verifikasi
+                    </label>
+                    <p className="text-sm">
+                      {new Date(user.email_verified_at!).toLocaleDateString(
+                        "id-ID",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
                       )}
-                      {isVerified ? "Terverifikasi" : "Belum Verifikasi"}
-                    </Badge>
+                    </p>
                   </div>
+                )}
+              </CardContent>
+            </Card>
 
-                  {isVerified && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">
-                        Tanggal Verifikasi
-                      </label>
-                      <p className="text-sm">
-                        {new Date(user.email_verified_at!).toLocaleDateString(
-                          "id-ID",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* <Card>
+            {/* <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Calendar className="h-5 w-5" />
@@ -239,42 +246,42 @@ export default function UserProfilePage() {
                 </CardContent>
               </Card> */}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Pengaturan</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => router.push(`/dashboard/akun/profil/edit`)}
-                  >
-                    <Edit className="h-4 w-4" />
-                    Edit Profil
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => router.push(`/dashboard/akun/rekening`)}
-                  >
-                    <UserIcon className="h-4 w-4" />
-                    Rekening Bank
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    onClick={() => router.push(`/dashboard/akun/social-media`)}
-                  >
-                    <Phone className="h-4 w-4" />
-                    Social Media
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Pengaturan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => router.push(`/dashboard/akun/profil/edit`)}
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Profil
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => router.push(`/dashboard/akun/rekening`)}
+                >
+                  <UserIcon className="h-4 w-4" />
+                  Rekening Bank
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2"
+                  onClick={() => router.push(`/dashboard/akun/social-media`)}
+                >
+                  <Phone className="h-4 w-4" />
+                  Social Media
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
-        
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+
+    </SidebarInset>
+    </SidebarProvider >
   );
 }

@@ -249,12 +249,17 @@ export default function RolesPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">Management Roles</h1>
-              <p className="text-gray-600">
-                Kelola roles dan permissions sistem
-              </p>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Shield className="h-7 w-7 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Management Roles
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Kelola roles dan permissions sistem
+                </p>
+              </div>
             </div>
             <Button
               onClick={() => router.push("/dashboard/roles/create")}
@@ -311,9 +316,9 @@ export default function RolesPage() {
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       ))}
                     </TableRow>
