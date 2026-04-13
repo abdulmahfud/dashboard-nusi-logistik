@@ -45,7 +45,6 @@ export function NavUserTop() {
   };
 
   if (loading) {
-
     return (
       <SidebarMenu className="sticky top-0 z-40">
         <SidebarMenuItem>
@@ -126,9 +125,14 @@ export function NavUserTop() {
                 <BellIcon />
                 Saldo & Komisi
               </DropdownMenuItem> */}
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Withdraw
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/dashboard/wallet"
+                  className="flex items-center gap-2"
+                >
+                  <CreditCardIcon />
+                  Withdraw
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link

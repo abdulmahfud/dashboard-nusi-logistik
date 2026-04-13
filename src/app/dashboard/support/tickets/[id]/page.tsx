@@ -25,7 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { SupportTicketStatusBadge } from "@/components/support/support-ticket-status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,16 +63,6 @@ import type {
   SupportTicketStatus,
 } from "@/types/supportTicket";
 import { SupportAttachmentImage } from "@/components/support/support-attachment-image";
-
-function statusBadgeVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  const s = status.toLowerCase();
-  if (s === "closed") return "secondary";
-  if (s === "resolved") return "default";
-  if (s === "awaiting_customer") return "outline";
-  return "secondary";
-}
 
 export default function SupportTicketDetailPage() {
   const params = useParams();
@@ -317,9 +307,12 @@ export default function SupportTicketDetailPage() {
                     <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
                       {ticket.title}
                     </h1>
-                    <Badge variant={statusBadgeVariant(String(ticket.status))}>
+                    <SupportTicketStatusBadge
+                      status={String(ticket.status)}
+                      statusLabel={ticket.status_label}
+                    >
                       {ticket.status_label ?? ticket.status}
-                    </Badge>
+                    </SupportTicketStatusBadge>
                   </div>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {ticket.department_label ?? ticket.department} · #

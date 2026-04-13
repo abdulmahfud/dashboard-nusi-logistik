@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { SupportTicketStatusBadge } from "@/components/support/support-ticket-status-badge";
 import {
   Select,
   SelectContent,
@@ -46,16 +46,6 @@ import {
 } from "@/lib/supportTicketUi";
 import type { SupportTicketSummary } from "@/types/supportTicket";
 import Link from "next/link";
-
-function statusBadgeVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  const s = status.toLowerCase();
-  if (s === "closed") return "secondary";
-  if (s === "resolved") return "default";
-  if (s === "awaiting_customer") return "outline";
-  return "secondary";
-}
 
 export default function SupportTicketsListPage() {
   const router = useRouter();
@@ -358,13 +348,12 @@ export default function SupportTicketsListPage() {
                                     {t.department_label ?? t.department}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge
-                                      variant={statusBadgeVariant(
-                                        String(t.status)
-                                      )}
+                                    <SupportTicketStatusBadge
+                                      status={String(t.status)}
+                                      statusLabel={t.status_label}
                                     >
                                       {t.status_label ?? t.status}
-                                    </Badge>
+                                    </SupportTicketStatusBadge>
                                   </TableCell>
                                   <TableCell className="text-muted-foreground whitespace-nowrap text-sm">
                                     {formatTicketDateTime(
@@ -388,12 +377,13 @@ export default function SupportTicketsListPage() {
                               <span className="font-medium text-slate-900">
                                 {t.title}
                               </span>
-                              <Badge
-                                variant={statusBadgeVariant(String(t.status))}
+                              <SupportTicketStatusBadge
+                                status={String(t.status)}
+                                statusLabel={t.status_label}
                                 className="shrink-0"
                               >
                                 {t.status_label ?? t.status}
-                              </Badge>
+                              </SupportTicketStatusBadge>
                             </div>
                             {t.user?.name ? (
                               <p className="text-muted-foreground mt-1 text-xs">

@@ -1627,11 +1627,7 @@ export const getSupportTicket = async (
 export const createSupportTicket = async (
   formData: FormData
 ): Promise<unknown> => {
-  const res = await apiClient.post("/admin/support/tickets", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  const res = await apiClient.post("/admin/support/tickets", formData);
   return res.data;
 };
 
@@ -1651,12 +1647,7 @@ export const postSupportTicketMessage = async (
 ): Promise<unknown> => {
   const res = await apiClient.post(
     `/admin/support/tickets/${id}/messages`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
+    formData
   );
   return res.data;
 };

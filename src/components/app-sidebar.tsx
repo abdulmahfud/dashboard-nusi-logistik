@@ -21,7 +21,6 @@ import {
   UserCog,
   ShieldUser,
   Banknote,
-  MessageCircle,
   BadgePercent,
   ArrowDownToLine,
   Ticket,
@@ -87,7 +86,7 @@ const data = {
       permission: "support.tickets.manage",
     },
     {
-      title: "Buat Tiket Bantuan",
+      title: "Tiket Bantuan",
       url: "/dashboard/support/tickets/new",
       icon: Ticket,
       exact: true,
@@ -162,12 +161,12 @@ const data = {
       icon: FileText,
       permission: "orders.index",
     },
-    {
-      title: "Kritik & Saran",
-      url: "/dashboard/kritik-dan-saran",
-      icon: MessageCircle,
-      permission: "orders.index",
-    },
+    // {
+    //   title: "Kritik & Saran",
+    //   url: "/dashboard/kritik-dan-saran",
+    //   icon: MessageCircle,
+    //   permission: "orders.index",
+    // },
   ],
   report: [
     {

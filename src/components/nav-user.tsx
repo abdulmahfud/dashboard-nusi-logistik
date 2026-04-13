@@ -136,9 +136,14 @@ export function NavUser() {
                 <BellIcon />
                 Saldo & Komisi
               </DropdownMenuItem> */}
-              <DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/dashboard/wallet"
+                  className="flex items-center gap-2"
+                >
                 <CreditCardIcon />
                 Withdraw
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link

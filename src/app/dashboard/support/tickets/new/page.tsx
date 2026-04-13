@@ -19,24 +19,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { SupportTicketStatusBadge } from "@/components/support/support-ticket-status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { getSupportTickets } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { normalizeSupportTicketsList } from "@/lib/supportTickets";
-import { formatTicketDateTime } from "@/lib/supportTicketUi";
+import { formatDateIdLong } from "@/lib/date";
 import type { SupportTicketSummary } from "@/types/supportTicket";
 import { SupportTicketCreateForm } from "@/components/support/support-ticket-create-form";
-
-function statusBadgeVariant(
-  status: string
-): "default" | "secondary" | "destructive" | "outline" {
-  const s = status.toLowerCase();
-  if (s === "closed") return "secondary";
-  if (s === "resolved") return "default";
-  if (s === "awaiting_customer") return "outline";
-  return "secondary";
-}
 
 export default function NewSupportTicketPage() {
   const router = useRouter();
@@ -231,16 +221,17 @@ export default function NewSupportTicketPage() {
                                 <span className="font-medium text-slate-900">
                                   {t.title}
                                 </span>
-                                <Badge
-                                  variant={statusBadgeVariant(String(t.status))}
+                                <SupportTicketStatusBadge
+                                  status={String(t.status)}
+                                  statusLabel={t.status_label}
                                   className="shrink-0"
                                 >
                                   {t.status_label ?? t.status}
-                                </Badge>
+                                </SupportTicketStatusBadge>
                               </div>
                               <p className="text-muted-foreground mt-2 text-xs">
                                 {t.department_label ?? t.department} ·{" "}
-                                {formatTicketDateTime(t.updated_at ?? t.created_at)}
+                                {formatDateIdLong(t.updated_at ?? t.created_at)}
                               </p>
                             </Link>
                           </li>

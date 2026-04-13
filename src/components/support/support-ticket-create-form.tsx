@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
-import { Loader2, Send } from "lucide-react";
+import { ImagePlus, Loader2, Send, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,15 @@ import { createSupportTicket } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { SUPPORT_DEPARTMENT_OPTIONS } from "@/lib/supportTicketUi";
 import type { SupportDepartment } from "@/types/supportTicket";
+import {
+  SUPPORT_TICKET_MAX_ATTACHMENT_BYTES,
+  SUPPORT_TICKET_MAX_FILES,
+  SUPPORT_TICKET_MESSAGE_MAX,
+  SUPPORT_TICKET_TITLE_MAX,
+  formatBytes,
+  validateSupportTicketImageFiles,
+} from "@/lib/support-ticket-upload";
+import { cn } from "@/lib/utils";
 
 const VALID_SUPPORT_DEPARTMENTS: ReadonlySet<SupportDepartment> = new Set([
   "billing",
@@ -29,6 +38,9 @@ const VALID_SUPPORT_DEPARTMENTS: ReadonlySet<SupportDepartment> = new Set([
   "account",
   "other",
 ]);
+
+const ACCEPT_IMAGES =
+  "image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp";
 
 function extractCreatedTicketId(payload: unknown): number | null {
   if (!payload || typeof payload !== "object") return null;
@@ -43,9 +55,7 @@ function extractCreatedTicketId(payload: unknown): number | null {
 }
 
 type Props = {
-  /** Setelah tiket berhasil dibuat (sebelum navigasi / reload). */
   onSuccess?: (payload: { ticketId: number | null }) => void;
-  /** Jika false, tidak redirect ke halaman detail (untuk hanya refresh daftar). */
   navigateToDetail?: boolean;
   className?: string;
 };
@@ -61,12 +71,61 @@ export function SupportTicketCreateForm({
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [fileHint, setFileHint] = useState<string | null>(null);
+
+  const titleLen = title.length;
+  const messageLen = message.length;
+
+  const previews = useMemo(
+    () =>
+      files.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    [files]
+  );
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [previews]);
+
+  const handleFilesChange = (list: File[]) => {
+    setFileHint(null);
+    if (list.length === 0) {
+      setFiles([]);
+      return;
+    }
+    const v = validateSupportTicketImageFiles(list);
+    v.info.forEach((m) => toast.info(m));
+    if (!v.ok) {
+      v.errors.forEach((m) => toast.error(m));
+      setFiles([]);
+      return;
+    }
+    setFiles(v.accepted);
+    if (v.info.length) {
+      setFileHint(v.info.join(" "));
+    }
+  };
+
+  const removeFileAt = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileHint(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = message.trim();
-    if (!title.trim()) {
+    const t = title.trim();
+
+    if (!t) {
       toast.error("Judul wajib diisi.");
+      return;
+    }
+    if (t.length > SUPPORT_TICKET_TITLE_MAX) {
+      toast.error(`Judul maksimal ${SUPPORT_TICKET_TITLE_MAX} karakter.`);
       return;
     }
     if (!department) {
@@ -79,18 +138,28 @@ export function SupportTicketCreateForm({
       );
       return;
     }
+    if (text.length > SUPPORT_TICKET_MESSAGE_MAX) {
+      toast.error(`Pesan maksimal ${SUPPORT_TICKET_MESSAGE_MAX} karakter.`);
+      return;
+    }
     if (!text && files.length === 0) {
       toast.error("Isi pesan atau lampirkan minimal satu gambar.");
+      return;
+    }
+
+    const recheck = validateSupportTicketImageFiles(files);
+    if (!recheck.ok) {
+      recheck.errors.forEach((m) => toast.error(m));
       return;
     }
 
     setSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append("title", title.trim());
+      fd.append("title", t);
       fd.append("department", department as SupportDepartment);
       if (text) fd.append("message", text);
-      files.forEach((f) => fd.append("attachments[]", f));
+      recheck.accepted.forEach((f) => fd.append("attachments[]", f));
 
       const res = await createSupportTicket(fd);
       const id = extractCreatedTicketId(res);
@@ -102,6 +171,7 @@ export function SupportTicketCreateForm({
       setDepartment("");
       setMessage("");
       setFiles([]);
+      setFileHint(null);
 
       if (navigateToDetail && id != null) {
         router.push(`/dashboard/support/tickets/${id}`);
@@ -122,18 +192,33 @@ export function SupportTicketCreateForm({
       id="support-ticket-form"
       onSubmit={handleSubmit}
       className={className}
+      noValidate
     >
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="stf-title">Judul</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="stf-title">Judul</Label>
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                titleLen > SUPPORT_TICKET_TITLE_MAX
+                  ? "text-destructive font-medium"
+                  : "text-muted-foreground"
+              )}
+              aria-live="polite"
+            >
+              {titleLen}/{SUPPORT_TICKET_TITLE_MAX}
+            </span>
+          </div>
           <Input
             id="stf-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle(e.target.value.slice(0, SUPPORT_TICKET_TITLE_MAX))}
             placeholder="Ringkasan singkat masalah"
-            maxLength={500}
+            maxLength={SUPPORT_TICKET_TITLE_MAX}
             required
             autoComplete="off"
+            aria-invalid={titleLen > SUPPORT_TICKET_TITLE_MAX}
           />
         </div>
 
@@ -154,44 +239,139 @@ export function SupportTicketCreateForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="stf-msg">Pesan</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="stf-msg">Pesan</Label>
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                messageLen > SUPPORT_TICKET_MESSAGE_MAX
+                  ? "text-destructive font-medium"
+                  : "text-muted-foreground"
+              )}
+              aria-live="polite"
+            >
+              {messageLen}/{SUPPORT_TICKET_MESSAGE_MAX}
+            </span>
+          </div>
           <Textarea
             id="stf-msg"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) =>
+              setMessage(e.target.value.slice(0, SUPPORT_TICKET_MESSAGE_MAX))
+            }
             placeholder="Ceritakan detail masalah, nomor order jika ada…"
             rows={5}
             className="min-h-[100px] resize-y"
+            maxLength={SUPPORT_TICKET_MESSAGE_MAX}
+            aria-invalid={messageLen > SUPPORT_TICKET_MESSAGE_MAX}
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="stf-files">Lampiran gambar (opsional)</Label>
-          <Input
-            id="stf-files"
-            type="file"
-            accept="image/*"
-            multiple
-            className="cursor-pointer"
-            onChange={(e) => {
-              const list = e.target.files ? Array.from(e.target.files) : [];
-              setFiles(list);
+          <div
+            className={cn(
+              "rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 p-4 transition-colors",
+              "hover:border-blue-300 hover:bg-blue-50/40 focus-within:border-blue-400"
+            )}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
             }}
-          />
-          <p className="text-muted-foreground text-xs">
-            Beberapa gambar diperbolehkan. Kosongkan pesan jika hanya mengirim
-            gambar.
-          </p>
-          {files.length > 0 && (
-            <ul className="text-sm text-slate-600">
-              {files.map((f) => (
-                <li key={f.name + f.size}>{f.name}</li>
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const dropped = Array.from(e.dataTransfer.files ?? []);
+              handleFilesChange(dropped);
+            }}
+          >
+            <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <ImagePlus className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-800">
+                  Seret file ke sini atau klik untuk memilih
+                </p>
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  JPEG, PNG, GIF, WebP, BMP · maks.{" "}
+                  {formatBytes(SUPPORT_TICKET_MAX_ATTACHMENT_BYTES)} per file ·
+                  maks. {SUPPORT_TICKET_MAX_FILES} file
+                </p>
+              </div>
+              <Input
+                id="stf-files"
+                type="file"
+                accept={ACCEPT_IMAGES}
+                multiple
+                className="sr-only"
+                onChange={(e) => {
+                  const list = e.target.files ? Array.from(e.target.files) : [];
+                  handleFilesChange(list);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="blueGradientOutline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => document.getElementById("stf-files")?.click()}
+              >
+                Pilih gambar
+              </Button>
+            </div>
+          </div>
+          {fileHint ? (
+            <p className="text-muted-foreground text-xs" role="status">
+              {fileHint}
+            </p>
+          ) : null}
+          {files.length > 0 ? (
+            <ul className="grid gap-3 sm:grid-cols-2" aria-label="Pratinjau lampiran">
+              {previews.map((p, index) => (
+                <li
+                  key={`${p.file.name}-${p.file.size}-${index}`}
+                  className="relative overflow-hidden rounded-lg border bg-white shadow-sm"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- object URL lokal */}
+                  <img
+                    src={p.url}
+                    alt=""
+                    className="h-28 w-full object-cover"
+                  />
+                  <div className="flex items-start justify-between gap-2 p-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-slate-800">
+                        {p.file.name}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {formatBytes(p.file.size)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                      onClick={() => removeFileAt(index)}
+                      aria-label={`Hapus ${p.file.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </div>
 
-        <Button type="submit" variant="blueGradient" disabled={submitting} className="gap-2 w-full sm:w-auto">
+        <Button
+          type="submit"
+          variant="blueGradient"
+          disabled={submitting}
+          className="w-full gap-2 sm:w-auto"
+        >
           {submitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
