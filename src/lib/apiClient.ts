@@ -137,6 +137,15 @@ axiosRetry(apiClient, {
 // ✅ Inject Authorization header dari cookie
 apiClient.interceptors.request.use(
   (config) => {
+    if (config.data instanceof FormData && config.headers) {
+      // Default instance pakai application/json; untuk multipart wajib biarkan
+      // browser set Content-Type + boundary agar file ter-parse di Laravel.
+      if (typeof config.headers.delete === "function") {
+        config.headers.delete("Content-Type");
+      } else {
+        delete (config.headers as Record<string, unknown>)["Content-Type"];
+      }
+    }
     const token = getCookie("token");
     if (token && config.headers) {
       config.headers["Authorization"] = `Bearer ${token}`;

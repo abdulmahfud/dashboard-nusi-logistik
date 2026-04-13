@@ -9,6 +9,10 @@ export const SUPPORT_TICKET_MAX_FILES = 5;
 /** Per file, dalam byte (5120 KB) */
 export const SUPPORT_TICKET_MAX_ATTACHMENT_BYTES = 5120 * 1024;
 
+/** Nilai `accept` untuk input file (sama seperti validasi MIME). */
+export const SUPPORT_TICKET_ACCEPT_IMAGES =
+  "image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp";
+
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
   "image/jpg",

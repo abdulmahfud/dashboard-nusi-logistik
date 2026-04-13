@@ -22,6 +22,7 @@ import { getAxiosErrorMessage } from "@/lib/apiError";
 import { SUPPORT_DEPARTMENT_OPTIONS } from "@/lib/supportTicketUi";
 import type { SupportDepartment } from "@/types/supportTicket";
 import {
+  SUPPORT_TICKET_ACCEPT_IMAGES,
   SUPPORT_TICKET_MAX_ATTACHMENT_BYTES,
   SUPPORT_TICKET_MAX_FILES,
   SUPPORT_TICKET_MESSAGE_MAX,
@@ -38,9 +39,6 @@ const VALID_SUPPORT_DEPARTMENTS: ReadonlySet<SupportDepartment> = new Set([
   "account",
   "other",
 ]);
-
-const ACCEPT_IMAGES =
-  "image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp";
 
 function extractCreatedTicketId(payload: unknown): number | null {
   if (!payload || typeof payload !== "object") return null;
@@ -302,7 +300,7 @@ export function SupportTicketCreateForm({
               <Input
                 id="stf-files"
                 type="file"
-                accept={ACCEPT_IMAGES}
+                accept={SUPPORT_TICKET_ACCEPT_IMAGES}
                 multiple
                 className="sr-only"
                 onChange={(e) => {

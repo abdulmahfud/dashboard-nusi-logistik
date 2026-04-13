@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ImagePlus,
   Loader2,
   Send,
   Settings2,
+  Trash2,
   User,
   Headset,
 } from "lucide-react";
@@ -63,6 +65,15 @@ import type {
   SupportTicketStatus,
 } from "@/types/supportTicket";
 import { SupportAttachmentImage } from "@/components/support/support-attachment-image";
+import {
+  SUPPORT_TICKET_ACCEPT_IMAGES,
+  SUPPORT_TICKET_MAX_ATTACHMENT_BYTES,
+  SUPPORT_TICKET_MAX_FILES,
+  SUPPORT_TICKET_MESSAGE_MAX,
+  formatBytes,
+  validateSupportTicketImageFiles,
+} from "@/lib/support-ticket-upload";
+import { cn } from "@/lib/utils";
 
 export default function SupportTicketDetailPage() {
   const params = useParams();
@@ -87,7 +98,47 @@ export default function SupportTicketDetailPage() {
 
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyFileHint, setReplyFileHint] = useState<string | null>(null);
   const [replying, setReplying] = useState(false);
+
+  const replyPreviews = useMemo(
+    () =>
+      replyFiles.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    [replyFiles]
+  );
+
+  useEffect(() => {
+    return () => {
+      replyPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, [replyPreviews]);
+
+  const handleReplyFilesChange = (list: File[]) => {
+    setReplyFileHint(null);
+    if (list.length === 0) {
+      setReplyFiles([]);
+      return;
+    }
+    const v = validateSupportTicketImageFiles(list);
+    v.info.forEach((m) => toast.info(m));
+    if (!v.ok) {
+      v.errors.forEach((m) => toast.error(m));
+      setReplyFiles([]);
+      return;
+    }
+    setReplyFiles(v.accepted);
+    if (v.info.length) {
+      setReplyFileHint(v.info.join(" "));
+    }
+  };
+
+  const removeReplyFileAt = (index: number) => {
+    setReplyFiles((prev) => prev.filter((_, i) => i !== index));
+    setReplyFileHint(null);
+  };
 
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<string>("");
@@ -172,15 +223,25 @@ export default function SupportTicketDetailPage() {
       toast.error("Tulis pesan atau lampirkan gambar.");
       return;
     }
+    if (text.length > SUPPORT_TICKET_MESSAGE_MAX) {
+      toast.error(`Pesan maksimal ${SUPPORT_TICKET_MESSAGE_MAX} karakter.`);
+      return;
+    }
+    const recheck = validateSupportTicketImageFiles(replyFiles);
+    if (!recheck.ok) {
+      recheck.errors.forEach((m) => toast.error(m));
+      return;
+    }
     setReplying(true);
     try {
       const fd = new FormData();
       if (text) fd.append("message", text);
-      replyFiles.forEach((f) => fd.append("attachments[]", f));
+      recheck.accepted.forEach((f) => fd.append("attachments[]", f));
       await postSupportTicketMessage(ticket.id, fd);
       toast.success("Balasan terkirim.");
       setReplyText("");
       setReplyFiles([]);
+      setReplyFileHint(null);
       await load();
     } catch (err) {
       toast.error(
@@ -524,30 +585,157 @@ export default function SupportTicketDetailPage() {
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleReply} className="space-y-4">
-                      <Textarea
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        placeholder="Ketik balasan…"
-                        rows={4}
-                        className="resize-y min-h-[96px]"
-                        disabled={replying}
-                      />
                       <div className="space-y-2">
-                        <Label htmlFor="reply-files">Lampiran gambar</Label>
-                        <Input
-                          id="reply-files"
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="cursor-pointer"
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="reply-msg">Pesan</Label>
+                          <span
+                            className={cn(
+                              "text-xs tabular-nums",
+                              replyText.length > SUPPORT_TICKET_MESSAGE_MAX
+                                ? "text-destructive font-medium"
+                                : "text-muted-foreground"
+                            )}
+                            aria-live="polite"
+                          >
+                            {replyText.length}/{SUPPORT_TICKET_MESSAGE_MAX}
+                          </span>
+                        </div>
+                        <Textarea
+                          id="reply-msg"
+                          value={replyText}
+                          onChange={(e) =>
+                            setReplyText(
+                              e.target.value.slice(0, SUPPORT_TICKET_MESSAGE_MAX)
+                            )
+                          }
+                          placeholder="Ketik balasan…"
+                          rows={4}
+                          className="resize-y min-h-[96px]"
+                          maxLength={SUPPORT_TICKET_MESSAGE_MAX}
                           disabled={replying}
-                          onChange={(e) => {
-                            const list = e.target.files
-                              ? Array.from(e.target.files)
-                              : [];
-                            setReplyFiles(list);
-                          }}
+                          aria-invalid={
+                            replyText.length > SUPPORT_TICKET_MESSAGE_MAX
+                          }
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reply-files-input">
+                          Lampiran gambar (opsional)
+                        </Label>
+                        <div
+                          className={cn(
+                            "rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 p-4 transition-colors",
+                            "hover:border-blue-300 hover:bg-blue-50/40 focus-within:border-blue-400",
+                            replying && "pointer-events-none opacity-60"
+                          )}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (replying) return;
+                            const dropped = Array.from(
+                              e.dataTransfer.files ?? []
+                            );
+                            handleReplyFilesChange(dropped);
+                          }}
+                        >
+                          <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                              <ImagePlus className="h-5 w-5" aria-hidden />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-slate-800">
+                                Seret file ke sini atau klik untuk memilih
+                              </p>
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                JPEG, PNG, GIF, WebP, BMP · maks.{" "}
+                                {formatBytes(SUPPORT_TICKET_MAX_ATTACHMENT_BYTES)}{" "}
+                                per file · maks. {SUPPORT_TICKET_MAX_FILES} file
+                              </p>
+                            </div>
+                            <Input
+                              id="reply-files-input"
+                              type="file"
+                              accept={SUPPORT_TICKET_ACCEPT_IMAGES}
+                              multiple
+                              className="sr-only"
+                              disabled={replying}
+                              onChange={(e) => {
+                                const list = e.target.files
+                                  ? Array.from(e.target.files)
+                                  : [];
+                                handleReplyFilesChange(list);
+                                e.target.value = "";
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="blueGradientOutline"
+                              size="sm"
+                              className="shrink-0"
+                              disabled={replying}
+                              onClick={() =>
+                                document
+                                  .getElementById("reply-files-input")
+                                  ?.click()
+                              }
+                            >
+                              Pilih gambar
+                            </Button>
+                          </div>
+                        </div>
+                        {replyFileHint ? (
+                          <p
+                            className="text-muted-foreground text-xs"
+                            role="status"
+                          >
+                            {replyFileHint}
+                          </p>
+                        ) : null}
+                        {replyFiles.length > 0 ? (
+                          <ul
+                            className="grid gap-3 sm:grid-cols-2"
+                            aria-label="Pratinjau lampiran"
+                          >
+                            {replyPreviews.map((p, index) => (
+                              <li
+                                key={`${p.file.name}-${p.file.size}-${index}`}
+                                className="relative overflow-hidden rounded-lg border bg-white shadow-sm"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- object URL lokal */}
+                                <img
+                                  src={p.url}
+                                  alt=""
+                                  className="h-28 w-full object-cover"
+                                />
+                                <div className="flex items-start justify-between gap-2 p-2">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-slate-800">
+                                      {p.file.name}
+                                    </p>
+                                    <p className="text-muted-foreground text-xs">
+                                      {formatBytes(p.file.size)}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                                    disabled={replying}
+                                    onClick={() => removeReplyFileAt(index)}
+                                    aria-label={`Hapus ${p.file.name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                       <Button
                         type="submit"
