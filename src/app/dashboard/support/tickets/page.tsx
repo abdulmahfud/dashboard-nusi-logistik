@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
-import { Headphones, Loader2, RefreshCw, Search, Ticket } from "lucide-react";
+import { Eye, Headphones, Loader2, RefreshCw, Ticket } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
@@ -18,7 +18,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SupportTicketStatusBadge } from "@/components/support/support-ticket-status-badge";
 import {
   Select,
@@ -61,28 +60,31 @@ export default function SupportTicketsListPage() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const [filterUserId, setFilterUserId] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
-  const [filterSearch, setFilterSearch] = useState("");
 
   const load = useCallback(
-    async (opts?: { targetPage?: number }) => {
+    async (opts?: {
+      targetPage?: number;
+      status?: string;
+      department?: string;
+    }) => {
       if (!canAccessPage) return;
       setLoading(true);
       setError(null);
       try {
         const pageToUse = opts?.targetPage ?? page;
+        const status =
+          opts?.status !== undefined ? opts.status : filterStatus;
+        const department =
+          opts?.department !== undefined ? opts.department : filterDepartment;
         const params: Record<string, string | number> = {
           page: pageToUse,
           per_page: perPage,
         };
         if (canManage) {
-          if (filterUserId.trim())
-            params.user_id = Number(filterUserId.replace(/\D/g, ""));
-          if (filterStatus !== "all") params.status = filterStatus;
-          if (filterDepartment !== "all") params.department = filterDepartment;
-          if (filterSearch.trim()) params.search = filterSearch.trim();
+          if (status !== "all") params.status = status;
+          if (department !== "all") params.department = department;
         }
         const raw = await getSupportTickets(params);
         const n = normalizeSupportTicketsList(raw);
@@ -101,15 +103,7 @@ export default function SupportTicketsListPage() {
         setLoading(false);
       }
     },
-    [
-      canAccessPage,
-      page,
-      perPage,
-      filterUserId,
-      filterStatus,
-      filterDepartment,
-      filterSearch,
-    ]
+    [canAccessPage, canManage, page, perPage, filterStatus, filterDepartment]
   );
 
   useEffect(() => {
@@ -126,7 +120,11 @@ export default function SupportTicketsListPage() {
 
   const applyFilters = () => {
     setPage(1);
-    void load({ targetPage: 1 });
+    void load({
+      targetPage: 1,
+      status: filterStatus,
+      department: filterDepartment,
+    });
   };
 
   if (authLoading) {
@@ -176,21 +174,11 @@ export default function SupportTicketsListPage() {
               <CardHeader>
                 <CardTitle className="text-base">Filter (admin)</CardTitle>
                 <CardDescription>
-                  Saring berdasarkan pengguna, status, departemen, atau kata
-                  kunci.
+                  Saring berdasarkan status dan departemen tiket.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Input
-                    placeholder="User ID"
-                    inputMode="numeric"
-                    value={filterUserId}
-                    onChange={(e) =>
-                      setFilterUserId(e.target.value.replace(/\D/g, ""))
-                    }
-                    aria-label="Filter user ID"
-                  />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Select
                     value={filterStatus}
                     onValueChange={setFilterStatus}
@@ -223,42 +211,27 @@ export default function SupportTicketsListPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Cari…"
-                      value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        (e.preventDefault(), applyFilters())
-                      }
-                      aria-label="Pencarian"
-                    />
-                    <Button
-                      type="button"
-                      variant="blueGradient"
-                      size="icon"
-                      onClick={() => applyFilters()}
-                      aria-label="Terapkan filter"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="blueGradient" onClick={() => applyFilters()}>
+                  <Button
+                    type="button"
+                    variant="blueGradient"
+                    onClick={applyFilters}
+                  >
                     Terapkan filter
                   </Button>
                   <Button
                     type="button"
                     variant="blueGradientOutline"
                     onClick={() => {
-                      setFilterUserId("");
                       setFilterStatus("all");
                       setFilterDepartment("all");
-                      setFilterSearch("");
                       setPage(1);
-                      void load({ targetPage: 1 });
+                      void load({
+                        targetPage: 1,
+                        status: "all",
+                        department: "all",
+                      });
                     }}
                   >
                     Reset
@@ -323,6 +296,7 @@ export default function SupportTicketsListPage() {
                                 <TableHead>Departemen</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Update</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -360,6 +334,24 @@ export default function SupportTicketsListPage() {
                                       t.updated_at ?? t.created_at
                                     )}
                                   </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      variant="blueGradientOutline"
+                                      size="sm"
+                                      asChild
+                                    >
+                                      <Link
+                                        href={`/dashboard/support/tickets/${t.id}`}
+                                        aria-label={`Lihat detail tiket: ${t.title}`}
+                                      >
+                                        <Eye
+                                          className="mr-1.5 h-4 w-4"
+                                          aria-hidden
+                                        />
+                                        Detail
+                                      </Link>
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -369,14 +361,14 @@ export default function SupportTicketsListPage() {
                     <ul className="flex flex-col gap-3 md:hidden">
                       {items.map((t) => (
                         <li key={t.id}>
-                          <Link
-                            href={`/dashboard/support/tickets/${t.id}`}
-                            className="block rounded-lg border bg-white p-4 shadow-sm transition hover:border-blue-300"
-                          >
+                          <div className="rounded-lg border bg-white p-4 shadow-sm">
                             <div className="flex items-start justify-between gap-2">
-                              <span className="font-medium text-slate-900">
+                              <Link
+                                href={`/dashboard/support/tickets/${t.id}`}
+                                className="min-w-0 font-medium text-blue-600 hover:underline"
+                              >
                                 {t.title}
-                              </span>
+                              </Link>
                               <SupportTicketStatusBadge
                                 status={String(t.status)}
                                 statusLabel={t.status_label}
@@ -394,7 +386,26 @@ export default function SupportTicketsListPage() {
                               {t.department_label ?? t.department} ·{" "}
                               {formatTicketDateTime(t.updated_at ?? t.created_at)}
                             </p>
-                          </Link>
+                            <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
+                              <Button
+                                variant="blueGradientOutline"
+                                size="sm"
+                                className="w-full sm:w-auto"
+                                asChild
+                              >
+                                <Link
+                                  href={`/dashboard/support/tickets/${t.id}`}
+                                  aria-label={`Lihat detail tiket: ${t.title}`}
+                                >
+                                  <Eye
+                                    className="mr-1.5 h-4 w-4"
+                                    aria-hidden
+                                  />
+                                  Detail
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
                         </li>
                       ))}
                     </ul>

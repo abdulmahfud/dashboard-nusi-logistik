@@ -11,6 +11,17 @@ export interface UserRole {
   };
 }
 
+/** Query GET /api/admin/users (collection + UserController::index). */
+export type GetUsersQueryParams = {
+  search?: string;
+  page?: number;
+  /** Filter Spatie role `name` (guard api). Jika `role` dan `role_name` dikirim, backend memakai `role` dulu. */
+  role?: string;
+  role_name?: string;
+  /** 1–100; default backend 5 jika tidak dikirim */
+  per_page?: number;
+};
+
 export interface User {
   id: number;
   name: string;

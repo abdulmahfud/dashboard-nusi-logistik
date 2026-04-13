@@ -50,6 +50,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import {
   getSupportTicket,
+  getUsers,
   patchSupportTicket,
   postSupportTicketMessage,
 } from "@/lib/apiClient";
@@ -64,6 +65,16 @@ import type {
   SupportTicketMessage,
   SupportTicketStatus,
 } from "@/types/supportTicket";
+import type { User as AppUser } from "@/types/users";
+
+/** Role Spatie (`name`, guard `api`) untuk daftar penugasan — GET /admin/users?role=… */
+const SUPPORT_TICKET_ASSIGNEE_ROLE = "admin";
+
+type AssigneeOption = { id: number; name: string; email: string };
+
+function toAssigneeOption(u: AppUser): AssigneeOption {
+  return { id: u.id, name: u.name, email: u.email };
+}
 import { SupportAttachmentImage } from "@/components/support/support-attachment-image";
 import {
   SUPPORT_TICKET_ACCEPT_IMAGES,
@@ -143,7 +154,51 @@ export default function SupportTicketDetailPage() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<string>("");
   const [adminAssign, setAdminAssign] = useState("");
+  const [assigneeOptions, setAssigneeOptions] = useState<AssigneeOption[]>([]);
+  const [assigneesLoading, setAssigneesLoading] = useState(false);
+  const [assigneesError, setAssigneesError] = useState<string | null>(null);
   const [savingAdmin, setSavingAdmin] = useState(false);
+
+  const loadAssigneeOptions = useCallback(async () => {
+    if (!canManage || !ticket) return;
+    setAssigneesLoading(true);
+    setAssigneesError(null);
+    try {
+      const res = await getUsers({
+        role: SUPPORT_TICKET_ASSIGNEE_ROLE,
+        per_page: 100,
+      });
+      const rows = res.data?.data ?? [];
+      let opts: AssigneeOption[] = rows.map(toAssigneeOption);
+      const aid = ticket.assigned_to ?? ticket.assignee?.id ?? null;
+      if (aid != null && !opts.some((o) => o.id === aid)) {
+        opts = [
+          {
+            id: aid,
+            name: ticket.assignee?.name ?? `Pengguna #${aid}`,
+            email: ticket.assignee?.email ?? "",
+          },
+          ...opts,
+        ];
+      }
+      setAssigneeOptions(opts);
+    } catch (e) {
+      const msg =
+        e instanceof AxiosError
+          ? getAxiosErrorMessage(e, "Gagal memuat daftar staff.")
+          : "Gagal memuat daftar staff.";
+      setAssigneesError(msg);
+      setAssigneeOptions([]);
+      toast.error(msg);
+    } finally {
+      setAssigneesLoading(false);
+    }
+  }, [canManage, ticket]);
+
+  useEffect(() => {
+    if (!adminOpen || !canManage) return;
+    void loadAssigneeOptions();
+  }, [adminOpen, canManage, loadAssigneeOptions]);
 
   const handleBack = useCallback(() => {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -396,7 +451,21 @@ export default function SupportTicketDetailPage() {
                 </div>
 
                 {canManage && (
-                  <Dialog open={adminOpen} onOpenChange={setAdminOpen}>
+                  <Dialog
+                    open={adminOpen}
+                    onOpenChange={(open) => {
+                      setAdminOpen(open);
+                      if (open && ticket) {
+                        setAdminStatus(String(ticket.status));
+                        setAdminAssign(
+                          ticket.assigned_to != null &&
+                            ticket.assigned_to !== undefined
+                            ? String(ticket.assigned_to)
+                            : ""
+                        );
+                      }
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button
                         type="button"
@@ -410,8 +479,9 @@ export default function SupportTicketDetailPage() {
                     <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
                       <DialogHeader>
                         <DialogTitle>Kelola tiket (admin)</DialogTitle>
-                        <DialogDescription>
-                          Ubah status atau penugasan ke staff (User ID).
+                                               <DialogDescription>
+                          Ubah status atau pilih staff penanggung jawab dari daftar
+                          pengguna dengan role terkait.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 py-2">
@@ -434,16 +504,63 @@ export default function SupportTicketDetailPage() {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="adm-assign">Ditugaskan ke (User ID)</Label>
-                          <Input
-                            id="adm-assign"
-                            inputMode="numeric"
-                            placeholder="Kosongkan untuk menghapus penugasan"
-                            value={adminAssign}
-                            onChange={(e) =>
-                              setAdminAssign(e.target.value.replace(/\D/g, ""))
+                          <Label htmlFor="adm-assign">Ditugaskan ke</Label>
+                          {assigneesError ? (
+                            <p className="text-destructive text-sm" role="alert">
+                              {assigneesError}
+                            </p>
+                          ) : null}
+                          <Select
+                            value={
+                              adminAssign === "" ? "__none__" : adminAssign
                             }
-                          />
+                            onValueChange={(v) =>
+                              setAdminAssign(v === "__none__" ? "" : v)
+                            }
+                            disabled={assigneesLoading || Boolean(assigneesError)}
+                          >
+                            <SelectTrigger id="adm-assign">
+                              <SelectValue
+                                placeholder={
+                                  assigneesLoading
+                                    ? "Memuat daftar…"
+                                    : "Pilih staff"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[min(280px,50vh)]">
+                              <SelectItem value="__none__">
+                                Tidak ditugaskan
+                              </SelectItem>
+                              {assigneeOptions.map((u) => (
+                                <SelectItem
+                                  key={u.id}
+                                  value={String(u.id)}
+                                >
+                                  <span className="truncate">
+                                    {u.name}
+                                    {u.email ? (
+                                      <span className="text-muted-foreground">
+                                        {" "}
+                                        · {u.email}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {assigneesError ? (
+                            <Button
+                              type="button"
+                              variant="blueGradientOutline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => void loadAssigneeOptions()}
+                            >
+                              Coba muat ulang daftar
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                       <DialogFooter className="gap-2 sm:gap-0">
@@ -456,6 +573,7 @@ export default function SupportTicketDetailPage() {
                         </Button>
                         <Button
                           type="button"
+                          variant="blueGradient"
                           onClick={() => void handleAdminSave()}
                           disabled={savingAdmin}
                         >

@@ -82,7 +82,10 @@ export default function UsersPage() {
   const fetchUsers = async (page = 1, searchQuery = "") => {
     try {
       setLoading(true);
-      const response = await getUsers(searchQuery || undefined, page);
+      const response = await getUsers({
+        search: searchQuery || undefined,
+        page,
+      });
       setData(response.data.data);
       setCurrentPage(response.data.current_page);
       setTotalPages(response.data.last_page);

@@ -28,6 +28,7 @@ import type {
 } from "@/types/order";
 import type { AddressSearchResponse } from "@/types/addressSearch";
 import type {
+  GetUsersQueryParams,
   UserListResponse,
   UserDetailResponse,
   UserCreateRequest,
@@ -872,14 +873,17 @@ export const getCurrentUser = async (): Promise<UserDetailResponse> => {
 };
 
 export const getUsers = async (
-  search?: string,
-  page?: number
+  params: GetUsersQueryParams = {}
 ): Promise<UserListResponse> => {
-  const params: { search?: string; page?: number } = {};
-  if (search) params.search = search;
-  if (page) params.page = page;
+  const q: Record<string, string | number> = {};
+  if (params.search != null && params.search !== "") q.search = params.search;
+  if (params.page != null) q.page = params.page;
+  if (params.role != null && params.role !== "") q.role = params.role;
+  if (params.role_name != null && params.role_name !== "")
+    q.role_name = params.role_name;
+  if (params.per_page != null) q.per_page = params.per_page;
 
-  const res = await apiClient.get("/admin/users", { params });
+  const res = await apiClient.get("/admin/users", { params: q });
   return res.data;
 };
 
