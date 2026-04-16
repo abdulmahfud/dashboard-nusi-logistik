@@ -18,42 +18,53 @@ function DashboardSkeleton() {
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, meErrorKind } = useAuth();
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const allowWithoutUser = isDashboardGatewayReturnPath(pathname);
 
   const isVerifikasiPage = pathname === "/dashboard/verifikasi";
 
-  useEffect(() => {
-    if (!loading && !user && !allowWithoutUser) {
-      router.push("/login");
-    }
-  }, [loading, user, router, allowWithoutUser]);
+  /** /admin/me 403: token ada tapi profil ditolak (umumnya email belum verifikasi) — tetap boleh buka halaman verifikasi. */
+  const allowVerifikasiWithForbiddenMe =
+    isVerifikasiPage && meErrorKind === "forbidden";
 
   useEffect(() => {
-    if (
-      loading ||
-      !user ||
-      user.email_verified_at ||
-      isVerifikasiPage ||
-      allowWithoutUser
-    ) {
+    if (loading || allowWithoutUser) return;
+
+    if (!user && meErrorKind === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [loading, user, meErrorKind, allowWithoutUser, router]);
+
+  useEffect(() => {
+    if (loading || allowWithoutUser) return;
+
+    if (user?.email_verified_at) return;
+
+    if (user && !user.email_verified_at && !isVerifikasiPage) {
+      router.replace("/dashboard/verifikasi");
       return;
     }
-    router.replace("/dashboard/verifikasi");
+
+    if (!user && meErrorKind === "forbidden" && !isVerifikasiPage) {
+      router.replace("/dashboard/verifikasi");
+    }
   }, [
     loading,
     user,
+    meErrorKind,
     isVerifikasiPage,
     allowWithoutUser,
     router,
   ]);
 
-  // Untuk halaman return gateway, jangan block UI dengan loading auth.
   if (loading && !allowWithoutUser) return <DashboardSkeleton />;
 
-  if (!user && !allowWithoutUser) return <DashboardSkeleton />;
+  if (!user && !allowWithoutUser) {
+    if (allowVerifikasiWithForbiddenMe) return <>{children}</>;
+    return <DashboardSkeleton />;
+  }
 
   if (
     user &&

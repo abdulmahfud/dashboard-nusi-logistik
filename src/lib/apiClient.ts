@@ -80,6 +80,7 @@ import type {
 } from "@/types/expeditionVendorSettings";
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
+import { clearPendingVerificationEmail } from "@/lib/pending-verification-email";
 
 // Ambil URL dari .env
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -103,6 +104,7 @@ const isDev = process.env.NODE_ENV === "development";
 // Tambahkan fungsi logout terpusat
 export function logout() {
   if (typeof window !== "undefined") {
+    clearPendingVerificationEmail();
     void import("@/lib/admin-me")
       .then((m) => m.clearAdminMeCache())
       .catch(() => {});

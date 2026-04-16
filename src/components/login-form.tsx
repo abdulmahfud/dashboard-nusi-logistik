@@ -5,13 +5,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ApiService } from "@/lib/ApiService";
-import { setCookie } from "cookies-next";
+import { setCookie, deleteCookie } from "cookies-next";
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import { clearAdminMeCache } from "@/lib/admin-me";
+import { setPendingVerificationEmail } from "@/lib/pending-verification-email";
 
 // Check if the environment is production or development
 const isDev = process.env.NODE_ENV === "development";
@@ -31,6 +33,13 @@ export function LoginForm({
     email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const prefEmail = searchParams.get("email");
+    if (prefEmail) {
+      setFormData((prev) => ({ ...prev, email: prefEmail }));
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -61,6 +70,18 @@ export function LoginForm({
         sameSite: isDev ? "lax" : "strict",
         ...(isDev ? {} : { domain: ".bhisakirim.com" }),
       });
+      // Hindari memakai cache /admin/me milik sesi sebelumnya (bisa memicu redirect salah).
+      clearAdminMeCache();
+
+      const isVerified = Boolean(response.data?.user?.email_verified_at);
+      if (!isVerified) {
+        setPendingVerificationEmail(formData.email);
+        toast.error(
+          "Email belum diverifikasi. Silakan cek email verifikasi yang dikirimkan saat pendaftaran."
+        );
+        window.location.href = "/dashboard/verifikasi";
+        return;
+      }
 
       // Redirect to dashboard or callback URL
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -75,6 +96,18 @@ export function LoginForm({
         if (errorMessage?.toLowerCase().includes("email")) {
           setErrors((prev) => ({ ...prev, email: "Email tidak ditemukan" }));
           toast.error("Email tidak ditemukan");
+        } else if (
+          errorMessage?.toLowerCase().includes("verif") ||
+          errorMessage?.toLowerCase().includes("verified")
+        ) {
+          deleteCookie("token", {
+            path: "/",
+            ...(isDev ? {} : { domain: ".bhisakirim.com" }),
+          });
+          clearAdminMeCache();
+          toast.error(
+            "Email belum diverifikasi. Silakan cek email verifikasi yang dikirimkan saat pendaftaran."
+          );
         } else if (errorMessage?.toLowerCase().includes("password")) {
           setErrors((prev) => ({ ...prev, password: "Password salah" }));
           toast.error("Password salah");

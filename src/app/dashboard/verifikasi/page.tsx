@@ -9,6 +9,10 @@ import apiClient from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { VerificationError } from "@/types/verifikasi";
 import { ApiService } from "@/lib/ApiService";
+import {
+  clearPendingVerificationEmail,
+  getPendingVerificationEmail,
+} from "@/lib/pending-verification-email";
 
 export default function VerifikasiPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,14 +20,22 @@ export default function VerifikasiPage() {
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const { user, refreshUser, loading } = useAuth();
 
+  const displayEmail =
+    user?.email ?? getPendingVerificationEmail() ?? "";
+
   // Satu sumber data: AuthContext (GET /admin/me sudah dipanggil di sana, tidak duplikat di sini)
   useEffect(() => {
     if (loading) return;
     setInitialCheckDone(true);
     if (user?.email_verified_at) {
+      clearPendingVerificationEmail();
       window.location.href = "/dashboard";
     }
   }, [loading, user]);
+
+  useEffect(() => {
+    if (user?.email) clearPendingVerificationEmail();
+  }, [user?.email]);
 
   const handleResendVerification = async () => {
     setIsLoading(true);
@@ -47,6 +59,7 @@ export default function VerifikasiPage() {
     try {
       const userData = await refreshUser({ force: true });
       if (userData?.email_verified_at) {
+        clearPendingVerificationEmail();
         toast.success("Email berhasil diverifikasi!");
         setTimeout(() => {
           window.location.href = "/dashboard";
@@ -97,20 +110,20 @@ export default function VerifikasiPage() {
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {user?.email && (
+          {displayEmail ? (
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Email:</strong> {user.email}
+                <strong>Email:</strong> {displayEmail}
               </p>
             </div>
-          )}
+          ) : null}
 
           <div className="space-y-3">
             <Button
               onClick={handleCheckStatus}
               disabled={isCheckingStatus}
               className="w-full gap-2"
-              variant="default"
+              variant="blueGradient"
             >
               {isCheckingStatus ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -123,7 +136,7 @@ export default function VerifikasiPage() {
             <Button
               onClick={handleResendVerification}
               disabled={isLoading}
-              variant="outline"
+              variant="blueOutline"
               className="w-full gap-2"
             >
               {isLoading ? (

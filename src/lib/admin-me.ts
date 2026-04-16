@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import apiClient from "@/lib/apiClient";
 import type { ApiResponse, UserData } from "@/types/api";
 
@@ -28,9 +29,21 @@ function normalizeUser(raw: UserData): UserData {
   };
 }
 
-let inflight: Promise<UserData | null> | null = null;
+/** Hasil GET /admin/me — dipakai AuthContext / ProtectedRoute */
+export type AdminMeErrorKind =
+  | "none"
+  | "unauthenticated"
+  | "forbidden"
+  | "unknown";
 
-let cached: { user: UserData | null; at: number } | null = null;
+export type AdminMeFetchResult = {
+  user: UserData | null;
+  errorKind: AdminMeErrorKind;
+};
+
+let inflight: Promise<AdminMeFetchResult> | null = null;
+
+let cached: AdminMeFetchResult & { at: number } | null = null;
 const STALE_MS = 5 * 60 * 1000;
 
 /**
@@ -39,11 +52,9 @@ const STALE_MS = 5 * 60 * 1000;
  */
 export async function fetchAdminMe(options?: {
   force?: boolean;
-}): Promise<UserData | null> {
+}): Promise<AdminMeFetchResult> {
   const force = options?.force ?? false;
 
-  // Dedupe dulu: meskipun force, kalau ada request berjalan, pakai yang itu.
-  // Ini mencegah "force storm" (Strict Mode / multiple effects).
   if (inflight) {
     if (force) cached = null;
     return inflight;
@@ -51,18 +62,28 @@ export async function fetchAdminMe(options?: {
 
   if (force) cached = null;
 
-  if (!force && cached && Date.now() - cached.at < STALE_MS) return cached.user;
+  if (!force && cached && Date.now() - cached.at < STALE_MS) {
+    return { user: cached.user, errorKind: cached.errorKind };
+  }
 
   inflight = (async () => {
     try {
       const res = await apiClient.get<ApiResponse<UserData>>("/admin/me");
       const raw = res.data.data;
       const user = normalizeUser(raw);
-      cached = { user, at: Date.now() };
-      return user;
-    } catch {
-      cached = { user: null, at: Date.now() };
-      return null;
+      const result: AdminMeFetchResult = { user, errorKind: "none" };
+      cached = { ...result, at: Date.now() };
+      return result;
+    } catch (e) {
+      let errorKind: AdminMeErrorKind = "unknown";
+      if (isAxiosError(e)) {
+        const s = e.response?.status;
+        if (s === 401 || s === 419) errorKind = "unauthenticated";
+        else if (s === 403) errorKind = "forbidden";
+      }
+      const result: AdminMeFetchResult = { user: null, errorKind };
+      cached = { ...result, at: Date.now() };
+      return result;
     } finally {
       inflight = null;
     }

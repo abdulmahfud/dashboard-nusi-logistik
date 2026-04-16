@@ -8,11 +8,13 @@ import React, {
   useState,
 } from "react";
 import { UserData } from "@/types/api";
-import { fetchAdminMe } from "@/lib/admin-me";
+import { fetchAdminMe, type AdminMeErrorKind } from "@/lib/admin-me";
 
 type AuthContextType = {
   user: UserData | null;
   loading: boolean;
+  /** Klasifikasi error terakhir GET /admin/me (403 sering dipakai untuk email belum verifikasi). */
+  meErrorKind: AdminMeErrorKind;
   /** Paksa fetch baru dari API (setelah login, update profil, dll.) */
   refreshUser: (options?: { force?: boolean }) => Promise<UserData | null>;
   isVerified: boolean;
@@ -22,6 +24,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  meErrorKind: "none",
   refreshUser: async () => null,
   isVerified: false,
   hasPermission: () => false,
@@ -30,13 +33,17 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [meErrorKind, setMeErrorKind] = useState<AdminMeErrorKind>("none");
 
   const refreshUser = useCallback(async (options?: { force?: boolean }) => {
     setLoading(true);
     try {
       // default: jangan force (hindari spam /me)
-      const u = await fetchAdminMe({ force: options?.force ?? false });
+      const { user: u, errorKind } = await fetchAdminMe({
+        force: options?.force ?? false,
+      });
       setUser(u);
+      setMeErrorKind(errorKind);
       return u;
     } finally {
       setLoading(false);
@@ -46,8 +53,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loadInitial = useCallback(async () => {
     setLoading(true);
     try {
-      const u = await fetchAdminMe({ force: false });
+      const { user: u, errorKind } = await fetchAdminMe({ force: false });
       setUser(u);
+      setMeErrorKind(errorKind);
     } finally {
       setLoading(false);
     }
@@ -68,6 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         loading,
+        meErrorKind,
         refreshUser,
         isVerified,
         hasPermission,
