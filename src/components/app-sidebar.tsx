@@ -150,12 +150,12 @@ const data = {
     },
   ],
   navSecondary: [
-    {
-      title: "Dapatkan Bantuan",
-      url: "/dashboard/bantuan",
-      icon: HelpCircleIcon,
-      permission: "orders.index",
-    },
+    // {
+    //   title: "Dapatkan Bantuan",
+    //   url: "/dashboard/bantuan",
+    //   icon: HelpCircleIcon,
+    //   permission: "orders.index",
+    // },
     {
       title: "Syarat & Ketentuan",
       url: "/dashboard/syarat-dan-ketentuan",
