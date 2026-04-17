@@ -18,6 +18,43 @@ import { setPendingVerificationEmail } from "@/lib/pending-verification-email";
 // Check if the environment is production or development
 const isDev = process.env.NODE_ENV === "development";
 
+/** Normalisasi bentuk respons login (flat vs nested `data`, token vs access_token). */
+function extractLoginPayload(data: unknown): {
+  token: string | undefined;
+  emailVerifiedAt: string | null | undefined;
+} {
+  if (!data || typeof data !== "object") {
+    return { token: undefined, emailVerifiedAt: undefined };
+  }
+  const d = data as Record<string, unknown>;
+  const tokenFrom = (obj: Record<string, unknown>): string | undefined => {
+    const t = obj.token;
+    const a = obj.access_token;
+    if (typeof t === "string" && t) return t;
+    if (typeof a === "string" && a) return a;
+    return undefined;
+  };
+
+  let token = tokenFrom(d);
+  let userRaw: unknown = d.user;
+
+  const inner = d.data;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    const innerObj = inner as Record<string, unknown>;
+    token = token || tokenFrom(innerObj);
+    if (userRaw == null) userRaw = innerObj.user;
+  }
+
+  let emailVerifiedAt: string | null | undefined;
+  if (userRaw && typeof userRaw === "object" && !Array.isArray(userRaw)) {
+    const ev = (userRaw as Record<string, unknown>).email_verified_at;
+    if (ev === null) emailVerifiedAt = null;
+    else if (typeof ev === "string") emailVerifiedAt = ev;
+  }
+
+  return { token, emailVerifiedAt };
+}
+
 export function LoginForm({
   className,
   ...props
@@ -58,7 +95,7 @@ export function LoginForm({
         formData.email,
         formData.password
       );
-      const token = response.data?.token;
+      const { token, emailVerifiedAt } = extractLoginPayload(response.data);
       if (!token) {
         throw new Error("Token tidak ditemukan di respons");
       }
@@ -73,7 +110,8 @@ export function LoginForm({
       // Hindari memakai cache /admin/me milik sesi sebelumnya (bisa memicu redirect salah).
       clearAdminMeCache();
 
-      const isVerified = Boolean(response.data?.user?.email_verified_at);
+      const isVerified =
+        emailVerifiedAt != null && String(emailVerifiedAt).trim() !== "";
       if (!isVerified) {
         setPendingVerificationEmail(formData.email);
         toast.error(
