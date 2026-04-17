@@ -1667,4 +1667,28 @@ export const postSupportTicketMessage = async (
   return res.data;
 };
 
+/** GET /admin/feedbacks — feedbacks.index */
+export const getFeedbacks = async (params?: {
+  user_id?: number;
+  /** LIKE nama, email, atau WhatsApp pengguna */
+  user_search?: string;
+  rating?: number;
+  /** LIKE pada kolom comment */
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<unknown> => {
+  const res = await apiClient.get("/admin/feedbacks", { params });
+  return res.data;
+};
+
+/** POST /admin/feedbacks — feedbacks.create (body: rating, comment) */
+export const createFeedback = async (body: {
+  rating: number;
+  comment: string;
+}): Promise<unknown> => {
+  const res = await apiClient.post("/admin/feedbacks", body);
+  return res.data;
+};
+
 export default apiClient;

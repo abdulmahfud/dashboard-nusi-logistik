@@ -24,6 +24,7 @@ import {
   BadgePercent,
   ArrowDownToLine,
   Ticket,
+  MessageCircle,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -161,12 +162,12 @@ const data = {
       icon: FileText,
       permission: "orders.index",
     },
-    // {
-    //   title: "Kritik & Saran",
-    //   url: "/dashboard/kritik-dan-saran",
-    //   icon: MessageCircle,
-    //   permission: "orders.index",
-    // },
+    {
+      title: "Kritik & Saran",
+      url: "/dashboard/kritik-dan-saran",
+      icon: MessageCircle,
+      permissionAny: ["feedbacks.create", "feedbacks.index"],
+    },
   ],
   report: [
     {
