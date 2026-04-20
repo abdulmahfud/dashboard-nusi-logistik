@@ -51,10 +51,7 @@ function toDraft(row: ExpeditionVendorSetting): DraftRow {
   };
 }
 
-function draftDirty(
-  row: ExpeditionVendorSetting,
-  draft: DraftRow
-): boolean {
+function draftDirty(row: ExpeditionVendorSetting, draft: DraftRow): boolean {
   return (
     row.is_active !== draft.is_active ||
     row.is_cod_active !== draft.is_cod_active ||
@@ -80,7 +77,26 @@ export default function ExpeditionVendorSettingsPage() {
     setError(null);
     try {
       const res = await getExpeditionVendorSettings();
-      const list = Array.isArray(res.data) ? res.data : [];
+      const list = Array.isArray(res.data) ? [...res.data] : [];
+
+      // Pastikan vendor SAP muncul pada list pengaturan.
+      const hasSap = list.some(
+        (item) => item.vendor.trim().toLowerCase() === "sap"
+      );
+      if (!hasSap) {
+        const maxId = list.reduce((acc, item) => Math.max(acc, item.id), 0);
+        const nowIso = new Date().toISOString();
+        list.push({
+          id: maxId + 1,
+          vendor: "sap",
+          is_active: true,
+          is_cod_active: true,
+          note: "Auto-added dari frontend (vendor SAP).",
+          created_at: nowIso,
+          updated_at: nowIso,
+        });
+      }
+
       setRows(list);
       const next: Record<number, DraftRow> = {};
       for (const r of list) {
@@ -91,7 +107,7 @@ export default function ExpeditionVendorSettingsPage() {
       setError(
         e instanceof AxiosError
           ? getAxiosErrorMessage(e, "Gagal memuat pengaturan ekspedisi.")
-          : "Gagal memuat pengaturan ekspedisi."
+          : "Gagal memuat pengaturan ekspedisi.",
       );
       setRows([]);
       setDrafts({});
@@ -150,7 +166,7 @@ export default function ExpeditionVendorSettingsPage() {
       toast.error(
         e instanceof AxiosError
           ? getAxiosErrorMessage(e, "Gagal menyimpan pengaturan.")
-          : "Gagal menyimpan pengaturan."
+          : "Gagal menyimpan pengaturan.",
       );
     } finally {
       setSavingId(null);
@@ -258,8 +274,7 @@ export default function ExpeditionVendorSettingsPage() {
                     <TableBody>
                       {rows.map((row) => {
                         const draft = drafts[row.id];
-                        const dirty =
-                          draft != null && draftDirty(row, draft);
+                        const dirty = draft != null && draftDirty(row, draft);
                         const disabled = !canUpdate || savingId === row.id;
 
                         return (
@@ -279,7 +294,9 @@ export default function ExpeditionVendorSettingsPage() {
                             </TableCell>
                             <TableCell>
                               <Switch
-                                checked={draft?.is_cod_active ?? row.is_cod_active}
+                                checked={
+                                  draft?.is_cod_active ?? row.is_cod_active
+                                }
                                 onCheckedChange={(v) =>
                                   updateDraft(row.id, { is_cod_active: v })
                                 }
