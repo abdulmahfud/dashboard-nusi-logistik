@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import RegularPackageForm from "../../../../components/PaketReguler/RegularPackageForm";
 import CalculationResults from "@/components/PaketReguler/CalculationResults";
 
@@ -51,6 +51,7 @@ const PaketReguler = () => {
     } | null;
     receiverId?: string | null;
   }>({});
+  const lastPaymentMethodRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     // This is just to ensure framer-motion is properly initialized
@@ -71,6 +72,25 @@ const PaketReguler = () => {
   const handleFormDataChange = useCallback((data: typeof formData) => {
     setFormData(data);
   }, []);
+
+  useEffect(() => {
+    const currentMethod = formData.paymentMethod;
+    const previousMethod = lastPaymentMethodRef.current;
+
+    // Saat metode pembayaran berubah (COD <-> Non-COD), hasil lama harus dihapus
+    // agar user melakukan submit ulang dengan parameter terbaru.
+    if (
+      calculationResult &&
+      previousMethod &&
+      currentMethod &&
+      previousMethod !== currentMethod
+    ) {
+      setCalculationResult(undefined);
+      setIsSearching(false);
+    }
+
+    lastPaymentMethodRef.current = currentMethod;
+  }, [formData.paymentMethod, calculationResult]);
 
   const handleResetForm = useCallback(() => {
     setFormData({});

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useRef } from "react";
 import { Search, Loader2 } from "lucide-react";
 import {
+  getExpeditionVendorSettings,
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
   getLionShipmentCost,
@@ -29,6 +30,7 @@ import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 interface ShippingFormProps {
   onResult?: (result: Record<string, unknown>) => void;
   setIsSearching?: (isSearching: boolean) => void;
+  onPaymentMethodChange?: (method: string) => void;
 }
 
 interface AddressResult {
@@ -50,6 +52,7 @@ interface AddressResult {
 export default function ShippingForm({
   onResult,
   setIsSearching,
+  onPaymentMethodChange,
 }: ShippingFormProps) {
   const [originQuery, setOriginQuery] = useState("");
   const [destQuery, setDestQuery] = useState("");
@@ -75,6 +78,8 @@ export default function ShippingForm({
 
   const originInputRef = useRef<HTMLDivElement>(null);
   const destInputRef = useRef<HTMLDivElement>(null);
+  const normalizeVendorKey = (vendor: string): string =>
+    vendor.toLowerCase().replace(/[\s_-]/g, "");
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -173,6 +178,10 @@ export default function ShippingForm({
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
+
+    if (field === "paymentMethod" && typeof value === "string") {
+      onPaymentMethodChange?.(value);
+    }
   };
 
   const handleSelectOrigin = (result: AddressResult) => {
@@ -207,6 +216,38 @@ export default function ShippingForm({
     }
 
     try {
+      const vendorSettingsResponse = await getExpeditionVendorSettings();
+      const vendorSettings = Array.isArray(vendorSettingsResponse.data)
+        ? vendorSettingsResponse.data
+        : [];
+      const isCodOrder = formData.paymentMethod === "cod";
+
+      const allowedVendors = new Set(
+        vendorSettings
+          .filter(
+            (item) => item.is_active && (!isCodOrder || item.is_cod_active)
+          )
+          .map((item) => normalizeVendorKey(item.vendor))
+      );
+
+      if (isCodOrder && allowedVendors.size === 0) {
+        onResult?.({
+          error: true,
+          message: "Saat ini tidak ada ekspedisi yang mendukung COD.",
+        });
+        if (setIsSearching) setIsSearching(false);
+        return;
+      }
+
+      if (!isCodOrder && allowedVendors.size === 0) {
+        onResult?.({
+          error: true,
+          message: "Saat ini tidak ada ekspedisi yang aktif.",
+        });
+        if (setIsSearching) setIsSearching(false);
+        return;
+      }
+
       // Prepare common payload for all APIs
       // Hapus format titik dari weight dan konversi dari gram ke kilogram
       const weightInGrams = removeFormat(formData.weight);
@@ -234,15 +275,33 @@ export default function ShippingForm({
         anterajaResult,
         ninjaResult,
       ] = await Promise.allSettled([
-        getJntExpressShipmentCost(shipmentPayload),
-        getPaxelShipmentCost(shipmentPayload),
-        getLionShipmentCost(shipmentPayload),
-        getSapShipmentCost(shipmentPayload),
-        getPosIndonesiaShipmentCost(shipmentPayload),
-        getJneShipmentCost(shipmentPayload),
-        getIdexpressShipmentCost(shipmentPayload),
-        getAnterajaShipmentCost(shipmentPayload),
-        getNinjaShipmentCost(shipmentPayload),
+        allowedVendors.has("jntexpress")
+          ? getJntExpressShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("paxel")
+          ? getPaxelShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("lion")
+          ? getLionShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("sap")
+          ? getSapShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("posindonesia")
+          ? getPosIndonesiaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("jne")
+          ? getJneShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("idexpress")
+          ? getIdexpressShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("anteraja")
+          ? getAnterajaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("ninja")
+          ? getNinjaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
       ]);
 
       notifyShipmentCost422Rejections([
