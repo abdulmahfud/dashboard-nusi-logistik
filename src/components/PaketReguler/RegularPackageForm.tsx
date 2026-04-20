@@ -42,6 +42,7 @@ import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicke
 import {
   getShippers,
   getReceivers,
+  getExpeditionVendorSettings,
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
   getLionShipmentCost,
@@ -60,6 +61,17 @@ import type {
   Receiver,
 } from "@/types/dataRegulerForm";
 import { itemTypes } from "@/types/dataRegulerForm";
+
+type VendorKey =
+  | "jntexpress"
+  | "paxel"
+  | "lion"
+  | "sap"
+  | "posindonesia"
+  | "jne"
+  | "idexpress"
+  | "anteraja"
+  | "ninja";
 
 interface AddressResult {
   type: "postal_code" | "subdistrict";
@@ -191,6 +203,9 @@ export default function RegularPackageForm({
 
   // Address untuk geocoding di map
   const [senderAddressForGeocode, setSenderAddressForGeocode] = useState<string>("");
+
+  const normalizeVendorKey = (vendor: string): string =>
+    vendor.toLowerCase().replace(/[\s_-]/g, "");
 
   // Sender data state - langsung editable, default kosong
   const [senderData, setSenderData] = useState({
@@ -738,6 +753,48 @@ export default function RegularPackageForm({
     }
 
     try {
+      const vendorSettingsResponse = await getExpeditionVendorSettings();
+      const vendorSettings = Array.isArray(vendorSettingsResponse.data)
+        ? vendorSettingsResponse.data
+        : [];
+      const isCodOrder = formData.paymentMethod === "cod";
+
+      const allowedVendors = new Set<VendorKey>(
+        vendorSettings
+          .filter(
+            (item) => item.is_active && (!isCodOrder || item.is_cod_active)
+          )
+          .map((item) => normalizeVendorKey(item.vendor))
+          .filter(
+            (key): key is VendorKey =>
+              key === "jntexpress" ||
+              key === "paxel" ||
+              key === "lion" ||
+              key === "sap" ||
+              key === "posindonesia" ||
+              key === "jne" ||
+              key === "idexpress" ||
+              key === "anteraja" ||
+              key === "ninja"
+          )
+      );
+
+      if (isCodOrder && allowedVendors.size === 0) {
+        onResult?.({
+          error: true,
+          message: "Saat ini tidak ada ekspedisi yang mendukung COD.",
+        });
+        return;
+      }
+
+      if (!isCodOrder && allowedVendors.size === 0) {
+        onResult?.({
+          error: true,
+          message: "Saat ini tidak ada ekspedisi yang aktif.",
+        });
+        return;
+      }
+
       // Prepare common payload for all APIs
       const shipmentPayload = {
         origin_province: originProvince.toUpperCase(),
@@ -761,15 +818,33 @@ export default function RegularPackageForm({
         anterajaResult,
         ninjaResult,
       ] = await Promise.allSettled([
-        getJntExpressShipmentCost(shipmentPayload),
-        getPaxelShipmentCost(shipmentPayload),
-        getLionShipmentCost(shipmentPayload),
-        getSapShipmentCost(shipmentPayload),
-        getPosIndonesiaShipmentCost(shipmentPayload),
-        getJneShipmentCost(shipmentPayload),
-        getIdexpressShipmentCost(shipmentPayload),
-        getAnterajaShipmentCost(shipmentPayload),
-        getNinjaShipmentCost(shipmentPayload),
+        allowedVendors.has("jntexpress")
+          ? getJntExpressShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("paxel")
+          ? getPaxelShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("lion")
+          ? getLionShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("sap")
+          ? getSapShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("posindonesia")
+          ? getPosIndonesiaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("jne")
+          ? getJneShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("idexpress")
+          ? getIdexpressShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("anteraja")
+          ? getAnterajaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
+        allowedVendors.has("ninja")
+          ? getNinjaShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
       ]);
 
       notifyShipmentCost422Rejections([
