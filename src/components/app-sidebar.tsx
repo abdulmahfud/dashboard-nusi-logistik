@@ -6,7 +6,6 @@ import {
   FileSearch,
   FileSymlink,
   FileText,
-  HelpCircleIcon,
   History,
   Globe,
   House,
