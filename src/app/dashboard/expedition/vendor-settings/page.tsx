@@ -62,7 +62,7 @@ function draftDirty(row: ExpeditionVendorSetting, draft: DraftRow): boolean {
 export default function ExpeditionVendorSettingsPage() {
   const router = useRouter();
   const { hasPermission, loading: authLoading } = useAuth();
-  const canView = hasPermission("expedition.settings.view");
+  /** Sama dengan item sidebar: hanya yang punya update yang boleh akses halaman ini. */
   const canUpdate = hasPermission("expedition.settings.update");
 
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ export default function ExpeditionVendorSettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!canView) return;
+    if (!canUpdate) return;
     setLoading(true);
     setError(null);
     try {
@@ -114,19 +114,19 @@ export default function ExpeditionVendorSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [canView]);
+  }, [canUpdate]);
 
   useEffect(() => {
-    if (!authLoading && !canView) {
+    if (!authLoading && !canUpdate) {
       router.replace("/dashboard");
     }
-  }, [authLoading, canView, router]);
+  }, [authLoading, canUpdate, router]);
 
   useEffect(() => {
-    if (!authLoading && canView) {
+    if (!authLoading && canUpdate) {
       void load();
     }
-  }, [authLoading, canView, load]);
+  }, [authLoading, canUpdate, load]);
 
   const updateDraft = (id: number, patch: Partial<DraftRow>) => {
     setDrafts((prev) => ({
@@ -187,7 +187,7 @@ export default function ExpeditionVendorSettingsPage() {
     );
   }
 
-  if (!canView) {
+  if (!canUpdate) {
     return null;
   }
 
