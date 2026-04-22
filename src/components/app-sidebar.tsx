@@ -221,7 +221,7 @@ const data = {
       title: "Pengaturan ekspedisi",
       url: "/dashboard/expedition/vendor-settings",
       icon: Truck,
-      permission: "expedition.settings.view",
+      permission: "expedition.settings.update",
     },
     {
       title: "Semua Rekening Bank",
