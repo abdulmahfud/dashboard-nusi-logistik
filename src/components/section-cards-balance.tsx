@@ -114,7 +114,7 @@ export function SectionCardsBalance() {
                 )}
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" asChild>
-                    <Link href="/dashboard/akun/rekening">Tarik Saldo</Link>
+                    <Link href="/dashboard/wallet">Tarik Saldo</Link>
                   </Button>
                   <Button
                     size="sm"
