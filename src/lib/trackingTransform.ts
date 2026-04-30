@@ -14,6 +14,26 @@ import {
   isAnterAjaRawResponse,
   type AnterAjaTrackingResponse,
 } from "./anterajaTrackingTransform";
+import {
+  transformSapTrackingResponse,
+  isSapRawResponse,
+  type SapTrackingResponse,
+} from "./sapTrackingTransform";
+import {
+  transformJntTrackingResponse,
+  isJntRawResponse,
+  type JntTrackingResponse,
+} from "./jntTrackingTransform";
+import {
+  transformLionTrackingResponse,
+  isLionRawResponse,
+  type LionTrackingResponse,
+} from "./lionTrackingTransform";
+import {
+  transformIdexpressTrackingResponse,
+  isIdexpressRawResponse,
+  type IdexpressTrackingResponse,
+} from "./idexpressTrackingTransform";
 
 /**
  * Vendor transformer interface
@@ -30,11 +50,32 @@ export interface VendorTransformer<T = unknown> {
  */
 const vendorTransformers: VendorTransformer[] = [
   {
+    vendor: "jntexpress",
+    vendorName: "J&T Express",
+    detect: isJntRawResponse,
+    transform: (data, awbNo) =>
+      transformJntTrackingResponse(data as JntTrackingResponse, awbNo),
+  },
+  {
     vendor: "jne",
     vendorName: "JNE Express",
     detect: isJneRawResponse,
     transform: (data, awbNo) =>
       transformJneTrackingResponse(data as JneTrackingResponse, awbNo),
+  },
+  {
+    vendor: "lion",
+    vendorName: "Lion Parcel",
+    detect: isLionRawResponse,
+    transform: (data, awbNo) =>
+      transformLionTrackingResponse(data as LionTrackingResponse, awbNo),
+  },
+  {
+    vendor: "idexpress",
+    vendorName: "ID Express",
+    detect: isIdexpressRawResponse,
+    transform: (data, awbNo) =>
+      transformIdexpressTrackingResponse(data as IdexpressTrackingResponse, awbNo),
   },
   {
     vendor: "pos_indonesia",
@@ -49,6 +90,13 @@ const vendorTransformers: VendorTransformer[] = [
     detect: isAnterAjaRawResponse,
     transform: (data, awbNo) =>
       transformAnterAjaTrackingResponse(data as AnterAjaTrackingResponse, awbNo),
+  },
+  {
+    vendor: "sap",
+    vendorName: "SAP Express",
+    detect: isSapRawResponse,
+    transform: (data, awbNo) =>
+      transformSapTrackingResponse(data as SapTrackingResponse, awbNo),
   },
   // Add more vendors here in the future
   // {

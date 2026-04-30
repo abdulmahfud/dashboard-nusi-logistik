@@ -66,6 +66,7 @@ export function transformAnterAjaTrackingResponse(
 
   const order = content.order;
   const history = content.history || [];
+  const hasTrackingData = Boolean(order) || history.length > 0;
 
   // Parse date from AnterAja format to ISO format
   const parseAnterAjaDate = (dateStr: string | undefined): string | null => {
@@ -292,7 +293,7 @@ export function transformAnterAjaTrackingResponse(
   };
 
   return {
-    success: true,
+    success: hasTrackingData,
     vendor: "anteraja",
     tracking_data: trackingData,
     order_info: {
