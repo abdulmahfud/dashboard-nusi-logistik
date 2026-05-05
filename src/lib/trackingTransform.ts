@@ -34,6 +34,11 @@ import {
   isIdexpressRawResponse,
   type IdexpressTrackingResponse,
 } from "./idexpressTrackingTransform";
+import {
+  transformPaxelTrackingResponse,
+  isPaxelRawResponse,
+  type PaxelTrackingApiResponse,
+} from "./paxelTrackingTransform";
 
 /**
  * Vendor transformer interface
@@ -76,6 +81,13 @@ const vendorTransformers: VendorTransformer[] = [
     detect: isIdexpressRawResponse,
     transform: (data, awbNo) =>
       transformIdexpressTrackingResponse(data as IdexpressTrackingResponse, awbNo),
+  },
+  {
+    vendor: "paxel",
+    vendorName: "Paxel",
+    detect: isPaxelRawResponse,
+    transform: (data, awbNo) =>
+      transformPaxelTrackingResponse(data as PaxelTrackingApiResponse, awbNo),
   },
   {
     vendor: "pos_indonesia",
