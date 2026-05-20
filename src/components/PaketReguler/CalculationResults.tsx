@@ -36,9 +36,8 @@ import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
 import {
-  extractPosIndonesiaPostingSnapshot,
-  selectPosIndonesiaDisplayService,
-  unwrapPosIndonesiaCekOngkirData,
+  buildPosIndonesiaShippingOptions,
+  isPosIndonesiaApiSuccess,
 } from "@/lib/posIndonesiaShipmentCost";
 import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
@@ -424,98 +423,26 @@ export default function CalculationResults({
         }
       }
 
-      // Process Pos Indonesia results
-      if (
-        combinedData.posindonesia &&
-        combinedData.posindonesia.status === "success"
-      ) {
-        const posRaw = combinedData.posindonesia.data;
-        const posData = unwrapPosIndonesiaCekOngkirData(posRaw) as
-          | Record<string, unknown>
-          | Array<Record<string, unknown>>;
-
-        // Handle new format (single object)
-        if (posData && !Array.isArray(posData) && typeof posData === "object") {
-          if ("serviceName" in posData && "totalFee" in posData) {
-            const newFormatData = posData as {
-              serviceName: string;
-              totalFee: number;
-              estimation?: string;
-              serviceCode?: number;
-              fee?: number;
-              feeTax?: number;
-              insurance?: number;
-              insuranceTax?: number;
-            };
-
-            if (
-              newFormatData.serviceName === "Pos Reguler" &&
-              newFormatData.totalFee > 0
-            ) {
-              options.push({
-                id: "posindonesia-reguler",
-                name: newFormatData.serviceName,
-                logo: "/images/pos.png",
-                price: `Rp${newFormatData.totalFee.toLocaleString("id-ID")}`,
-                duration: newFormatData.estimation || "2-4 Hari",
-                available: true,
-                recommended: false,
-                tags: [{ label: "Pos Indonesia", type: "info" as const }],
-              });
-            }
-          }
-        }
-        // Array: format camelCase (serviceCode…) atau legacy productname
-        else if (posData && Array.isArray(posData) && posData.length > 0) {
-          const firstItem = posData[0];
-          if (
-            firstItem &&
-            "serviceCode" in firstItem &&
-            "serviceName" in firstItem &&
-            "totalFee" in firstItem
-          ) {
-            const filteredService = selectPosIndonesiaDisplayService(posData);
-
-            if (
-              filteredService &&
-              filteredService.totalFee &&
-              Number(filteredService.totalFee) > 0
-            ) {
-              const posting = extractPosIndonesiaPostingSnapshot(
-                filteredService
-              );
-              options.push({
-                id: `posindonesia-${filteredService.serviceCode}`,
-                name: String(filteredService.serviceName || ""),
-                logo: "/images/pos.png",
-                price: `Rp${Number(filteredService.totalFee).toLocaleString("id-ID")}`,
-                duration: String(filteredService.estimation || "2-4 Hari"),
-                available: true,
-                recommended: false,
-                tags: [{ label: "Pos Indonesia", type: "info" as const }],
-                ...(posting ? { posIndonesiaPosting: posting } : {}),
-              });
-            }
-          }
-          // Handle old format (array with productname, totalfee)
-          else {
-            const posReguler = posData.find(
-              (item: Record<string, unknown>) =>
-                item.productname === "Pos Reguler"
-            );
-            if (posReguler && posReguler.totalfee) {
-              options.push({
-                id: "posindonesia-reguler",
-                name: String(posReguler.productname || "Pos Reguler"),
-                logo: "/images/pos.png",
-                price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
-                duration: String(posReguler.estimation || "2-4 Hari"),
-                available: true,
-                recommended: false,
-                tags: [{ label: "Pos Indonesia", type: "info" as const }],
-              });
-            }
-          }
+      // Process Pos Indonesia results (BE: final_cost, service_name, estimation)
+      if (isPosIndonesiaApiSuccess(combinedData.posindonesia)) {
+        const posMapped = buildPosIndonesiaShippingOptions(
+          combinedData.posindonesia?.data
+        );
+        for (const pos of posMapped) {
+          options.push({
+            id: pos.id,
+            name: pos.name,
+            logo: "/images/pos.png",
+            price: pos.price,
+            originalPrice: pos.originalPrice,
+            duration: pos.duration,
+            available: true,
+            recommended: false,
+            tags: [{ label: "Pos Indonesia", type: "info" as const }],
+            ...(pos.posIndonesiaPosting
+              ? { posIndonesiaPosting: pos.posIndonesiaPosting }
+              : {}),
+          });
         }
       }
 
