@@ -6,6 +6,9 @@
  * - Array camelCase / legacy productname
  */
 
+/** Nama tampilan di kartu ekspedisi (bukan service_name dari vendor) */
+export const POS_INDONESIA_DISPLAY_NAME = "Pos Indonesia";
+
 /** serviceCode 910546 = PPKH (marketplace) — dipakai Addpostingdoc */
 export const POS_INDONESIA_SERVICE_CODE_PPKH = 910546;
 /** Kode layanan reguler lama */
@@ -178,13 +181,12 @@ function mapRowToOption(
   if (!Number.isFinite(finalCost) || finalCost <= 0) return null;
 
   const originalCost = Number(row.original_cost);
-  const name = String(row.serviceName ?? row.service_name ?? "Pos Indonesia");
   const estimation = String(row.estimation ?? "2-4 Hari");
   const posting = extractPosIndonesiaPostingSnapshot(row);
 
   return {
     id: `posindonesia-${serviceCode}`,
-    name,
+    name: POS_INDONESIA_DISPLAY_NAME,
     price: `Rp${finalCost.toLocaleString("id-ID")}`,
     ...(Number.isFinite(originalCost) &&
     originalCost > finalCost &&
@@ -228,7 +230,7 @@ function mapLegacyPosRegulerObject(
 
   return {
     id: "posindonesia-reguler",
-    name: serviceName,
+    name: POS_INDONESIA_DISPLAY_NAME,
     price: `Rp${totalFee.toLocaleString("id-ID")}`,
     duration: String(o.estimation ?? "2-4 Hari"),
   };
@@ -241,7 +243,7 @@ function mapLegacyProductNameArray(
   if (!posReguler?.totalfee) return null;
   return {
     id: "posindonesia-reguler",
-    name: String(posReguler.productname || "Pos Reguler"),
+    name: POS_INDONESIA_DISPLAY_NAME,
     price: `Rp${Number(posReguler.totalfee).toLocaleString("id-ID")}`,
     duration: String(posReguler.estimation || "2-4 Hari"),
   };
