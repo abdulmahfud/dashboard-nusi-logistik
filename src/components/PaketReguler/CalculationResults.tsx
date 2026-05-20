@@ -35,6 +35,11 @@ import {
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
+import {
+  extractPosIndonesiaPostingSnapshot,
+  selectPosIndonesiaDisplayService,
+  unwrapPosIndonesiaCekOngkirData,
+} from "@/lib/posIndonesiaShipmentCost";
 import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 
@@ -424,7 +429,8 @@ export default function CalculationResults({
         combinedData.posindonesia &&
         combinedData.posindonesia.status === "success"
       ) {
-        const posData = combinedData.posindonesia.data as
+        const posRaw = combinedData.posindonesia.data;
+        const posData = unwrapPosIndonesiaCekOngkirData(posRaw) as
           | Record<string, unknown>
           | Array<Record<string, unknown>>;
 
@@ -435,6 +441,11 @@ export default function CalculationResults({
               serviceName: string;
               totalFee: number;
               estimation?: string;
+              serviceCode?: number;
+              fee?: number;
+              feeTax?: number;
+              insurance?: number;
+              insuranceTax?: number;
             };
 
             if (
@@ -454,17 +465,25 @@ export default function CalculationResults({
             }
           }
         }
-        // Handle new array format (with serviceCode, serviceName, totalFee)
+        // Array: format camelCase (serviceCode…) atau legacy productname
         else if (posData && Array.isArray(posData) && posData.length > 0) {
-          // Check if it's the new format with serviceCode (camelCase)
           const firstItem = posData[0];
-          if (firstItem && "serviceCode" in firstItem && "serviceName" in firstItem && "totalFee" in firstItem) {
-            // Filter untuk serviceCode 910548
-            const filteredService = posData.find(
-              (item: Record<string, unknown>) => item.serviceCode === 910548
-            );
-            
-            if (filteredService && filteredService.totalFee && Number(filteredService.totalFee) > 0) {
+          if (
+            firstItem &&
+            "serviceCode" in firstItem &&
+            "serviceName" in firstItem &&
+            "totalFee" in firstItem
+          ) {
+            const filteredService = selectPosIndonesiaDisplayService(posData);
+
+            if (
+              filteredService &&
+              filteredService.totalFee &&
+              Number(filteredService.totalFee) > 0
+            ) {
+              const posting = extractPosIndonesiaPostingSnapshot(
+                filteredService
+              );
               options.push({
                 id: `posindonesia-${filteredService.serviceCode}`,
                 name: String(filteredService.serviceName || ""),
@@ -474,6 +493,7 @@ export default function CalculationResults({
                 available: true,
                 recommended: false,
                 tags: [{ label: "Pos Indonesia", type: "info" as const }],
+                ...(posting ? { posIndonesiaPosting: posting } : {}),
               });
             }
           }

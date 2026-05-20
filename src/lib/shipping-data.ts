@@ -13,6 +13,15 @@ export interface ShippingOption {
   recommended?: boolean;
   available: boolean;
   tags?: Tag[];
+  /** Field Addpostingdoc dari response cek ongkir Pos (format serviceCode + fee camelCase) */
+  posIndonesiaPosting?: {
+    serviceCode: number;
+    fee: number;
+    feeTax: number;
+    insurance: number;
+    insuranceTax: number;
+    totalFee: number;
+  };
 }
 
 export const shippingOptions: ShippingOption[] = [

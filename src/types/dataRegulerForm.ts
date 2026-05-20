@@ -121,6 +121,15 @@ export interface ShippingOption {
   recommended?: boolean;
   available: boolean;
   tags?: Tag[];
+  /** Field Addpostingdoc dari response cek ongkir Pos (jika format serviceCode + fee camelCase) */
+  posIndonesiaPosting?: {
+    serviceCode: number;
+    fee: number;
+    feeTax: number;
+    insurance: number;
+    insuranceTax: number;
+    totalFee: number;
+  };
 }
 
 // Service types for tabs

@@ -6,6 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ShippingOption } from "@/lib/shipping-data";
 import { DiscountCalculation } from "@/types/discount";
 import { getAvailableDiscounts } from "@/lib/apiClient";
+import {
+  extractPosIndonesiaPostingSnapshot,
+  selectPosIndonesiaDisplayService,
+  unwrapPosIndonesiaCekOngkirData,
+} from "@/lib/posIndonesiaShipmentCost";
 
 interface ShippingResultsProps {
   isSearching: boolean;
@@ -157,6 +162,24 @@ type PosIndonesiaApiResult = {
         penyesuaianpersentase: number;
         discount: number;
       }>
+    | {
+        response?: {
+          data?: Array<{
+            serviceCode: number;
+            serviceName: string;
+            fee: number;
+            feeTax: number;
+            insurance: number;
+            insuranceTax: number;
+            totalFee: number;
+            notes: string;
+            estimation: string;
+            penyesuaian: number;
+            penyesuaianpersentase: number;
+            discount: number;
+          }>;
+        };
+      }
     | {
         serviceCode: number;
         serviceName: string;
@@ -486,7 +509,8 @@ export default function ShippingResults({
         combinedData.posindonesia &&
         combinedData.posindonesia.status === "success"
       ) {
-        const posData = combinedData.posindonesia.data;
+        const posRaw = combinedData.posindonesia.data;
+        const posData = unwrapPosIndonesiaCekOngkirData(posRaw);
 
         // Handle new format (single object)
         if (posData && !Array.isArray(posData) && typeof posData === "object") {
@@ -521,22 +545,26 @@ export default function ShippingResults({
           // Check if it's the new format with serviceCode (camelCase)
           const firstItem = posData[0];
           if (isPosIndonesiaNewServiceItem(firstItem)) {
-            // Filter untuk serviceCode 910548
-            const filteredService = (posData as unknown[]).find(
-              (item): item is PosIndonesiaNewServiceItem =>
-                isPosIndonesiaNewServiceItem(item) && item.serviceCode === 910548
-            );
-            
-            if (filteredService && filteredService.totalFee > 0) {
+            const filteredRaw = selectPosIndonesiaDisplayService(posData);
+
+            if (
+              filteredRaw &&
+              isPosIndonesiaNewServiceItem(filteredRaw) &&
+              filteredRaw.totalFee > 0
+            ) {
+              const posting = extractPosIndonesiaPostingSnapshot(
+                filteredRaw as Record<string, unknown>
+              );
               options.push({
-                id: `posindonesia-${filteredService.serviceCode}`,
-                name: filteredService.serviceName,
+                id: `posindonesia-${filteredRaw.serviceCode}`,
+                name: filteredRaw.serviceName,
                 logo: "/images/pos.png",
-                price: `Rp${filteredService.totalFee.toLocaleString("id-ID")}`,
-                duration: filteredService.estimation || "2-4 Hari",
+                price: `Rp${filteredRaw.totalFee.toLocaleString("id-ID")}`,
+                duration: filteredRaw.estimation || "2-4 Hari",
                 available: true,
                 recommended: false,
                 tags: [{ label: "Pos Indonesia", type: "info" }],
+                ...(posting ? { posIndonesiaPosting: posting } : {}),
               });
             }
           }
