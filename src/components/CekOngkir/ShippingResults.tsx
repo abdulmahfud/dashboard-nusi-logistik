@@ -195,43 +195,6 @@ type PosIndonesiaApiResult = {
       };
 };
 
-type PosIndonesiaNewServiceItem = {
-  serviceCode: number;
-  serviceName: string;
-  totalFee: number;
-  estimation?: string;
-};
-
-type PosIndonesiaOldServiceItem = {
-  productname: string;
-  totalfee: string;
-  estimation: string;
-};
-
-function isPosIndonesiaNewServiceItem(
-  item: unknown
-): item is PosIndonesiaNewServiceItem {
-  if (!item || typeof item !== "object") return false;
-  const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.serviceCode === "number" &&
-    typeof obj.serviceName === "string" &&
-    typeof obj.totalFee === "number"
-  );
-}
-
-function isPosIndonesiaOldServiceItem(
-  item: unknown
-): item is PosIndonesiaOldServiceItem {
-  if (!item || typeof item !== "object") return false;
-  const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.productname === "string" &&
-    typeof obj.totalfee === "string" &&
-    typeof obj.estimation === "string"
-  );
-}
-
 type JneApiResult = {
   status: string;
   message?: string;
