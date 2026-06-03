@@ -58,6 +58,8 @@ export interface PosIndonesiaTrackingResponse {
     timeReceive?: string;
     receiver?: string;
     coordinate?: string;
+    reason?: string;
+    additional_photo?: string[];
   };
   connote_history?: Array<{
     _id?: string;
@@ -90,10 +92,12 @@ export interface PosIndonesiaTrackingResponse {
     };
     timeArrived?: string;
     timePredictionArrived?: string;
+    final_swp_date_new?: string;
     destination_location?: string;
     deliverySuccessTime?: string;
     diterimaPenerima?: boolean;
     usernameDeliveredBy?: string;
+    reason_failedtodelivered?: string;
   };
   koli?: Array<{
     koli_description?: string;
@@ -105,8 +109,10 @@ export interface PosIndonesiaTrackingResponse {
 
 type PosCustomField = NonNullable<PosIndonesiaTrackingResponse["connote_customfield"]> & {
   COD?: string;
-  cod_value?: number;
+  cod_value?: number | null;
   total_cod?: number;
+  reason_failedtodelivered?: string;
+  final_swp_date_new?: string;
 };
 
 function parseJsonField<T extends Record<string, unknown>>(
@@ -176,8 +182,86 @@ export function unwrapPosIndonesiaTrackingPayload(
     if (root.data && isPosIndonesiaRawResponse(root.data)) {
       return root.data;
     }
+    const td = root.tracking_data;
+    if (td && typeof td === "object") {
+      const inner = (td as Record<string, unknown>).data;
+      if (isPosIndonesiaRawResponse(inner)) {
+        return inner;
+      }
+    }
   }
   return null;
+}
+
+/** Response BE `/admin/tracking`: connote di `tracking_data.data` (lihat docs/pos/network-tracking.md) */
+export type PosIndonesiaBeTrackingWrapper = {
+  success?: boolean;
+  vendor?: string;
+  tracking_data: {
+    status?: string;
+    message?: string;
+    reference_no?: string;
+    data: PosIndonesiaTrackingResponse;
+  };
+  order_info?: {
+    reference_no?: string;
+    vendor?: string;
+    awb_no?: string | null;
+    status?: string;
+    created_at?: string;
+    user_id?: number;
+  };
+};
+
+export function isPosIndonesiaBeTrackingWrapper(
+  response: unknown
+): response is PosIndonesiaBeTrackingWrapper {
+  if (!response || typeof response !== "object") return false;
+  const r = response as Record<string, unknown>;
+  const td = r.tracking_data;
+  if (!td || typeof td !== "object") return false;
+  return isPosIndonesiaRawResponse((td as Record<string, unknown>).data);
+}
+
+export function transformPosIndonesiaBeTrackingWrapper(
+  apiResponse: PosIndonesiaBeTrackingWrapper,
+  awbNo: string
+): StandardizedTrackingResponse {
+  const connote = apiResponse.tracking_data.data;
+  const resi = connote.connote_code || awbNo;
+  const result = transformPosIndonesiaTrackingResponse(connote, resi);
+
+  result.success = apiResponse.success !== false;
+  const vendorKey = String(apiResponse.vendor ?? "pos_indonesia")
+    .toLowerCase()
+    .replace(/_/g, "");
+  result.vendor =
+    vendorKey === "posindonesia" ? "pos_indonesia" : String(apiResponse.vendor ?? "pos_indonesia").toLowerCase();
+  result.tracking_data.vendor = result.vendor;
+
+  const ref =
+    apiResponse.tracking_data.reference_no ||
+    apiResponse.order_info?.reference_no ||
+    connote.connote_booking_code ||
+    null;
+  if (ref) {
+    result.tracking_data.reference_no = ref;
+  }
+  result.tracking_data.awb_no = connote.connote_code || result.tracking_data.awb_no;
+
+  const oi = apiResponse.order_info;
+  if (oi) {
+    result.order_info = {
+      reference_no: String(oi.reference_no ?? ref ?? ""),
+      vendor: String(oi.vendor ?? apiResponse.vendor ?? "POSINDONESIA"),
+      awb_no: connote.connote_code ?? oi.awb_no ?? resi,
+      status: String(oi.status ?? result.order_info.status),
+      created_at: String(oi.created_at ?? result.order_info.created_at),
+      user_id: Number(oi.user_id ?? 0),
+    };
+  }
+
+  return result;
 }
 
 /**
@@ -276,8 +360,14 @@ export function transformPosIndonesiaTrackingResponse(
     parsePosDate(customField.deliverySuccessTime) || 
     parsePosDate(customField.timeArrived) || null;
   
-  const actualReceiver = pod.receiver || lastHistory?.receiver || null;
-  const deliveryRelationship = lastHistory?.reason_delivery || null;
+  const rawReceiver = pod.receiver || lastHistory?.receiver || null;
+  const actualReceiver =
+    rawReceiver && rawReceiver !== "-" ? rawReceiver : null;
+  const deliveryRelationship =
+    lastHistory?.reason_delivery ||
+    pod.reason ||
+    customField.reason_failedtodelivered ||
+    null;
 
   // Get item name from koli
   const itemName = posResponse.koli && posResponse.koli.length > 0 
@@ -348,18 +438,28 @@ export function transformPosIndonesiaTrackingResponse(
     },
     tracking_history: trackingHistory,
     delivery: {
-      estimated_delivery: parsePosDate(customField.timePredictionArrived) || 
-        parsePosDate(posResponse.connote_sla_date) || null,
+      estimated_delivery:
+        parsePosDate(customField.timePredictionArrived) ||
+        parsePosDate(customField.final_swp_date_new) ||
+        parsePosDate(posResponse.connote_sla_date) ||
+        null,
       delivered_at: deliveredAt,
       delivered_to: actualReceiver || null,
       delivery_relationship: deliveryRelationship || null,
       pod_status_code: lastHistory?.reason_delivery_code || null,
-      pod_status_name: lastHistory?.reason_delivery || null,
+      pod_status_name:
+        lastHistory?.reason_delivery ||
+        pod.reason ||
+        customField.reason_failedtodelivered ||
+        null,
       proof_of_delivery: {
         signature_url: pod.signature || null,
         photo_url: pod.photo || null,
         signature_pod: pod.signature ? [pod.signature] : [],
-        photo_pod: pod.photo ? [pod.photo] : [],
+        photo_pod: [
+          ...(pod.photo ? [pod.photo] : []),
+          ...(Array.isArray(pod.additional_photo) ? pod.additional_photo : []),
+        ],
       },
     },
     driver_info: {

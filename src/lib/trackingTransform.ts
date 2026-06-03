@@ -7,6 +7,8 @@ import {
 import {
   transformPosIndonesiaTrackingResponse,
   isPosIndonesiaRawResponse,
+  isPosIndonesiaBeTrackingWrapper,
+  transformPosIndonesiaBeTrackingWrapper,
   unwrapPosIndonesiaTrackingPayload,
   type PosIndonesiaTrackingResponse,
 } from "./posIndonesiaTrackingTransform";
@@ -127,6 +129,20 @@ const vendorTransformers: VendorTransformer[] = [
   // },
 ];
 
+/** Format UI: `tracking_data.tracking_history` ada dan bukan wrapper `tracking_data.data` (Pos BE). */
+function isFullyStandardizedTrackingResponse(
+  response: unknown
+): response is StandardizedTrackingResponse {
+  if (!response || typeof response !== "object") return false;
+  const r = response as Record<string, unknown>;
+  if (!("success" in r) || !("tracking_data" in r)) return false;
+  const td = r.tracking_data;
+  if (!td || typeof td !== "object") return false;
+  const t = td as Record<string, unknown>;
+  if (isPosIndonesiaRawResponse(t.data)) return false;
+  return Array.isArray(t.tracking_history);
+}
+
 /**
  * Try to transform raw vendor response to standardized format
  * @param response - The raw response from API
@@ -137,14 +153,17 @@ export function tryTransformVendorResponse(
   response: unknown,
   awbNo: string
 ): StandardizedTrackingResponse | null {
-  // Check if already standardized
-  if (
-    response &&
-    typeof response === "object" &&
-    "success" in response &&
-    "tracking_data" in response
-  ) {
-    return response as StandardizedTrackingResponse;
+  // BE Pos: { success, tracking_data: { status, data: connote }, order_info }
+  if (isPosIndonesiaBeTrackingWrapper(response)) {
+    try {
+      return transformPosIndonesiaBeTrackingWrapper(response, awbNo);
+    } catch (error) {
+      console.error("Error transforming Pos Indonesia BE tracking wrapper:", error);
+    }
+  }
+
+  if (isFullyStandardizedTrackingResponse(response)) {
+    return response;
   }
 
   // Try to find matching transformer
@@ -196,20 +215,13 @@ export function normalizeTrackingResponse(
   response: unknown,
   awbNo: string
 ): StandardizedTrackingResponse | null {
-  // Try to transform if it's a raw vendor response
   const transformed = tryTransformVendorResponse(response, awbNo);
   if (transformed) {
     return transformed;
   }
 
-  // If already standardized, return as-is
-  if (
-    response &&
-    typeof response === "object" &&
-    "success" in response &&
-    "tracking_data" in response
-  ) {
-    return response as StandardizedTrackingResponse;
+  if (isFullyStandardizedTrackingResponse(response)) {
+    return response;
   }
 
   return null;
