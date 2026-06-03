@@ -31,6 +31,7 @@ export interface PosIndonesiaTrackingResponse {
   connote_total_package?: string;
   connote_sla_day?: string;
   connote_sla_date?: string;
+  connote_surcharge_amount?: string | number;
   created_at?: string;
   updated_at?: string;
   location_name?: string;
@@ -99,6 +100,84 @@ export interface PosIndonesiaTrackingResponse {
     koli_weight?: number;
     koli_code?: string;
   }>;
+  custom_field?: string | Record<string, unknown>;
+}
+
+type PosCustomField = NonNullable<PosIndonesiaTrackingResponse["connote_customfield"]> & {
+  COD?: string;
+  cod_value?: number;
+  total_cod?: number;
+};
+
+function parseJsonField<T extends Record<string, unknown>>(
+  value: unknown
+): T | null {
+  if (!value) return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as T;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as T;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function extractCityFromLocation(locationName: string | null): string | null {
+  if (!locationName) return null;
+  const match = locationName.match(/([A-Z\s]+?)(?:\s+\d+|$)/);
+  if (match) {
+    return match[1].trim() || null;
+  }
+  return null;
+}
+
+function resolveCurrentLocation(
+  posResponse: PosIndonesiaTrackingResponse
+): { name?: string; code?: string; location_type?: string } | null {
+  if (posResponse.current_location && typeof posResponse.current_location === "object") {
+    return posResponse.current_location;
+  }
+  if (typeof posResponse.currentLocation === "object" && posResponse.currentLocation) {
+    return posResponse.currentLocation;
+  }
+  if (typeof posResponse.currentLocation === "string") {
+    const parsed = parseJsonField<{ name?: string; code?: string; location_type?: string }>(
+      posResponse.currentLocation
+    );
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function resolveCustomField(posResponse: PosIndonesiaTrackingResponse): PosCustomField {
+  const fromObject = posResponse.connote_customfield ?? {};
+  const fromString = parseJsonField<PosCustomField>(posResponse.custom_field);
+  return { ...fromString, ...fromObject };
+}
+
+/**
+ * Ambil payload tracking Pos dari response BE (flat atau { data: {...} }).
+ */
+export function unwrapPosIndonesiaTrackingPayload(
+  input: unknown
+): PosIndonesiaTrackingResponse | null {
+  if (isPosIndonesiaRawResponse(input)) {
+    return input;
+  }
+  if (input && typeof input === "object") {
+    const root = input as Record<string, unknown>;
+    if (root.data && isPosIndonesiaRawResponse(root.data)) {
+      return root.data;
+    }
+  }
+  return null;
 }
 
 /**
@@ -126,14 +205,17 @@ export function transformPosIndonesiaTrackingResponse(
     }
   };
 
-  // Get current location
-  const currentLocationObj = posResponse.current_location || 
-    (typeof posResponse.currentLocation === "object" ? posResponse.currentLocation : null);
-  const currentLocationName = currentLocationObj?.name || 
-    (typeof posResponse.currentLocation === "string" ? posResponse.currentLocation : null) ||
-    posResponse.location_name || null;
+  const currentLocationObj = resolveCurrentLocation(posResponse);
+  const currentLocationName =
+    currentLocationObj?.name || posResponse.location_name || null;
 
-  // Transform tracking history
+  const customField = resolveCustomField(posResponse);
+  const codValue = Number(customField.cod_value ?? 0);
+  const isCod =
+    typeof customField.COD === "string" &&
+    customField.COD.toUpperCase().replace(/\s/g, "") !== "NON-COD";
+
+  // Transform tracking history (urutan API: kronologis, sesuai connote_history di docs)
   const trackingHistory = (posResponse.connote_history || []).map((item, index) => {
     const locationName = item.location_name || currentLocationName;
     const city = item.city || extractCityFromLocation(locationName);
@@ -169,20 +251,9 @@ export function transformPosIndonesiaTrackingResponse(
         relationship: item.reason_delivery || null,
       } : null,
       note: item.reason_delivery || null,
-      image_url: item.photo || null,
+      image_url: item.photo || item.signature || null,
     };
   });
-
-  // Extract city from location name (e.g., "KC SURABAYASELATAN 60300" -> "SURABAYA")
-  function extractCityFromLocation(locationName: string | null): string | null {
-    if (!locationName) return null;
-    // Try to extract city name from location string
-    const match = locationName.match(/([A-Z\s]+?)(?:\s+\d+|$)/);
-    if (match) {
-      return match[1].trim() || null;
-    }
-    return null;
-  }
 
   // Get current status from connote_state or last history item
   const lastHistory = posResponse.connote_history && posResponse.connote_history.length > 0 
@@ -199,7 +270,6 @@ export function transformPosIndonesiaTrackingResponse(
 
   // Get POD info
   const pod = posResponse.pod || {};
-  const customField = posResponse.connote_customfield || {};
 
   // Get delivery info
   const deliveredAt = parsePosDate(pod.timeReceive) || 
@@ -239,8 +309,8 @@ export function transformPosIndonesiaTrackingResponse(
       koli: posResponse.koli?.length || parseInt(posResponse.connote_total_package || "1") || 1,
       service_fee: posResponse.connote_service_price || null,
       shipping_cost: posResponse.connote_amount || posResponse.connote_service_price || null,
-      cod_value: 0,
-      insurance_cost: 0,
+      cod_value: isCod ? codValue || Number(customField.total_cod ?? 0) : 0,
+      insurance_cost: Number(posResponse.connote_surcharge_amount ?? 0) || 0,
       total_amount: posResponse.connote_amount || null,
       booking_id: posResponse.connote_booking_code || null,
       invoice_no: null,
@@ -327,8 +397,13 @@ export function transformPosIndonesiaTrackingResponse(
 export function isPosIndonesiaRawResponse(data: unknown): data is PosIndonesiaTrackingResponse {
   if (!data || typeof data !== "object") return false;
   const obj = data as Record<string, unknown>;
-  return (
-    (obj.connote_code !== undefined || obj.connote_booking_code !== undefined) &&
-    (obj.connote_history !== undefined || obj.connote_state !== undefined)
-  );
+  const hasConnoteId =
+    obj.connote_code != null ||
+    obj.connote_booking_code != null ||
+    obj.connote_id != null;
+  const hasTrackingBody =
+    Array.isArray(obj.connote_history) ||
+    obj.connote_state != null ||
+    obj.connote_sender_name != null;
+  return hasConnoteId && hasTrackingBody;
 }

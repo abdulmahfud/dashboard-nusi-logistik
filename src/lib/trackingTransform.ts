@@ -7,6 +7,7 @@ import {
 import {
   transformPosIndonesiaTrackingResponse,
   isPosIndonesiaRawResponse,
+  unwrapPosIndonesiaTrackingPayload,
   type PosIndonesiaTrackingResponse,
 } from "./posIndonesiaTrackingTransform";
 import {
@@ -97,6 +98,13 @@ const vendorTransformers: VendorTransformer[] = [
       transformPosIndonesiaTrackingResponse(data as PosIndonesiaTrackingResponse, awbNo),
   },
   {
+    vendor: "posindonesia",
+    vendorName: "Pos Indonesia",
+    detect: isPosIndonesiaRawResponse,
+    transform: (data, awbNo) =>
+      transformPosIndonesiaTrackingResponse(data as PosIndonesiaTrackingResponse, awbNo),
+  },
+  {
     vendor: "anteraja",
     vendorName: "AnterAja",
     detect: isAnterAjaRawResponse,
@@ -154,7 +162,16 @@ export function tryTransformVendorResponse(
   // Check nested responses (e.g., response.data)
   if (response && typeof response === "object") {
     const responseData = response as Record<string, unknown>;
-    
+
+    const posPayload = unwrapPosIndonesiaTrackingPayload(response);
+    if (posPayload) {
+      try {
+        return transformPosIndonesiaTrackingResponse(posPayload, awbNo);
+      } catch (error) {
+        console.error("Error transforming pos_indonesia response:", error);
+      }
+    }
+
     if (responseData.data) {
       for (const transformer of vendorTransformers) {
         if (transformer.detect(responseData.data)) {
