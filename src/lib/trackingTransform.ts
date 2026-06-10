@@ -30,6 +30,9 @@ import {
 import {
   transformLionTrackingResponse,
   isLionRawResponse,
+  isLionBeTrackingWrapper,
+  transformLionBeTrackingWrapper,
+  unwrapLionTrackingPayload,
   type LionTrackingResponse,
 } from "./lionTrackingTransform";
 import {
@@ -140,6 +143,7 @@ function isFullyStandardizedTrackingResponse(
   if (!td || typeof td !== "object") return false;
   const t = td as Record<string, unknown>;
   if (isPosIndonesiaRawResponse(t.data)) return false;
+  if (isLionRawResponse(t.data)) return false;
   return Array.isArray(t.tracking_history);
 }
 
@@ -159,6 +163,15 @@ export function tryTransformVendorResponse(
       return transformPosIndonesiaBeTrackingWrapper(response, awbNo);
     } catch (error) {
       console.error("Error transforming Pos Indonesia BE tracking wrapper:", error);
+    }
+  }
+
+  // BE Lion: { success, tracking_data: { status, data: { stts } }, order_info }
+  if (isLionBeTrackingWrapper(response)) {
+    try {
+      return transformLionBeTrackingWrapper(response, awbNo);
+    } catch (error) {
+      console.error("Error transforming Lion BE tracking wrapper:", error);
     }
   }
 
@@ -188,6 +201,15 @@ export function tryTransformVendorResponse(
         return transformPosIndonesiaTrackingResponse(posPayload, awbNo);
       } catch (error) {
         console.error("Error transforming pos_indonesia response:", error);
+      }
+    }
+
+    const lionPayload = unwrapLionTrackingPayload(response);
+    if (lionPayload) {
+      try {
+        return transformLionTrackingResponse(lionPayload, awbNo);
+      } catch (error) {
+        console.error("Error transforming lion response:", error);
       }
     }
 

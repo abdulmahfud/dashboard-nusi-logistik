@@ -15,6 +15,9 @@ type LionHistoryItem = {
   ref_stt_number?: string | null;
   shipment_id?: string | null;
   total_tariff?: number | null;
+  total_tariff_before_cod_fee?: number | null;
+  is_insurance?: boolean;
+  insurance_rate?: number | null;
   courier_name?: string | null;
   received_by?: string | null;
   proof?: {
@@ -28,6 +31,7 @@ type LionHistoryItem = {
 
 type LionSttItem = {
   stt_no?: string | null;
+  root_stt_number?: string | null;
   sender_name?: string | null;
   recipient_name?: string | null;
   origin?: string | null;
@@ -40,12 +44,41 @@ type LionSttItem = {
   pieces?: number | null;
   volume_weight?: number | null;
   gross_weight?: number | null;
+  chargeable_total_tariff?: number | null;
+  chargeable_total_tariff_exc_cod_fee?: number | null;
   history?: LionHistoryItem[] | null;
 };
 
 export type LionTrackingResponse = {
   stts?: LionSttItem[];
 };
+
+/** Response BE `/admin/tracking`: Lion di `tracking_data.data` (lihat docs/lion/tracking.md) */
+export type LionBeTrackingWrapper = {
+  success?: boolean;
+  vendor?: string;
+  tracking_data: {
+    status?: string;
+    message?: string;
+    reference_no?: string;
+    data: LionTrackingResponse;
+  };
+  order_info?: {
+    reference_no?: string;
+    vendor?: string;
+    awb_no?: string | null;
+    status?: string;
+    created_at?: string;
+    user_id?: number;
+  };
+};
+
+function toIso(dateString: string | null | undefined): string | null {
+  if (!dateString) return null;
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
 
 export function isLionRawResponse(data: unknown): data is LionTrackingResponse {
   if (!data || typeof data !== "object") return false;
@@ -55,20 +88,54 @@ export function isLionRawResponse(data: unknown): data is LionTrackingResponse {
   return !!first && typeof first === "object" && "stt_no" in (first as Record<string, unknown>);
 }
 
-function toIso(dateString: string | null | undefined): string | null {
-  if (!dateString) return null;
-  const d = new Date(dateString);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
+/**
+ * Ambil payload Lion dari berbagai bentuk response BE.
+ */
+export function unwrapLionTrackingPayload(input: unknown): LionTrackingResponse | null {
+  if (isLionRawResponse(input)) {
+    return input;
+  }
+  if (input && typeof input === "object") {
+    const root = input as Record<string, unknown>;
+    if (root.data && isLionRawResponse(root.data)) {
+      return root.data;
+    }
+    const td = root.tracking_data;
+    if (td && typeof td === "object") {
+      const inner = (td as Record<string, unknown>).data;
+      if (isLionRawResponse(inner)) {
+        return inner;
+      }
+    }
+  }
+  return null;
 }
 
-export function transformLionTrackingResponse(
-  raw: LionTrackingResponse,
-  awbNo: string
-): StandardizedTrackingResponse {
-  const stt = raw.stts?.[0] ?? {};
-  const history = Array.isArray(stt.history) ? stt.history : [];
-  const sortedHistory = [...history].sort((a, b) => {
+export function isLionBeTrackingWrapper(
+  response: unknown
+): response is LionBeTrackingWrapper {
+  if (!response || typeof response !== "object") return false;
+  const r = response as Record<string, unknown>;
+  const td = r.tracking_data;
+  if (!td || typeof td !== "object") return false;
+  return isLionRawResponse((td as Record<string, unknown>).data);
+}
+
+function pickSttItem(stts: LionSttItem[], awbNo: string): LionSttItem {
+  if (stts.length === 0) return {};
+  const needle = awbNo.trim().toUpperCase();
+  if (!needle) return stts[0];
+  return (
+    stts.find(
+      (s) =>
+        String(s.stt_no || "").toUpperCase() === needle ||
+        String(s.root_stt_number || "").toUpperCase() === needle
+    ) ?? stts[0]
+  );
+}
+
+function sortHistoryNewestFirst(history: LionHistoryItem[]): LionHistoryItem[] {
+  return [...history].sort((a, b) => {
     const aTime = new Date(a.datetime || "").getTime();
     const bTime = new Date(b.datetime || "").getTime();
     if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
@@ -76,8 +143,73 @@ export function transformLionTrackingResponse(
     if (Number.isNaN(bTime)) return -1;
     return bTime - aTime;
   });
-  const latest = sortedHistory[0];
+}
+
+function sortHistoryOldestFirst(history: LionHistoryItem[]): LionHistoryItem[] {
+  return [...history].sort((a, b) => {
+    const aTime = new Date(a.datetime || "").getTime();
+    const bTime = new Date(b.datetime || "").getTime();
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+    if (Number.isNaN(aTime)) return 1;
+    if (Number.isNaN(bTime)) return -1;
+    return aTime - bTime;
+  });
+}
+
+function findPodHistory(history: LionHistoryItem[]): LionHistoryItem | undefined {
+  return history.find(
+    (h) =>
+      String(h.status_code || "").toUpperCase() === "POD" ||
+      String(h.current_status || "").toUpperCase() === "POD"
+  );
+}
+
+function latestTariffFromHistory(history: LionHistoryItem[]): number | null {
+  for (const h of sortHistoryNewestFirst(history)) {
+    const t = Number(h.total_tariff);
+    if (Number.isFinite(t) && t > 0) return t;
+  }
+  return null;
+}
+
+function latestInsuranceFromHistory(history: LionHistoryItem[]): number {
+  for (const h of sortHistoryNewestFirst(history)) {
+    if (h.is_insurance && Number(h.insurance_rate) > 0) {
+      return Number(h.insurance_rate);
+    }
+  }
+  return 0;
+}
+
+export function transformLionTrackingResponse(
+  raw: LionTrackingResponse,
+  awbNo: string
+): StandardizedTrackingResponse {
+  const stts = Array.isArray(raw.stts) ? raw.stts : [];
+  const stt = pickSttItem(stts, awbNo);
+  const history = Array.isArray(stt.history) ? stt.history : [];
+  const sortedNewest = sortHistoryNewestFirst(history);
+  const sortedOldest = sortHistoryOldestFirst(history);
+  const latest = sortedNewest[0];
+  const firstEvent = sortedOldest[0];
+  const podEvent = findPodHistory(history) ?? latest;
   const latestIso = toIso(latest?.datetime);
+  const firstIso = toIso(firstEvent?.datetime);
+  const podIso = toIso(podEvent?.datetime);
+
+  const shippingCost =
+    stt.chargeable_total_tariff ??
+    latestTariffFromHistory(history) ??
+    latest?.total_tariff ??
+    null;
+
+  const insuranceCost = latestInsuranceFromHistory(history);
+
+  const currentDescription =
+    latest?.remarks ||
+    stt.current_status ||
+    stt.status_code ||
+    null;
 
   return {
     success: true,
@@ -85,21 +217,21 @@ export function transformLionTrackingResponse(
     order_info: {
       reference_no: stt.shipment_id || "",
       vendor: "lion",
-      awb_no: stt.stt_no || awbNo,
-      status: stt.current_status || stt.status_code || "UNKNOWN",
-      created_at: latestIso || new Date().toISOString(),
+      awb_no: stt.stt_no || stt.root_stt_number || awbNo,
+      status: stt.current_status || stt.status_code || latest?.current_status || "UNKNOWN",
+      created_at: firstIso || latestIso || new Date().toISOString(),
       user_id: 0,
     },
     tracking_data: {
       vendor: "lion",
       vendor_name: "Lion Parcel",
       reference_no: stt.shipment_id || null,
-      awb_no: stt.stt_no || awbNo,
-      waybill_no: stt.stt_no || awbNo,
+      awb_no: stt.stt_no || stt.root_stt_number || awbNo,
+      waybill_no: stt.stt_no || stt.root_stt_number || awbNo,
       current_status: {
-        code: latest?.status_code || stt.status_code || null,
-        status: latest?.current_status || stt.current_status || null,
-        description: latest?.remarks || null,
+        code: latest?.status_code || stt.status_code || stt.current_status || null,
+        status: latest?.current_status || stt.current_status || stt.status_code || null,
+        description: currentDescription,
         timestamp: latestIso,
         datetime: latestIso,
       },
@@ -110,14 +242,14 @@ export function transformLionTrackingResponse(
         weight_unit: "kg",
         pieces: stt.pieces ?? 0,
         koli: stt.pieces ?? 0,
-        service_fee: null,
-        shipping_cost: latest?.total_tariff ?? null,
+        service_fee: stt.chargeable_total_tariff_exc_cod_fee ?? null,
+        shipping_cost: shippingCost,
         cod_value: 0,
-        insurance_cost: 0,
-        total_amount: latest?.total_tariff ?? null,
+        insurance_cost: insuranceCost,
+        total_amount: shippingCost,
         booking_id: stt.shipment_id || null,
         invoice_no: null,
-        shipped_date: latestIso,
+        shipped_date: firstIso,
         item_name: stt.product_type || null,
       },
       sender: {
@@ -125,7 +257,7 @@ export function transformLionTrackingResponse(
         phone: null,
         address: stt.origin || null,
         postcode: null,
-        city: null,
+        city: stt.origin || null,
         province: null,
         district: null,
         zipcode: null,
@@ -135,19 +267,19 @@ export function transformLionTrackingResponse(
         phone: null,
         address: stt.destination || null,
         postcode: null,
-        city: null,
+        city: stt.destination || null,
         province: null,
         district: null,
         zipcode: null,
         actual_receiver:
-          latest?.received_by || latest?.proof?.name
+          podEvent?.received_by || podEvent?.proof?.name
             ? {
-                name: latest?.received_by || latest?.proof?.name || "",
-                relationship: latest?.proof?.relation || null,
+                name: podEvent?.received_by || podEvent?.proof?.name || "",
+                relationship: podEvent?.proof?.relation || null,
               }
             : null,
       },
-      tracking_history: sortedHistory.map((h, idx) => ({
+      tracking_history: sortedOldest.map((h, idx) => ({
         sequence: idx + 1,
         timestamp: toIso(h.datetime),
         datetime: toIso(h.datetime),
@@ -190,24 +322,31 @@ export function transformLionTrackingResponse(
       delivery: {
         estimated_delivery: null,
         delivered_at:
-          latest?.status_code === "POD" ? toIso(latest.datetime) : null,
-        delivered_to: latest?.received_by || latest?.proof?.name || null,
-        delivery_relationship: latest?.proof?.relation || null,
-        pod_status_code: latest?.status_code === "POD" ? "POD" : null,
+          podEvent?.status_code === "POD" || podEvent?.current_status === "POD"
+            ? podIso
+            : null,
+        delivered_to: podEvent?.received_by || podEvent?.proof?.name || null,
+        delivery_relationship: podEvent?.proof?.relation || null,
+        pod_status_code:
+          podEvent?.status_code === "POD" ? "POD" : podEvent?.status_code || null,
         pod_status_name:
-          latest?.status_code === "POD" ? latest.current_status || "POD" : null,
+          podEvent?.status_code === "POD"
+            ? podEvent.current_status || "POD"
+            : null,
         proof_of_delivery: {
           signature_url:
-            (Array.isArray(latest?.proof?.attachment_signed) &&
-              latest?.proof?.attachment_signed?.[0]) ||
+            (Array.isArray(podEvent?.proof?.attachment_signed) &&
+              podEvent?.proof?.attachment_signed?.[0]) ||
             null,
           photo_url:
-            (Array.isArray(latest?.attachment) && latest?.attachment?.[0]) ||
+            (Array.isArray(podEvent?.attachment) && podEvent?.attachment?.[0]) ||
             null,
-          signature_pod: Array.isArray(latest?.proof?.attachment_signed)
-            ? latest?.proof?.attachment_signed || []
+          signature_pod: Array.isArray(podEvent?.proof?.attachment_signed)
+            ? podEvent?.proof?.attachment_signed || []
             : [],
-          photo_pod: Array.isArray(latest?.attachment) ? latest?.attachment || [] : [],
+          photo_pod: Array.isArray(podEvent?.attachment)
+            ? podEvent?.attachment || []
+            : [],
         },
       },
       driver_info: {
@@ -217,11 +356,49 @@ export function transformLionTrackingResponse(
           photo: null,
         },
         delivery_driver: {
-          name: latest?.courier_name || null,
+          name: podEvent?.courier_name || latest?.courier_name || null,
           phone: null,
           photo: null,
         },
       },
     },
   };
+}
+
+export function transformLionBeTrackingWrapper(
+  apiResponse: LionBeTrackingWrapper,
+  awbNo: string
+): StandardizedTrackingResponse {
+  const lionRaw = apiResponse.tracking_data.data;
+  const resi =
+    lionRaw.stts?.[0]?.stt_no ||
+    lionRaw.stts?.[0]?.root_stt_number ||
+    awbNo;
+  const result = transformLionTrackingResponse(lionRaw, resi);
+
+  result.success = apiResponse.success !== false;
+  result.vendor = "lion";
+  result.tracking_data.vendor = "lion";
+
+  const ref =
+    apiResponse.tracking_data.reference_no ||
+    apiResponse.order_info?.reference_no ||
+    result.tracking_data.reference_no;
+  if (ref) {
+    result.tracking_data.reference_no = ref;
+  }
+
+  const oi = apiResponse.order_info;
+  if (oi) {
+    result.order_info = {
+      reference_no: String(oi.reference_no ?? ref ?? result.order_info.reference_no),
+      vendor: String(oi.vendor ?? "LION"),
+      awb_no: result.tracking_data.awb_no ?? oi.awb_no ?? resi,
+      status: String(oi.status ?? result.order_info.status),
+      created_at: String(oi.created_at ?? result.order_info.created_at),
+      user_id: Number(oi.user_id ?? 0),
+    };
+  }
+
+  return result;
 }
