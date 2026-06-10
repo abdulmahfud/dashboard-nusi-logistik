@@ -32,6 +32,7 @@ import {
   isLionRawResponse,
   isLionBeTrackingWrapper,
   transformLionBeTrackingWrapper,
+  transformAdminLionTrackingResponse,
   unwrapLionTrackingPayload,
   type LionTrackingResponse,
 } from "./lionTrackingTransform";
@@ -144,7 +145,15 @@ function isFullyStandardizedTrackingResponse(
   const t = td as Record<string, unknown>;
   if (isPosIndonesiaRawResponse(t.data)) return false;
   if (isLionRawResponse(t.data)) return false;
-  return Array.isArray(t.tracking_history);
+  if (!Array.isArray(t.tracking_history) || t.tracking_history.length === 0) {
+    return false;
+  }
+  const cs = t.current_status;
+  if (cs && typeof cs === "object") {
+    const c = cs as Record<string, unknown>;
+    if (c.code || c.status || c.description) return true;
+  }
+  return t.tracking_history.length > 0;
 }
 
 /**
@@ -157,6 +166,12 @@ export function tryTransformVendorResponse(
   response: unknown,
   awbNo: string
 ): StandardizedTrackingResponse | null {
+  // GET /admin/tracking: { success, data: { vendor_response, standardized_response, order } }
+  const adminLion = transformAdminLionTrackingResponse(response, awbNo);
+  if (adminLion) {
+    return adminLion;
+  }
+
   // BE Pos: { success, tracking_data: { status, data: connote }, order_info }
   if (isPosIndonesiaBeTrackingWrapper(response)) {
     try {
@@ -240,6 +255,19 @@ export function normalizeTrackingResponse(
   const transformed = tryTransformVendorResponse(response, awbNo);
   if (transformed) {
     return transformed;
+  }
+
+  if (response && typeof response === "object") {
+    const nested = (response as Record<string, unknown>).data;
+    if (nested) {
+      const nestedTransformed = tryTransformVendorResponse(nested, awbNo);
+      if (nestedTransformed) {
+        return nestedTransformed;
+      }
+      if (isFullyStandardizedTrackingResponse(nested)) {
+        return nested;
+      }
+    }
   }
 
   if (isFullyStandardizedTrackingResponse(response)) {
