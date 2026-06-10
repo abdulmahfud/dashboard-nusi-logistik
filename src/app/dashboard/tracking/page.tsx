@@ -9,7 +9,11 @@ import TopNav from "@/components/top-nav";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { trackOrderByAwb } from "@/lib/apiClient";
+import { trackOrderByAwb, getLionExpeditionTracking } from "@/lib/apiClient";
+import {
+  lionTrackingNeedsExpeditionEnrich,
+  mergeLionExpeditionIntoAdminResponse,
+} from "@/lib/lionTrackingTransform";
 import { toast } from "sonner";
 import { Search, Package } from "lucide-react";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
@@ -48,13 +52,20 @@ export default function TrackingPage() {
     setLoading(true);
 
     try {
-      const response = await trackOrderByAwb(awbNumber.trim());
+      const awb = awbNumber.trim();
+      let response: unknown = await trackOrderByAwb(awb);
+
+      if (lionTrackingNeedsExpeditionEnrich(response, awb)) {
+        try {
+          const lionDetail = await getLionExpeditionTracking(awb);
+          response = mergeLionExpeditionIntoAdminResponse(response, lionDetail);
+        } catch (enrichError) {
+          console.warn("Lion expedition tracking enrich failed:", enrichError);
+        }
+      }
 
       // Normalize response (handles both standardized and raw vendor formats)
-      const normalizedResponse = normalizeTrackingResponse(
-        response,
-        awbNumber.trim()
-      );
+      const normalizedResponse = normalizeTrackingResponse(response, awb);
 
       if (normalizedResponse) {
         setResult(normalizedResponse);

@@ -89,14 +89,12 @@ export const ShipmentInfoCard: React.FC<ShipmentInfoCardProps> = ({ shipment }) 
               <p className="font-semibold">{shipment.item_name}</p>
             </div>
           )}
-          {shipment.shipping_cost !== null && (
-            <div>
-              <label className="text-sm font-medium text-gray-600">
-                Biaya Pengiriman
-              </label>
-              <p className="font-semibold">{formatCurrency(shipment.shipping_cost)}</p>
-            </div>
-          )}
+          <div>
+            <label className="text-sm font-medium text-gray-600">
+              Biaya Pengiriman
+            </label>
+            <p className="font-semibold">{formatCurrency(shipment.shipping_cost)}</p>
+          </div>
           {shipment.cod_value > 0 && (
             <div>
               <label className="text-sm font-medium text-gray-600">
@@ -113,16 +111,14 @@ export const ShipmentInfoCard: React.FC<ShipmentInfoCardProps> = ({ shipment }) 
               <p className="font-semibold">{formatCurrency(shipment.insurance_cost)}</p>
             </div>
           )}
-          {shipment.total_amount !== null && (
-            <div>
-              <label className="text-sm font-medium text-gray-600">
-                Total Biaya
-              </label>
-              <p className="font-semibold text-lg text-blue-600">
-                {formatCurrency(shipment.total_amount)}
-              </p>
-            </div>
-          )}
+          <div>
+            <label className="text-sm font-medium text-gray-600">
+              Total Biaya
+            </label>
+            <p className="font-semibold text-lg text-blue-600">
+              {formatCurrency(shipment.total_amount)}
+            </p>
+          </div>
           {shipment.booking_id && (
             <div>
               <label className="text-sm font-medium text-gray-600">

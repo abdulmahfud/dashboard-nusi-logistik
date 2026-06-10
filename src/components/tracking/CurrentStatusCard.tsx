@@ -82,12 +82,12 @@ export const CurrentStatusCard: React.FC<CurrentStatusCardProps> = ({ currentSta
             </Badge>
           </div>
         </div>
-        {currentStatus.description && (
-          <div>
-            <label className="text-sm font-medium text-gray-600">Deskripsi</label>
-            <p className="text-sm text-gray-900 mt-1">{currentStatus.description}</p>
-          </div>
-        )}
+        <div>
+          <label className="text-sm font-medium text-gray-600">Deskripsi</label>
+          <p className="text-sm text-gray-900 mt-1">
+            {currentStatus.description || currentStatus.status || "N/A"}
+          </p>
+        </div>
         {currentStatus.code && (
           <div>
             <label className="text-sm font-medium text-gray-600">Kode Status</label>

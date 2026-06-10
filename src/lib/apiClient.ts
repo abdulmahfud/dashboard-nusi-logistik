@@ -1146,6 +1146,16 @@ export const trackOrderByAwb = async (
   return res.data;
 };
 
+/** Detail tracking Lion: `vendor_response.stts[].chargeable_total_tariff` + `order.request_payload` */
+export const getLionExpeditionTracking = async (
+  awb_no: string
+): Promise<unknown> => {
+  const res = await apiClient.get("/admin/expedition/lion/tracking", {
+    params: { awb_no },
+  });
+  return res.data;
+};
+
 // ✅ Legacy function for backward compatibility (using reference_no)
 export const trackOrderByReference = async (
   reference_no: string

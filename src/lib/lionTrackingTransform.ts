@@ -119,6 +119,81 @@ type LionStandardizedTrackingInfo = {
   vendor_name?: string;
 };
 
+type LionDashboardAddress = {
+  name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  district?: string | null;
+  zip_code?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  note?: string | null;
+};
+
+type LionDashboardHistoryItem = {
+  datetime?: string | null;
+  city?: string | null;
+  status?: string | null;
+  status_code?: string | null;
+  store_name?: string | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  note?: string | null;
+  next_site?: string | null;
+  name?: string | null;
+  address?: string | null;
+  province?: string | null;
+  district?: string | null;
+};
+
+/** Format BE dashboard: `{ vendor, tracking_data: { addresses, package_info, ... }, order_info }` */
+export type LionDashboardTrackingResponse = {
+  success?: boolean;
+  vendor?: string;
+  tracking_data: {
+    awb_no?: string | null;
+    invoice_number?: string | null;
+    package_info?: {
+      item_name?: string | null;
+      weight?: number | null;
+      quantity?: number | null;
+      service_code?: string | null;
+      category?: string | null;
+      pickup_datetime?: string | null;
+      note?: string | null;
+    };
+    cost_details?: {
+      shipping_cost?: number | null;
+      cod_value?: number | null;
+      insurance_cost?: number | null;
+      total_amount?: number | null;
+      invoice_value?: number | null;
+      payment_type?: string | null;
+    };
+    addresses?: {
+      sender?: LionDashboardAddress;
+      receiver?: LionDashboardAddress;
+    };
+    tracking_history?: LionDashboardHistoryItem[];
+    estimated_times?: unknown;
+    latest_status?: string | null;
+    delivery_datetime?: string | null;
+    photo_url?: string | null;
+    signature_url?: string | null;
+    cancellation_reason?: string | null;
+    driver_info?: unknown;
+  };
+  order_info?: {
+    reference_no?: string;
+    vendor?: string;
+    awb_no?: string | null;
+    status?: string;
+    created_at?: string;
+    user_id?: number;
+  };
+};
+
 /** Response BE `/admin/tracking`: Lion di `tracking_data.data` (lihat docs/lion/tracking.md) */
 export type LionBeTrackingWrapper = {
   success?: boolean;
@@ -158,6 +233,241 @@ export function isLionRawResponse(data: unknown): data is LionTrackingResponse {
  * Ambil payload Lion dari berbagai bentuk response BE.
  */
 /** Inner `data` dari GET /admin/tracking: `{ vendor_response, standardized_response, order }` */
+/** Ambil `order` (beserta `request_payload`) dari berbagai bentuk response BE. */
+export function isLionAdminTrackingVendor(response: unknown): boolean {
+  if (!response || typeof response !== "object") return false;
+  const vendor = String(
+    (response as Record<string, unknown>).vendor ?? ""
+  ).toLowerCase();
+  return vendor === "lion";
+}
+
+/** Gabungkan `data` dari `/admin/expedition/lion/tracking` ke response `/admin/tracking`. */
+export function mergeLionExpeditionIntoAdminResponse(
+  adminResponse: unknown,
+  expeditionResponse: unknown
+): unknown {
+  if (!adminResponse || typeof adminResponse !== "object") {
+    return adminResponse;
+  }
+  if (!expeditionResponse || typeof expeditionResponse !== "object") {
+    return adminResponse;
+  }
+
+  const expData = (expeditionResponse as Record<string, unknown>).data;
+  if (!expData || typeof expData !== "object") {
+    return adminResponse;
+  }
+
+  return {
+    ...(adminResponse as Record<string, unknown>),
+    data: expData,
+  };
+}
+
+export function extractTrackingOrder(response: unknown): AdminTrackingOrder | undefined {
+  if (!response || typeof response !== "object") return undefined;
+  const root = response as Record<string, unknown>;
+
+  const inner = unwrapAdminTrackingInner(response);
+  if (inner?.order && typeof inner.order === "object") {
+    return inner.order as AdminTrackingOrder;
+  }
+
+  if (root.order && typeof root.order === "object") {
+    return root.order as AdminTrackingOrder;
+  }
+
+  const data = root.data;
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    if (d.order && typeof d.order === "object") {
+      return d.order as AdminTrackingOrder;
+    }
+  }
+
+  return undefined;
+}
+
+function positiveAmount(value: number | null | undefined): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function isLionDashboardTrackingResponse(
+  response: unknown
+): response is LionDashboardTrackingResponse {
+  if (!response || typeof response !== "object") return false;
+  const r = response as Record<string, unknown>;
+  if (!("tracking_data" in r)) return false;
+  const td = r.tracking_data;
+  if (!td || typeof td !== "object") return false;
+  const t = td as Record<string, unknown>;
+  if (isLionRawResponse(t.data)) return false;
+  return "addresses" in t && "package_info" in t;
+}
+
+function mapDashboardAddress(addr?: LionDashboardAddress) {
+  return {
+    name: addr?.name ?? null,
+    phone: addr?.phone ?? null,
+    address: addr?.address ?? null,
+    postcode: addr?.zip_code ?? null,
+    city: addr?.city ?? null,
+    province: addr?.province ?? null,
+    district: addr?.district ?? null,
+    zipcode: addr?.zip_code ?? null,
+  };
+}
+
+export function transformLionDashboardTrackingResponse(
+  apiResponse: LionDashboardTrackingResponse,
+  awbNo: string,
+  order?: AdminTrackingOrder,
+  fullResponse?: unknown
+): StandardizedTrackingResponse {
+  const td = apiResponse.tracking_data;
+  const oi = apiResponse.order_info;
+  const pkg = td.package_info;
+  const cost = td.cost_details;
+  const sender = td.addresses?.sender;
+  const receiver = td.addresses?.receiver;
+  const history = Array.isArray(td.tracking_history) ? td.tracking_history : [];
+
+  const sortedNewest = [...history].sort((a, b) => {
+    const at = new Date(a.datetime || "").getTime();
+    const bt = new Date(b.datetime || "").getTime();
+    return bt - at;
+  });
+  const sortedOldest = [...history].sort((a, b) => {
+    const at = new Date(a.datetime || "").getTime();
+    const bt = new Date(b.datetime || "").getTime();
+    return at - bt;
+  });
+  const latest = sortedNewest[0];
+  const first = sortedOldest[0];
+
+  const displayAwb =
+    oi?.awb_no ||
+    order?.awb_no ||
+    (awbNo.trim() || null) ||
+    td.awb_no ||
+    null;
+
+  const lookupKey = displayAwb || awbNo.trim() || td.awb_no || "";
+  const statusDescription =
+    latest?.note?.trim() ||
+    latest?.status?.trim() ||
+    td.latest_status ||
+    null;
+
+  const result: StandardizedTrackingResponse = {
+    success: apiResponse.success !== false,
+    vendor: String(apiResponse.vendor ?? oi?.vendor ?? "lion").toLowerCase(),
+    order_info: {
+      reference_no: oi?.reference_no || order?.reference_no || "",
+      vendor: String(oi?.vendor ?? apiResponse.vendor ?? "lion").toLowerCase(),
+      awb_no: displayAwb,
+      status: oi?.status || order?.status || td.latest_status || latest?.status || "unknown",
+      created_at: oi?.created_at || order?.created_at || toIso(first?.datetime) || new Date().toISOString(),
+      user_id: oi?.user_id ?? order?.user_id ?? 0,
+    },
+    tracking_data: {
+      vendor: String(apiResponse.vendor ?? oi?.vendor ?? "lion").toLowerCase(),
+      vendor_name: "Lion Parcel",
+      reference_no: oi?.reference_no || order?.reference_no || null,
+      awb_no: displayAwb,
+      waybill_no: td.awb_no || displayAwb,
+      current_status: {
+        code: latest?.status_code || null,
+        status: oi?.status || order?.status || td.latest_status || latest?.status || null,
+        description: statusDescription,
+        timestamp: toIso(latest?.datetime),
+        datetime: toIso(latest?.datetime),
+      },
+      shipment: {
+        service_code: pkg?.service_code || null,
+        service_name: pkg?.service_code || "Lion Parcel",
+        weight: pkg?.weight ?? null,
+        weight_unit: "kg",
+        pieces: pkg?.quantity ?? 0,
+        koli: pkg?.quantity ?? 0,
+        service_fee: null,
+        shipping_cost: null,
+        cod_value: cost?.cod_value ?? 0,
+        insurance_cost: cost?.insurance_cost ?? 0,
+        total_amount: null,
+        booking_id: displayAwb,
+        invoice_no: td.invoice_number || null,
+        shipped_date: toIso(first?.datetime),
+        item_name: pkg?.item_name || null,
+      },
+      sender: mapDashboardAddress(sender),
+      receiver: {
+        ...mapDashboardAddress(receiver),
+        actual_receiver: null,
+      },
+      tracking_history: sortedOldest.map((h, idx) => ({
+        sequence: idx + 1,
+        timestamp: toIso(h.datetime),
+        datetime: toIso(h.datetime),
+        date_time: h.datetime || null,
+        status_code: h.status_code || null,
+        status: h.status || null,
+        status_name: h.status || h.status_code || null,
+        description: h.status || h.note || null,
+        message: h.note || h.status || null,
+        location: {
+          hub_name: h.store_name || null,
+          city: h.city || null,
+          city_name: h.city || null,
+          province: h.province || null,
+          district: h.district || null,
+          branch_name: h.store_name || null,
+          store_name: h.store_name || null,
+          next_site: h.next_site || null,
+          next_branch: null,
+        },
+        driver: {
+          name: h.driver_name || null,
+          phone: h.driver_phone || null,
+          photo: null,
+        },
+        recipient: h.name ? { name: h.name, relationship: null } : null,
+        note: h.note || null,
+        image_url: null,
+      })),
+      delivery: {
+        estimated_delivery: null,
+        delivered_at: toIso(td.delivery_datetime),
+        delivered_to: null,
+        delivery_relationship: null,
+        pod_status_code: null,
+        pod_status_name: null,
+        proof_of_delivery: {
+          signature_url: td.signature_url || null,
+          photo_url: td.photo_url || null,
+          signature_pod: td.signature_url ? [td.signature_url] : [],
+          photo_pod: td.photo_url ? [td.photo_url] : [],
+        },
+      },
+      driver_info: {
+        pickup_driver: { name: null, phone: null, photo: null },
+        delivery_driver: { name: null, phone: null, photo: null },
+      },
+    },
+  };
+
+  mergeLionOrderContext(result, order);
+
+  if (!result.tracking_data.current_status.description && statusDescription) {
+    result.tracking_data.current_status.description = statusDescription;
+  }
+
+  applyLionShipmentTariff(result, fullResponse ?? apiResponse, lookupKey);
+  return result;
+}
+
 export function unwrapAdminTrackingInner(
   response: unknown
 ): Record<string, unknown> | null {
@@ -281,7 +591,6 @@ function mergeLionOrderContext(
   }
   if (order.status) {
     result.order_info.status = order.status;
-    result.tracking_data.current_status.status = order.status;
   }
   if (order.created_at) {
     result.order_info.created_at = order.created_at;
@@ -446,6 +755,7 @@ export function transformAdminLionTrackingResponse(
   if (isLionRawResponse(inner.vendor_response)) {
     const result = transformLionTrackingResponse(inner.vendor_response, lookupKey);
     mergeLionOrderContext(result, order);
+    applyLionShipmentTariff(result, response, lookupKey);
     if (response && typeof response === "object" && "success" in response) {
       result.success = (response as { success?: boolean }).success !== false;
     }
@@ -460,6 +770,7 @@ export function transformAdminLionTrackingResponse(
       lookupKey
     );
     if (fromStandardized) {
+      applyLionShipmentTariff(fromStandardized, response, lookupKey);
       if (response && typeof response === "object" && "success" in response) {
         fromStandardized.success =
           (response as { success?: boolean }).success !== false;
@@ -507,6 +818,79 @@ function latestTariffFromHistory(history: LionHistoryItem[]): number | null {
     if (Number.isFinite(t) && t > 0) return t;
   }
   return null;
+}
+
+/** Ambil `chargeable_total_tariff` dari `vendor_response.stts` (atau history). */
+export function extractLionChargeableTariff(
+  response: unknown,
+  awbNo: string
+): number | null {
+  try {
+    const payload = unwrapLionTrackingPayload(response);
+    if (!payload?.stts?.length) return null;
+
+    const order = extractTrackingOrder(response);
+    const lookupKey =
+      awbNo.trim() || order?.awb_no || order?.reference_no || "";
+    const stt = pickSttItem(payload.stts, lookupKey);
+
+    const direct = positiveAmount(
+      stt.chargeable_total_tariff ?? stt.chargeable_total_tariff_exc_cod_fee ?? undefined
+    );
+    if (direct != null) return direct;
+
+    const history = Array.isArray(stt.history) ? stt.history : [];
+    return latestTariffFromHistory(history);
+  } catch {
+    return null;
+  }
+}
+
+function resolveDashboardCostDetails(response: unknown): number | null {
+  if (!response || typeof response !== "object") return null;
+  const td = (response as Record<string, unknown>).tracking_data;
+  if (!td || typeof td !== "object") return null;
+  const cost = (td as Record<string, unknown>).cost_details;
+  if (!cost || typeof cost !== "object") return null;
+  const c = cost as Record<string, number | null | undefined>;
+  return positiveAmount(c.shipping_cost) ?? positiveAmount(c.total_amount);
+}
+
+export function lionTrackingNeedsExpeditionEnrich(
+  response: unknown,
+  awbNo: string
+): boolean {
+  if (!isLionAdminTrackingVendor(response)) return false;
+  return (
+    extractLionChargeableTariff(response, awbNo) == null ||
+    !extractTrackingOrder(response)
+  );
+}
+
+function applyLionShipmentTariff(
+  result: StandardizedTrackingResponse,
+  response: unknown,
+  awbNo: string
+): void {
+  try {
+    if (positiveAmount(result.tracking_data.shipment.shipping_cost) != null) {
+      if (positiveAmount(result.tracking_data.shipment.total_amount) == null) {
+        result.tracking_data.shipment.total_amount =
+          result.tracking_data.shipment.shipping_cost;
+      }
+      return;
+    }
+
+    const tariff =
+      extractLionChargeableTariff(response, awbNo) ??
+      resolveDashboardCostDetails(response);
+    if (tariff == null) return;
+
+    result.tracking_data.shipment.shipping_cost = tariff;
+    result.tracking_data.shipment.total_amount = tariff;
+  } catch {
+    // Jangan gagalkan seluruh transform jika tariff gagal di-resolve
+  }
 }
 
 function latestInsuranceFromHistory(history: LionHistoryItem[]): number {

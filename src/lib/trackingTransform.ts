@@ -33,6 +33,9 @@ import {
   isLionBeTrackingWrapper,
   transformLionBeTrackingWrapper,
   transformAdminLionTrackingResponse,
+  isLionDashboardTrackingResponse,
+  transformLionDashboardTrackingResponse,
+  extractTrackingOrder,
   unwrapLionTrackingPayload,
   type LionTrackingResponse,
 } from "./lionTrackingTransform";
@@ -145,7 +148,11 @@ function isFullyStandardizedTrackingResponse(
   const t = td as Record<string, unknown>;
   if (isPosIndonesiaRawResponse(t.data)) return false;
   if (isLionRawResponse(t.data)) return false;
+  if (isLionDashboardTrackingResponse(response)) return false;
   if (!Array.isArray(t.tracking_history) || t.tracking_history.length === 0) {
+    return false;
+  }
+  if (!("sender" in t) || !("current_status" in t) || !("shipment" in t)) {
     return false;
   }
   const cs = t.current_status;
@@ -166,6 +173,16 @@ export function tryTransformVendorResponse(
   response: unknown,
   awbNo: string
 ): StandardizedTrackingResponse | null {
+  // BE Lion dashboard: { vendor, tracking_data: { addresses, package_info, ... }, order_info }
+  if (isLionDashboardTrackingResponse(response)) {
+    try {
+      const order = extractTrackingOrder(response);
+      return transformLionDashboardTrackingResponse(response, awbNo, order, response);
+    } catch (error) {
+      console.error("Error transforming Lion dashboard tracking response:", error);
+    }
+  }
+
   // GET /admin/tracking: { success, data: { vendor_response, standardized_response, order } }
   const adminLion = transformAdminLionTrackingResponse(response, awbNo);
   if (adminLion) {
