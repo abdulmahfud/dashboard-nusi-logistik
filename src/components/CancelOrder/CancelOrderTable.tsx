@@ -3,13 +3,16 @@
 import { useState, useEffect } from "react";
 import {
   ColumnDef,
+  FilterFn,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import {
   RefreshCw,
+  Search,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +56,21 @@ interface CancelOrderData {
   receiver_name: string;
 }
 
+const referenceOrAwbFilter: FilterFn<CancelOrderData> = (
+  row,
+  _columnId,
+  filterValue
+) => {
+  const query = String(filterValue ?? "")
+    .trim()
+    .toLowerCase();
+  if (!query) return true;
+
+  const referenceNo = String(row.original.reference_no ?? "").toLowerCase();
+  const awbNo = String(row.original.awb_no ?? "").toLowerCase();
+  return referenceNo.includes(query) || awbNo.includes(query);
+};
+
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   belum_proses: "bg-orange-100 text-orange-800",
@@ -65,6 +84,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function CancelOrderTable() {
   const [data, setData] = useState<CancelOrderData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [globalFilter, setGlobalFilter] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<CancelOrderData | null>(
     null
   );
@@ -259,7 +279,13 @@ export default function CancelOrderTable() {
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    globalFilterFn: referenceOrAwbFilter,
+    state: {
+      globalFilter,
+    },
+    onGlobalFilterChange: setGlobalFilter,
     initialState: {
       pagination: {
         pageSize: 10,
@@ -279,19 +305,34 @@ export default function CancelOrderTable() {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            {data.length} orders dapat dibatalkan
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Cari REFERENCE NO atau AWB NO..."
+              value={globalFilter}
+              onChange={(e) => {
+                setGlobalFilter(e.target.value);
+                table.setPageIndex(0);
+              }}
+              className="pl-9"
+            />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchOrders}
-            className="gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            <div className="text-sm text-gray-600">
+              {table.getFilteredRowModel().rows.length} dari {data.length}{" "}
+              orders dapat dibatalkan
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchOrders}
+              className="gap-2 shrink-0"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <div className="rounded-md border">
@@ -332,7 +373,9 @@ export default function CancelOrderTable() {
                     colSpan={columns.length}
                     className="h-24 text-center"
                   >
-                    Tidak ada data pesanan yang dapat dibatalkan.
+                    {globalFilter.trim()
+                      ? "Tidak ada pesanan yang cocok dengan REFERENCE NO / AWB NO."
+                      : "Tidak ada data pesanan yang dapat dibatalkan."}
                   </TableCell>
                 </TableRow>
               )}
