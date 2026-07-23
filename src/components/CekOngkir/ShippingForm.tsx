@@ -23,6 +23,7 @@ import {
   getIdexpressShipmentCost,
   getAnterajaShipmentCost,
   getNinjaShipmentCost,
+  getJntCargoShipmentCost,
   searchAddressNew,
 } from "@/lib/apiClient";
 import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
@@ -274,6 +275,7 @@ export default function ShippingForm({
         idexpressResult,
         anterajaResult,
         ninjaResult,
+        jntCargoResult,
       ] = await Promise.allSettled([
         allowedVendors.has("jntexpress")
           ? getJntExpressShipmentCost(shipmentPayload)
@@ -302,6 +304,9 @@ export default function ShippingForm({
         allowedVendors.has("ninja")
           ? getNinjaShipmentCost(shipmentPayload)
           : Promise.resolve(null),
+        allowedVendors.has("jntcargo")
+          ? getJntCargoShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
       ]);
 
       notifyShipmentCost422Rejections([
@@ -314,6 +319,7 @@ export default function ShippingForm({
         { label: "ID Express", settled: idexpressResult },
         { label: "Anteraja", settled: anterajaResult },
         { label: "Ninja", settled: ninjaResult },
+        { label: "J&T Cargo", settled: jntCargoResult },
       ]);
 
       // Combine results from all APIs
@@ -336,6 +342,8 @@ export default function ShippingForm({
           anteraja:
             anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
           ninja: ninjaResult.status === "fulfilled" ? ninjaResult.value : null,
+          jntcargo:
+            jntCargoResult.status === "fulfilled" ? jntCargoResult.value : null,
         },
       };
 

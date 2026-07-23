@@ -575,6 +575,45 @@ export const getNinjaShipmentCost = async ({
   return res.data;
 };
 
+// ✅ Get J&T Cargo shipment cost
+export const getJntCargoShipmentCost = async ({
+  origin_province,
+  origin_regencie,
+  origin_district,
+  destination_province,
+  destination_regencie,
+  destination_district,
+  weight,
+}: {
+  origin_province: string;
+  origin_regencie: string;
+  origin_district: string;
+  destination_province: string;
+  destination_regencie: string;
+  destination_district: string;
+  weight: string | number;
+}) => {
+  // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
+  const requestPayload = {
+    origin_province,
+    origin_regencie,
+    origin_district,
+    destination_province,
+    destination_regencie,
+    destination_district,
+    weight: weight.toString(),
+  };
+
+  const res = await apiClient.post(
+    "/admin/expedition/jntcargo/shipment_cost",
+    requestPayload,
+    {
+      timeout: SHIPMENT_COST_TIMEOUT,
+    }
+  );
+  return res.data;
+};
+
 // ✅ Receiver CRUD operations
 export const getReceiversData = async (
   search?: string,

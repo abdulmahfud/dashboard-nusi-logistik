@@ -297,6 +297,41 @@ type NinjaApiResult = {
   };
 };
 
+type JntCargoServiceItem = {
+  service_name?: string;
+  service_code?: string;
+  service_type?: string;
+  available?: boolean;
+  error?: string;
+  cost?: number | string;
+  price?: number | string;
+  total_cost?: number | string;
+  shipping_cost?: number | string;
+  final_cost?: number | string;
+  rate?: number | string;
+  etd?: string;
+  sla?: string;
+};
+
+type JntCargoApiResult = {
+  success?: boolean;
+  status: string;
+  message?: string;
+  data?: {
+    vendor?: string;
+    origin?: { province?: string; city?: string; district?: string };
+    destination?: { province?: string; city?: string; district?: string };
+    weight?: string;
+    services?: JntCargoServiceItem[];
+    coverage_check?: {
+      origin_covered?: boolean;
+      destination_covered?: boolean;
+      service_available?: boolean;
+    };
+  };
+  costs?: JntCargoServiceItem[];
+};
+
 type CombinedApiResult = {
   status: string;
   data: {
@@ -309,6 +344,7 @@ type CombinedApiResult = {
     idexpress: IdexpressApiResult | null;
     anteraja: AnterajaApiResult | null;
     ninja: NinjaApiResult | null;
+    jntcargo: JntCargoApiResult | null;
   };
 };
 
@@ -638,6 +674,50 @@ export default function ShippingResults({
         }
       }
 
+      // Process J&T Cargo results
+      if (
+        combinedData.jntcargo &&
+        combinedData.jntcargo.status === "success"
+      ) {
+        const jntCargoServices =
+          combinedData.jntcargo.costs ??
+          combinedData.jntcargo.data?.services ??
+          [];
+
+        jntCargoServices.forEach((service) => {
+          if (!service.available) return;
+
+          const priceValue = Number(
+            service.cost ??
+              service.price ??
+              service.total_cost ??
+              service.shipping_cost ??
+              service.final_cost ??
+              service.rate ??
+              0
+          );
+          if (!priceValue || priceValue <= 0) return;
+
+          const serviceLabel =
+            service.service_name || service.service_type || "Reguler";
+
+          options.push({
+            id: `jntcargo-${(
+              service.service_code ||
+              service.service_type ||
+              "reguler"
+            ).toLowerCase()}`,
+            name: `J&T Cargo ${serviceLabel}`.trim(),
+            logo: "/images/jnt-cargo.png",
+            price: `Rp${priceValue.toLocaleString("id-ID")}`,
+            duration: service.sla || service.etd || "-",
+            available: true,
+            recommended: false,
+            tags: [{ label: "J&T Cargo", type: "info" }],
+          });
+        });
+      }
+
       return options;
     }
 
@@ -729,6 +809,8 @@ export default function ShippingResults({
         vendor = "ANTERAJA";
       } else if (option.id.startsWith("ninja")) {
         vendor = "NINJA";
+      } else if (option.id.startsWith("jntcargo")) {
+        vendor = "JNTCARGO";
       }
 
       // Get discount for the selected vendor
