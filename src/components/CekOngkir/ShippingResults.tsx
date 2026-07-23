@@ -685,7 +685,32 @@ export default function ShippingResults({
           [];
 
         jntCargoServices.forEach((service) => {
-          if (!service.available) return;
+          const serviceLabel =
+            service.service_name || service.service_type || "Reguler";
+          const serviceId = `jntcargo-${(
+            service.service_code ||
+            service.service_type ||
+            "reguler"
+          ).toLowerCase()}`;
+
+          if (!service.available) {
+            options.push({
+              id: serviceId,
+              name: `J&T Cargo ${serviceLabel}`.trim(),
+              logo: "/images/jnt-cargo.png",
+              price: "Tidak tersedia",
+              duration: "-",
+              available: false,
+              recommended: false,
+              tags: [
+                {
+                  label: service.error || "Layanan tidak tersedia",
+                  type: "warning",
+                },
+              ],
+            });
+            return;
+          }
 
           const priceValue = Number(
             service.cost ??
@@ -698,15 +723,8 @@ export default function ShippingResults({
           );
           if (!priceValue || priceValue <= 0) return;
 
-          const serviceLabel =
-            service.service_name || service.service_type || "Reguler";
-
           options.push({
-            id: `jntcargo-${(
-              service.service_code ||
-              service.service_type ||
-              "reguler"
-            ).toLowerCase()}`,
+            id: serviceId,
             name: `J&T Cargo ${serviceLabel}`.trim(),
             logo: "/images/jnt-cargo.png",
             price: `Rp${priceValue.toLocaleString("id-ID")}`,
@@ -847,10 +865,12 @@ export default function ShippingResults({
   // Auto-fetch discounts when shipping options change
   useEffect(() => {
     if (shippingOptions.length > 0) {
-      // Fetch discounts for all options
-      shippingOptions.forEach((option) => {
-        fetchDiscountForOption(option);
-      });
+      // Fetch discounts for all options yang benar-benar tersedia
+      shippingOptions
+        .filter((option) => option.available !== false)
+        .forEach((option) => {
+          fetchDiscountForOption(option);
+        });
     }
   }, [shippingOptions]);
 

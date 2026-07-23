@@ -32,6 +32,7 @@ export function ShippingCard({
 }: ShippingCardProps) {
   // Use either discountInfo or discount (for backward compatibility)
   const activeDiscount = discountInfo || discount;
+  const isUnavailable = option.available === false;
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -43,9 +44,11 @@ export function ShippingCard({
     <div
       className={cn(
         "shipping-card animate-fade-in flex items-center justify-between group",
-        isSelected && "shipping-card-active"
+        isSelected && "shipping-card-active",
+        isUnavailable &&
+          "opacity-60 cursor-not-allowed hover:shadow-none hover:border-gray-200"
       )}
-      onClick={onClick}
+      onClick={isUnavailable ? undefined : onClick}
     >
       <div className="flex items-center space-x-3">
         <div className="w-12 h-12 flex items-center justify-center bg-white rounded-md border overflow-hidden">
@@ -75,7 +78,12 @@ export function ShippingCard({
                 </span>
               </div>
             ) : (
-              <span className="text-purple-700 font-medium text-sm">
+              <span
+                className={cn(
+                  "font-medium text-sm",
+                  isUnavailable ? "text-gray-400" : "text-purple-700"
+                )}
+              >
                 {option.price}
               </span>
             )}
