@@ -31,6 +31,9 @@ import {
   transformJntCargoTrackingResponse,
   isJntCargoRawResponse,
   type JntCargoTrackingResponse,
+  transformJntCargoBeTrackingResponse,
+  isJntCargoBeTrackingWrapper,
+  type JntCargoBeTrackingResponse,
 } from "./jntCargoTrackingTransform";
 import {
   transformLionTrackingResponse,
@@ -82,6 +85,16 @@ const vendorTransformers: VendorTransformer[] = [
     detect: isJneRawResponse,
     transform: (data, awbNo) =>
       transformJneTrackingResponse(data as JneTrackingResponse, awbNo),
+  },
+  {
+    vendor: "jntcargo",
+    vendorName: "J&T Cargo",
+    detect: isJntCargoBeTrackingWrapper,
+    transform: (data, awbNo) =>
+      transformJntCargoBeTrackingResponse(
+        data as JntCargoBeTrackingResponse,
+        awbNo
+      ),
   },
   {
     vendor: "jntcargo",
