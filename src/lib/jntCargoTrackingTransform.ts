@@ -24,12 +24,30 @@ type JntCargoHistoryEntry = {
   pic_url?: string[] | null;
 };
 
+type JntCargoPartyInfo = {
+  name?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  province?: string | null;
+  regency?: string | null;
+  district?: string | null;
+  postal_code?: string | null;
+};
+
 type JntCargoNormalizedData = {
   bill_code?: string | null;
   vendor?: string | null;
   current_status?: string | null;
   current_status_description?: string | null;
   delivery_status?: string | null;
+  shipping_cost?: number | string | null;
+  total_cost?: number | string | null;
+  insurance_cost?: number | string | null;
+  weight?: number | string | null;
+  sender_city?: string | null;
+  receiver_city?: string | null;
+  sender?: JntCargoPartyInfo | null;
+  receiver?: JntCargoPartyInfo | null;
   tracking_history?: JntCargoHistoryEntry[] | null;
 };
 
@@ -97,6 +115,12 @@ function findPodEntry(
   );
 }
 
+function toNumber(value: number | string | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function transformJntCargoBeTrackingResponse(
   response: JntCargoBeTrackingResponse,
   awbNo: string
@@ -151,39 +175,39 @@ export function transformJntCargoBeTrackingResponse(
       shipment: {
         service_code: null,
         service_name: "J&T Cargo",
-        weight: null,
+        weight: toNumber(data.weight),
         weight_unit: "kg",
         pieces: 0,
         koli: 0,
         service_fee: null,
-        shipping_cost: null,
+        shipping_cost: toNumber(data.shipping_cost),
         cod_value: 0,
-        insurance_cost: 0,
-        total_amount: null,
+        insurance_cost: toNumber(data.insurance_cost) ?? 0,
+        total_amount: toNumber(data.total_cost) ?? toNumber(data.shipping_cost),
         booking_id: displayAwb,
         invoice_no: null,
         shipped_date: toIso(first?.datetime),
         item_name: null,
       },
       sender: {
-        name: null,
-        phone: null,
-        address: null,
-        postcode: null,
-        city: null,
-        province: null,
-        district: null,
-        zipcode: null,
+        name: data.sender?.name || null,
+        phone: data.sender?.phone || null,
+        address: data.sender?.address || null,
+        postcode: data.sender?.postal_code || null,
+        city: data.sender?.regency || data.sender_city || null,
+        province: data.sender?.province || null,
+        district: data.sender?.district || null,
+        zipcode: data.sender?.postal_code || null,
       },
       receiver: {
-        name: null,
-        phone: null,
-        address: null,
-        postcode: null,
-        city: null,
-        province: null,
-        district: null,
-        zipcode: null,
+        name: data.receiver?.name || null,
+        phone: data.receiver?.phone || null,
+        address: data.receiver?.address || null,
+        postcode: data.receiver?.postal_code || null,
+        city: data.receiver?.regency || data.receiver_city || null,
+        province: data.receiver?.province || null,
+        district: data.receiver?.district || null,
+        zipcode: data.receiver?.postal_code || null,
         actual_receiver: null,
       },
       tracking_history: sortedOldest.map((e, idx) => ({
@@ -221,7 +245,7 @@ export function transformJntCargoBeTrackingResponse(
         delivered_at: isDelivered
           ? toIso(podEntry?.datetime ?? latest?.datetime)
           : null,
-        delivered_to: null,
+        delivered_to: isDelivered ? data.receiver?.name || null : null,
         delivery_relationship: null,
         pod_status_code: podEntry ? "POD" : null,
         pod_status_name: podEntry ? podEntry.scan_type || "POD" : null,
