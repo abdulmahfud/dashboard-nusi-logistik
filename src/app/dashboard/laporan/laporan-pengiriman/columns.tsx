@@ -20,10 +20,11 @@ export const columns: ColumnDef<DeliveryReport>[] = [
     accessorKey: "shipmentNo",
     header: "NO RESI / AWB",
   },
-  {
-    accessorKey: "packageType",
-    header: "JENIS PAKET",
-  },
+  // Kolom "JENIS PAKET" disembunyikan sementara
+  // {
+  //   accessorKey: "packageType",
+  //   header: "JENIS PAKET",
+  // },
   {
     accessorKey: "recipient",
     header: "PENERIMA",
