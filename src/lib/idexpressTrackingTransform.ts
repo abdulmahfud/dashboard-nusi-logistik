@@ -169,15 +169,28 @@ function normalizeLegacyIdexpressData(legacy: IdexpressLegacyData): IdexpressDat
 }
 
 /**
- * Bentuk BE `/admin/tracking` untuk vendor ID Express (real capture):
- * `{ success, data: { status, message?, data: { basicInfo, historys, itemInfo, senderInfo, recipientInfo } } }`
+ * Bentuk BE `/admin/tracking` untuk vendor ID Express (real capture, GET /admin/tracking?awb_no=):
+ * `{ success, vendor, tracking_data: { status, message, data: { basicInfo, historys, ... },
+ *   raw_response, reference_no }, order_info }` — sama seperti pola JNTCARGO
+ * (`jntCargoTrackingTransform.ts`), BUKAN `{ success, data: { status, data: {...} } }`.
  */
 export type IdexpressBeTrackingResponse = {
   success?: boolean;
-  data: {
+  vendor?: string;
+  tracking_data: {
     status?: string;
     message?: string;
     data: IdexpressData;
+    raw_response?: unknown;
+    reference_no?: string;
+  };
+  order_info?: {
+    reference_no?: string;
+    vendor?: string;
+    awb_no?: string | null;
+    status?: string;
+    created_at?: string;
+    user_id?: number;
   };
 };
 
@@ -186,10 +199,10 @@ export function isIdexpressBeTrackingWrapper(
 ): response is IdexpressBeTrackingResponse {
   if (!response || typeof response !== "object") return false;
   const r = response as Record<string, unknown>;
-  const outer = r.data;
-  if (!outer || typeof outer !== "object") return false;
-  const o = outer as Record<string, unknown>;
-  const inner = o.data;
+  const td = r.tracking_data;
+  if (!td || typeof td !== "object") return false;
+  const t = td as Record<string, unknown>;
+  const inner = t.data;
   if (!inner || typeof inner !== "object") return false;
   return "basicInfo" in (inner as Record<string, unknown>);
 }
@@ -410,10 +423,44 @@ export function transformIdexpressBeTrackingResponse(
   raw: IdexpressBeTrackingResponse,
   awbNo: string
 ): StandardizedTrackingResponse {
-  return transformIdexpressData(
-    raw.data.data,
+  const result = transformIdexpressData(
+    raw.tracking_data.data,
     awbNo,
     raw.success !== false,
-    raw.data.message || raw.data.status
+    raw.tracking_data.message || raw.tracking_data.status
   );
+
+  const oi = raw.order_info;
+  const refNo = oi?.reference_no || raw.tracking_data.reference_no;
+  if (refNo) {
+    result.order_info.reference_no = refNo;
+    result.tracking_data.reference_no = refNo;
+  }
+  if (oi?.awb_no) {
+    result.order_info.awb_no = oi.awb_no;
+    result.tracking_data.awb_no = oi.awb_no;
+    result.tracking_data.waybill_no = oi.awb_no;
+  }
+  // `order_info.status` adalah slug status kanonik aplikasi (mis. "sampai_tujuan") —
+  // pakai apa adanya (juga isi ke tracking_data.current_status.status supaya
+  // CurrentStatusCard bisa mewarnai badge dengan benar), sama seperti
+  // jntCargoTrackingTransform.ts. Description tetap pakai teks asli dari history.
+  if (oi?.status) {
+    result.order_info.status = oi.status;
+    result.tracking_data.current_status.status = oi.status;
+  }
+  if (oi?.created_at) {
+    result.order_info.created_at = oi.created_at;
+  }
+  if (oi?.user_id != null) {
+    result.order_info.user_id = oi.user_id;
+  }
+  if (oi?.vendor || raw.vendor) {
+    const v = String(oi?.vendor ?? raw.vendor).toLowerCase();
+    result.order_info.vendor = v;
+    result.vendor = v;
+    result.tracking_data.vendor = v;
+  }
+
+  return result;
 }
