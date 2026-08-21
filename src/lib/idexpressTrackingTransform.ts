@@ -3,11 +3,16 @@ import type { StandardizedTrackingResponse } from "@/types/tracking";
 type IdexpressHistoryItem = {
   waybillNo?: string;
   operationType?: string | null;
+  /** Unix epoch dalam DETIK (bukan ms) — lihat docs/idexpress. */
   operationTime?: number | null;
   courierName?: string | null;
   currentBranch?: string | null;
   nextBranchName?: string | null;
+  description?: string | null;
+  problemCode?: string | null;
   proofOfStatus?: string | null;
+  /** Beberapa foto POD (mis. saat "POD Entry"), selain `proofOfStatus` tunggal. */
+  completeProofOfStatus?: string[] | null;
   relation?: string | null;
   signer?: string | null;
 };
@@ -16,6 +21,9 @@ type IdexpressData = {
   basicInfo?: {
     orderNo?: string | null;
     waybillNo?: string | null;
+    /** String tanggal (bisa kosong ""), bukan epoch. */
+    orderTime?: string | null;
+    /** Field lama, dipertahankan untuk kompatibilitas mundur. */
     shipingTime?: number | null;
   } | null;
   itemInfo?: {
@@ -25,12 +33,66 @@ type IdexpressData = {
     itemQuantity?: number | null;
     itemCategory?: string | null;
     weight?: string | number | null;
+    actualWeight?: string | number | null;
     length?: number | null;
     width?: number | null;
     height?: number | null;
     insuranceAmount?: string | number | null;
     itemValue?: string | number | null;
+    actualShippingFee?: string | number | null;
   } | null;
+  senderInfo?: {
+    senderName?: string | null;
+    senderEmail?: string | null;
+    senderPhoneNumber?: string | null;
+    senderCellphone?: string | null;
+    senderProvince?: string | null;
+    senderCity?: string | null;
+    senderDistrict?: string | null;
+    senderAddress?: string | null;
+    senderZipCode?: string | null;
+  } | null;
+  recipientInfo?: {
+    recipientName?: string | null;
+    recipientEmail?: string | null;
+    recipientPhoneNumber?: string | null;
+    recipientCellphone?: string | null;
+    recipientProvince?: string | null;
+    recipientCity?: string | null;
+    recipientDistrict?: string | null;
+    recipientAddress?: string | null;
+    recipientZipCode?: string | null;
+  } | null;
+  historys?: IdexpressHistoryItem[] | null;
+};
+
+/**
+ * Bentuk lama/raw vendor (lihat docs/idexpress/tracking.md — dokumentasi resmi vendor):
+ * `{ code: 0, desc, total, data: { basicInfo, ... } }`.
+ * BEDA dari bentuk BE terbaru: `operationTime` dalam MILIDETIK (bukan detik), dan
+ * field sender pakai PascalCase (`SenderPhoneNumber`, dst) — lihat `normalizeLegacyIdexpressData()`.
+ * Dipertahankan sebagai fallback jika BE suatu saat meneruskan payload vendor ini langsung.
+ */
+type IdexpressLegacyHistoryItem = {
+  waybillNo?: string;
+  operationType?: string | null;
+  /** Epoch MILIDETIK di format vendor lama (beda dari bentuk BE terbaru yang pakai detik). */
+  operationTime?: number | null;
+  courierName?: string | null;
+  currentBranch?: string | null;
+  nextBranchName?: string | null;
+  proofOfStatus?: string | null;
+  relation?: string | null;
+  signer?: string | null;
+};
+
+type IdexpressLegacyData = {
+  basicInfo?: {
+    orderNo?: string | null;
+    waybillNo?: string | null;
+    shipingTime?: number | null;
+  } | null;
+  itemInfo?: IdexpressData["itemInfo"];
   senderInfo?: {
     senderName?: string | null;
     senderEmail?: string | null;
@@ -42,24 +104,15 @@ type IdexpressData = {
     SenderAddress?: string | null;
     SenderZipCode?: string | null;
   } | null;
-  recipientInfo?: {
-    recipientName?: string | null;
-    recipientEmail?: string | null;
-    recipientPhoneNumber?: string | null;
-    recipientCellphone?: string | null;
-    recipientProvince?: string | null;
-    recipientCity?: string | null;
-    recipientDistrict?: string | null;
-    recipientAddress?: string | null;
-  } | null;
-  historys?: IdexpressHistoryItem[] | null;
+  recipientInfo?: IdexpressData["recipientInfo"];
+  historys?: IdexpressLegacyHistoryItem[] | null;
 };
 
 export type IdexpressTrackingResponse = {
   code?: number;
   desc?: string | null;
   total?: number | null;
-  data?: IdexpressData | null;
+  data?: IdexpressLegacyData | null;
 };
 
 export function isIdexpressRawResponse(
@@ -73,23 +126,110 @@ export function isIdexpressRawResponse(
   return !!payload && typeof payload === "object" && "basicInfo" in (payload as Record<string, unknown>);
 }
 
+/** Konversi bentuk vendor lama (PascalCase sender, epoch ms) ke bentuk kanonik `IdexpressData`. */
+function normalizeLegacyIdexpressData(legacy: IdexpressLegacyData): IdexpressData {
+  const s = legacy.senderInfo;
+  return {
+    basicInfo: {
+      orderNo: legacy.basicInfo?.orderNo,
+      waybillNo: legacy.basicInfo?.waybillNo,
+      shipingTime: legacy.basicInfo?.shipingTime,
+    },
+    itemInfo: legacy.itemInfo,
+    senderInfo: s
+      ? {
+          senderName: s.senderName,
+          senderEmail: s.senderEmail,
+          senderPhoneNumber: s.SenderPhoneNumber,
+          senderCellphone: s.SenderCellphone,
+          senderProvince: s.SenderProvince,
+          senderCity: s.SenderCity,
+          senderDistrict: s.SenderDistrict,
+          senderAddress: s.SenderAddress,
+          senderZipCode: s.SenderZipCode,
+        }
+      : null,
+    recipientInfo: legacy.recipientInfo,
+    historys: Array.isArray(legacy.historys)
+      ? legacy.historys.map((h) => ({
+          waybillNo: h.waybillNo,
+          operationType: h.operationType,
+          // Bentuk lama pakai epoch ms; bentuk kanonik (dipakai fromEpochSeconds) pakai detik.
+          operationTime:
+            h.operationTime != null ? Math.round(h.operationTime / 1000) : null,
+          courierName: h.courierName,
+          currentBranch: h.currentBranch,
+          nextBranchName: h.nextBranchName,
+          proofOfStatus: h.proofOfStatus,
+          relation: h.relation,
+          signer: h.signer,
+        }))
+      : null,
+  };
+}
+
+/**
+ * Bentuk BE `/admin/tracking` untuk vendor ID Express (real capture):
+ * `{ success, data: { status, message?, data: { basicInfo, historys, itemInfo, senderInfo, recipientInfo } } }`
+ */
+export type IdexpressBeTrackingResponse = {
+  success?: boolean;
+  data: {
+    status?: string;
+    message?: string;
+    data: IdexpressData;
+  };
+};
+
+export function isIdexpressBeTrackingWrapper(
+  response: unknown
+): response is IdexpressBeTrackingResponse {
+  if (!response || typeof response !== "object") return false;
+  const r = response as Record<string, unknown>;
+  const outer = r.data;
+  if (!outer || typeof outer !== "object") return false;
+  const o = outer as Record<string, unknown>;
+  const inner = o.data;
+  if (!inner || typeof inner !== "object") return false;
+  return "basicInfo" in (inner as Record<string, unknown>);
+}
+
 function toNumber(v: string | number | null | undefined): number | null {
   if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
+/** `basicInfo.shipingTime` (field lama) diasumsikan epoch ms. */
 function fromEpochMs(ms: number | null | undefined): string | null {
   if (!ms || !Number.isFinite(ms)) return null;
   const d = new Date(ms);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export function transformIdexpressTrackingResponse(
-  raw: IdexpressTrackingResponse,
-  awbNo: string
+/** `historys[].operationTime` adalah epoch DETIK (dikonfirmasi dari data real). */
+function fromEpochSeconds(sec: number | null | undefined): string | null {
+  if (!sec || !Number.isFinite(sec)) return null;
+  const d = new Date(sec * 1000);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function toIsoFromString(value: string | null | undefined): string | null {
+  if (!value || !value.trim()) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function firstNonEmpty(url: string | null | undefined): string | null {
+  return url && url.trim() !== "" ? url : null;
+}
+
+function transformIdexpressData(
+  data: IdexpressData,
+  awbNo: string,
+  success: boolean,
+  statusMessage?: string | null
 ): StandardizedTrackingResponse {
-  const data = raw.data ?? {};
   const basic = data.basicInfo ?? {};
   const item = data.itemInfo ?? {};
   const sender = data.senderInfo ?? {};
@@ -101,17 +241,30 @@ export function transformIdexpressTrackingResponse(
     return bTime - aTime;
   });
   const latest = sortedHistory[0];
-  const latestIso = fromEpochMs(latest?.operationTime);
+  const first = sortedHistory[sortedHistory.length - 1];
+  const latestIso = fromEpochSeconds(latest?.operationTime);
+  const podEntry = sortedHistory.find((h) =>
+    String(h.operationType || "").toLowerCase().includes("pod")
+  );
+
+  const createdAt =
+    toIsoFromString(basic.orderTime) ||
+    fromEpochMs(basic.shipingTime) ||
+    fromEpochSeconds(first?.operationTime) ||
+    new Date().toISOString();
+
+  const shippingCost = toNumber(item.actualShippingFee);
+  const weight = toNumber(item.actualWeight) ?? toNumber(item.weight);
 
   return {
-    success: raw.code === 0,
+    success,
     vendor: "idexpress",
     order_info: {
       reference_no: basic.orderNo || "",
       vendor: "idexpress",
       awb_no: basic.waybillNo || awbNo,
-      status: latest?.operationType || "UNKNOWN",
-      created_at: fromEpochMs(basic.shipingTime) || new Date().toISOString(),
+      status: latest?.operationType || statusMessage || "UNKNOWN",
+      created_at: createdAt,
       user_id: 0,
     },
     tracking_data: {
@@ -123,103 +276,109 @@ export function transformIdexpressTrackingResponse(
       current_status: {
         code: latest?.operationType || null,
         status: latest?.operationType || null,
-        description: latest?.operationType || raw.desc || null,
+        description: latest?.description || latest?.operationType || statusMessage || null,
         timestamp: latestIso,
         datetime: latestIso,
       },
       shipment: {
         service_code: item.itemCategory || null,
         service_name: item.itemCategory || "ID Express",
-        weight: toNumber(item.weight),
+        weight,
         weight_unit: "kg",
         pieces: item.itemQuantity ?? 0,
         koli: item.itemQuantity ?? 0,
         service_fee: null,
-        shipping_cost: null,
+        shipping_cost: shippingCost,
         cod_value: 0,
         insurance_cost: toNumber(item.insuranceAmount) ?? 0,
-        total_amount: toNumber(item.itemValue),
+        total_amount: shippingCost,
         booking_id: basic.orderNo || null,
         invoice_no: null,
-        shipped_date: fromEpochMs(basic.shipingTime),
+        shipped_date: createdAt,
         item_name: item.itemName || null,
       },
       sender: {
         name: sender.senderName || null,
-        phone: sender.SenderCellphone || sender.SenderPhoneNumber || null,
-        address: sender.SenderAddress || null,
-        postcode: sender.SenderZipCode || null,
-        city: sender.SenderCity || null,
-        province: sender.SenderProvince || null,
-        district: sender.SenderDistrict || null,
-        zipcode: sender.SenderZipCode || null,
+        phone: sender.senderCellphone || sender.senderPhoneNumber || null,
+        address: sender.senderAddress || null,
+        postcode: sender.senderZipCode || null,
+        city: sender.senderCity || null,
+        province: sender.senderProvince || null,
+        district: sender.senderDistrict || null,
+        zipcode: sender.senderZipCode || null,
       },
       receiver: {
         name: receiver.recipientName || null,
         phone:
           receiver.recipientCellphone || receiver.recipientPhoneNumber || null,
         address: receiver.recipientAddress || null,
-        postcode: null,
+        postcode: receiver.recipientZipCode || null,
         city: receiver.recipientCity || null,
         province: receiver.recipientProvince || null,
         district: receiver.recipientDistrict || null,
-        zipcode: null,
+        zipcode: receiver.recipientZipCode || null,
         actual_receiver: latest?.signer
           ? { name: latest.signer, relationship: latest.relation || null }
           : null,
       },
-      tracking_history: sortedHistory.map((h, idx) => ({
-        sequence: idx + 1,
-        timestamp: fromEpochMs(h.operationTime),
-        datetime: fromEpochMs(h.operationTime),
-        date_time: fromEpochMs(h.operationTime),
-        status_code: h.operationType || null,
-        status: h.operationType || null,
-        status_name: h.operationType || null,
-        description: h.operationType || null,
-        message: raw.desc || null,
-        location: {
-          hub_name: h.currentBranch || null,
-          city: null,
-          city_name: null,
-          province: null,
-          district: null,
-          branch_name: h.currentBranch || null,
-          store_name: null,
-          next_site: h.nextBranchName || null,
-          next_branch: h.nextBranchName || null,
-        },
-        driver: {
-          name: h.courierName || null,
-          phone: null,
-          photo: null,
-        },
-        recipient: h.signer
-          ? { name: h.signer, relationship: h.relation || null }
-          : null,
-        note: null,
-        image_url:
-          h.proofOfStatus && h.proofOfStatus.trim() !== ""
-            ? h.proofOfStatus
+      tracking_history: sortedHistory.map((h, idx) => {
+        const hIso = fromEpochSeconds(h.operationTime);
+        const photo =
+          (Array.isArray(h.completeProofOfStatus) &&
+            firstNonEmpty(h.completeProofOfStatus[0])) ||
+          firstNonEmpty(h.proofOfStatus);
+        return {
+          sequence: idx + 1,
+          timestamp: hIso,
+          datetime: hIso,
+          date_time: hIso,
+          status_code: h.operationType || null,
+          status: h.operationType || null,
+          status_name: h.operationType || null,
+          description: h.description || h.operationType || null,
+          message: h.description || null,
+          location: {
+            hub_name: h.currentBranch || null,
+            city: null,
+            city_name: null,
+            province: null,
+            district: null,
+            branch_name: h.currentBranch || null,
+            store_name: null,
+            next_site: h.nextBranchName || null,
+            next_branch: h.nextBranchName || null,
+          },
+          driver: {
+            name: h.courierName || null,
+            phone: null,
+            photo: null,
+          },
+          recipient: h.signer
+            ? { name: h.signer, relationship: h.relation || null }
             : null,
-      })),
+          note: h.problemCode || null,
+          image_url: photo,
+        };
+      }),
       delivery: {
         estimated_delivery: null,
-        delivered_at: null,
-        delivered_to: latest?.signer || null,
-        delivery_relationship: latest?.relation || null,
-        pod_status_code: null,
-        pod_status_name: null,
+        delivered_at: podEntry ? fromEpochSeconds(podEntry.operationTime) : null,
+        delivered_to: podEntry?.signer || null,
+        delivery_relationship: podEntry?.relation || null,
+        pod_status_code: podEntry ? "POD" : null,
+        pod_status_name: podEntry?.operationType || null,
         proof_of_delivery: {
           signature_url: null,
           photo_url:
-            latest?.proofOfStatus && latest.proofOfStatus.trim() !== ""
-              ? latest.proofOfStatus
-              : null,
+            (Array.isArray(podEntry?.completeProofOfStatus) &&
+              firstNonEmpty(podEntry?.completeProofOfStatus?.[0])) ||
+            firstNonEmpty(podEntry?.proofOfStatus) ||
+            null,
           signature_pod: [],
-          photo_pod:
-            latest?.proofOfStatus && latest.proofOfStatus.trim() !== ""
-              ? [latest.proofOfStatus]
+          photo_pod: Array.isArray(podEntry?.completeProofOfStatus)
+            ? podEntry.completeProofOfStatus.filter((u) => firstNonEmpty(u))
+            : firstNonEmpty(podEntry?.proofOfStatus)
+              ? [podEntry!.proofOfStatus as string]
               : [],
         },
       },
@@ -233,4 +392,28 @@ export function transformIdexpressTrackingResponse(
       },
     },
   };
+}
+
+export function transformIdexpressTrackingResponse(
+  raw: IdexpressTrackingResponse,
+  awbNo: string
+): StandardizedTrackingResponse {
+  return transformIdexpressData(
+    normalizeLegacyIdexpressData(raw.data ?? {}),
+    awbNo,
+    raw.code === 0,
+    raw.desc
+  );
+}
+
+export function transformIdexpressBeTrackingResponse(
+  raw: IdexpressBeTrackingResponse,
+  awbNo: string
+): StandardizedTrackingResponse {
+  return transformIdexpressData(
+    raw.data.data,
+    awbNo,
+    raw.success !== false,
+    raw.data.message || raw.data.status
+  );
 }

@@ -1063,7 +1063,7 @@ export default function CalculationResults({
       sender: sender,
       receiver: receiver,
       pickup: pickup,
-      serviceType: "REGULER", // Default service type
+      serviceType: formData.formData.paymentMethod === "cod" ? "COD" : "REGULER",
       detail: {
         weight: weightInKg,
         qty: qty,

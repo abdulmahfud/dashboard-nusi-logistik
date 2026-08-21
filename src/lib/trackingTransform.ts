@@ -51,6 +51,9 @@ import {
   transformIdexpressTrackingResponse,
   isIdexpressRawResponse,
   type IdexpressTrackingResponse,
+  transformIdexpressBeTrackingResponse,
+  isIdexpressBeTrackingWrapper,
+  type IdexpressBeTrackingResponse,
 } from "./idexpressTrackingTransform";
 import {
   transformPaxelTrackingResponse,
@@ -109,6 +112,16 @@ const vendorTransformers: VendorTransformer[] = [
     detect: isLionRawResponse,
     transform: (data, awbNo) =>
       transformLionTrackingResponse(data as LionTrackingResponse, awbNo),
+  },
+  {
+    vendor: "idexpress",
+    vendorName: "ID Express",
+    detect: isIdexpressBeTrackingWrapper,
+    transform: (data, awbNo) =>
+      transformIdexpressBeTrackingResponse(
+        data as IdexpressBeTrackingResponse,
+        awbNo
+      ),
   },
   {
     vendor: "idexpress",
