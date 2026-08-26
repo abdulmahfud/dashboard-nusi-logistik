@@ -86,30 +86,41 @@ const LaporanPengiriman = () => {
     useState<string>("Semua Status");
   const [dataReport, setDataReport] = useState<DeliveryReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch orders from API
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
+  // Fetch orders from API. `isRefresh` skips the full-page loading state
+  // and uses a lighter spinner on the table's refresh button instead.
+  const fetchOrders = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        setError(null);
-        const response = await getOrders();
+      }
+      setError(null);
+      const response = await getOrders();
 
-        // Transform API data to table format
-        const transformedData = response.data.map(
-          transformOrderToDeliveryReport
-        );
-        setDataReport(transformedData);
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-        setError("Failed to fetch orders data");
-      } finally {
+      // Transform API data to table format
+      const transformedData = response.data.map(
+        transformOrderToDeliveryReport
+      );
+      setDataReport(transformedData);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setError("Failed to fetch orders data");
+    } finally {
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
         setLoading(false);
       }
-    };
+    }
+  };
 
+  useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate statistics from real data
@@ -433,6 +444,8 @@ const LaporanPengiriman = () => {
                   setDateRange={setDateRange}
                   packageTypeFilter={packageTypeFilter}
                   setPackageTypeFilter={setPackageTypeFilter}
+                  onRefresh={() => fetchOrders(true)}
+                  isRefreshing={refreshing}
                 />
               </Card>
             </div>

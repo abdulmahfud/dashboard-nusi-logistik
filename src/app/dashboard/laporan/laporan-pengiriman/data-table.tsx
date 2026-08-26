@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover } from "@/components/ui/popover";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { DatePickerWithRange } from "./date-picker-with-range";
@@ -44,6 +44,8 @@ interface DataTableProps<TData extends DeliveryReport, TValue> {
   setDateRange: React.Dispatch<React.SetStateAction<DateRange | undefined>>;
   packageTypeFilter: string;
   setPackageTypeFilter: React.Dispatch<React.SetStateAction<string>>;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 // Create reverse mapping outside component for performance
@@ -57,6 +59,8 @@ export function DataTable<TData extends DeliveryReport, TValue>({
   data,
   dateRange,
   setDateRange,
+  onRefresh,
+  isRefreshing,
 }: DataTableProps<TData, TValue>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [statusFilter, setStatusFilter] =
@@ -122,6 +126,24 @@ export function DataTable<TData extends DeliveryReport, TValue>({
     <div className="p-2 sm:p-4 space-y-4">
       {/* Filter & Search - Mobile Optimized */}
       <div className="space-y-3">
+        {onRefresh && (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="gap-2"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              {isRefreshing ? "Memuat..." : "Refresh"}
+            </Button>
+          </div>
+        )}
+
         {/* Search Input - Full width on mobile */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Search Input */}
