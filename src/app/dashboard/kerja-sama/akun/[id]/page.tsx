@@ -116,7 +116,7 @@ export default function KerjaSamaAkunDetailPage() {
   const [creditForm, setCreditForm] = useState({
     credit_limit: "",
     max_outstanding: "",
-    billing_term_days: "30",
+    billing_due_day: "25",
   });
 
   // Suspend / activate
@@ -244,7 +244,7 @@ export default function KerjaSamaAkunDetailPage() {
       credit_limit: String(account.credit_limit ?? ""),
       max_outstanding:
         account.max_outstanding != null ? String(account.max_outstanding) : "",
-      billing_term_days: String(account.billing_term_days ?? 30),
+      billing_due_day: String(account.billing_due_day ?? 25),
     });
     setCreditOpen(true);
   };
@@ -261,8 +261,8 @@ export default function KerjaSamaAkunDetailPage() {
         max_outstanding: creditForm.max_outstanding
           ? Number(creditForm.max_outstanding)
           : undefined,
-        billing_term_days: creditForm.billing_term_days
-          ? Number(creditForm.billing_term_days)
+        billing_due_day: creditForm.billing_due_day
+          ? Number(creditForm.billing_due_day)
           : undefined,
       });
       toast.success("Limit kredit berhasil diperbarui.");
@@ -521,9 +521,9 @@ export default function KerjaSamaAkunDetailPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
-                        Termin Pembayaran
+                        Tanggal Jatuh Tempo
                       </span>
-                      <span>{account.billing_term_days} hari</span>
+                      <span>Setiap tanggal {account.billing_due_day}</span>
                     </div>
                     {account.suspended_at && (
                       <div className="rounded-md bg-red-50 p-2 text-xs text-red-800">
@@ -1003,15 +1003,16 @@ export default function KerjaSamaAkunDetailPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Termin Pembayaran (hari)</Label>
+                <Label>Tanggal Jatuh Tempo (1-31)</Label>
                 <Input
                   type="number"
                   min={1}
-                  value={creditForm.billing_term_days}
+                  max={31}
+                  value={creditForm.billing_due_day}
                   onChange={(e) =>
                     setCreditForm((p) => ({
                       ...p,
-                      billing_term_days: e.target.value,
+                      billing_due_day: e.target.value,
                     }))
                   }
                 />

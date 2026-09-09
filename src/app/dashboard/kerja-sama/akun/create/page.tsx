@@ -52,7 +52,7 @@ export default function CreateKerjaSamaAkunPage() {
     billing_bank_account_no: "",
     credit_limit: "",
     max_outstanding: "",
-    billing_term_days: "30",
+    billing_due_day: "25",
     pic_penagihan_name: "",
     pic_penagihan_phone: "",
     kerja_sama_notes: "",
@@ -157,8 +157,8 @@ export default function CreateKerjaSamaAkunPage() {
       payload.billing_bank_account_no = form.billing_bank_account_no;
     if (form.max_outstanding)
       payload.max_outstanding = Number(form.max_outstanding);
-    if (form.billing_term_days)
-      payload.billing_term_days = Number(form.billing_term_days);
+    if (form.billing_due_day)
+      payload.billing_due_day = Number(form.billing_due_day);
     if (form.pic_penagihan_name)
       payload.pic_penagihan_name = form.pic_penagihan_name;
     if (form.pic_penagihan_phone)
@@ -427,21 +427,23 @@ export default function CreateKerjaSamaAkunPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="billing_term_days">
-                    Termin Pembayaran (hari)
+                  <Label htmlFor="billing_due_day">
+                    Tanggal Jatuh Tempo (1-31)
                   </Label>
                   <Input
-                    id="billing_term_days"
+                    id="billing_due_day"
                     type="number"
                     min={1}
-                    value={form.billing_term_days}
+                    max={31}
+                    value={form.billing_due_day}
                     onChange={(e) =>
-                      handleField("billing_term_days", e.target.value)
+                      handleField("billing_due_day", e.target.value)
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Dihitung dari tanggal kiriman, bukan tanggal invoice
-                    terbit.
+                    Tanggal tetap tiap bulan (default 25). Kalau sudah lewat
+                    saat invoice digenerate, jatuh tempo otomatis maju ke
+                    bulan depan.
                   </p>
                 </div>
               </CardContent>

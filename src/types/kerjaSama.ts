@@ -13,7 +13,8 @@ export interface KerjaSamaAccount {
   billing_mode: KerjaSamaBillingMode;
   credit_limit: string | number;
   max_outstanding: string | number | null;
-  billing_term_days: number;
+  /** Tanggal jatuh tempo tetap tiap bulan (1-31), bukan dihitung dari tanggal kiriman. Default 25. */
+  billing_due_day: number;
   kerja_sama_is_active: boolean;
   kerja_sama_activated_at?: string | null;
   suspended_at?: string | null;
@@ -75,7 +76,7 @@ export interface CreateKerjaSamaAccountPayload {
   billing_bank_account_no?: string;
   credit_limit: number;
   max_outstanding?: number;
-  billing_term_days?: number;
+  billing_due_day?: number;
   pic_penagihan_name?: string;
   pic_penagihan_phone?: string;
   kerja_sama_notes?: string;
@@ -85,14 +86,14 @@ export interface CreateKerjaSamaAccountPayload {
 export type UpdateKerjaSamaAccountPayload = Partial<
   Omit<
     CreateKerjaSamaAccountPayload,
-    "user_id" | "credit_limit" | "max_outstanding" | "billing_term_days"
+    "user_id" | "credit_limit" | "max_outstanding" | "billing_due_day"
   >
 >;
 
 export interface UpdateCreditLimitPayload {
   credit_limit: number;
   max_outstanding?: number | null;
-  billing_term_days?: number;
+  billing_due_day?: number;
 }
 
 export interface ToggleActivePayload {
@@ -174,7 +175,6 @@ export interface KerjaSamaInvoiceLineItem {
   discount: number;
   tax: number;
   total: number;
-  due_date: string;
 }
 
 export interface KerjaSamaInvoice {
@@ -190,6 +190,7 @@ export interface KerjaSamaInvoice {
   } | null;
   period_start: string | null;
   period_end: string | null;
+  /** Satu tanggal tetap untuk seluruh invoice (kemunculan `billing_due_day` berikutnya saat digenerate), bukan per line item. */
   due_date: string;
   subtotal: string | number;
   surcharge_total: string | number;

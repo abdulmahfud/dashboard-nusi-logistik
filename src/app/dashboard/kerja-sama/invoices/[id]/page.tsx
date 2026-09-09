@@ -373,7 +373,6 @@ export default function KerjaSamaInvoiceDetailPage() {
                             <TableHead>Tgl Kirim</TableHead>
                             <TableHead>Pengirim</TableHead>
                             <TableHead>Penerima</TableHead>
-                            <TableHead>Jatuh Tempo</TableHead>
                             <TableHead className="text-right">
                               Ongkir
                             </TableHead>
@@ -402,9 +401,6 @@ export default function KerjaSamaInvoiceDetailPage() {
                               </TableCell>
                               <TableCell className="text-sm">
                                 {item.receiver_name || "—"}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap text-sm">
-                                {formatDateIdLong(item.due_date)}
                               </TableCell>
                               <TableCell className="whitespace-nowrap text-right tabular-nums">
                                 {formatRupiah(item.ongkir)}

@@ -43,10 +43,9 @@ const SERVICE_TYPES = [
 ];
 
 const USER_TYPES = [
-  { value: "all", label: "Semua User" },
-  { value: "premium", label: "Premium" },
-  { value: "regular", label: "Regular" },
-  { value: "vip", label: "VIP" },
+  { value: "all", label: "Semua Tipe Akun" },
+  { value: "personal", label: "Personal" },
+  { value: "corporate", label: "Corporate" },
 ];
 
 export function DiscountForm({
@@ -352,13 +351,13 @@ export function DiscountForm({
 
             {/* User Type */}
             <div className="space-y-2">
-              <Label htmlFor="user_type">Tipe User</Label>
+              <Label htmlFor="user_type">Tipe Akun</Label>
               <Select
                 value={formData.user_type}
                 onValueChange={(value) => handleInputChange("user_type", value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih tipe user" />
+                  <SelectValue placeholder="Pilih tipe akun" />
                 </SelectTrigger>
                 <SelectContent>
                   {USER_TYPES.map((type) => (
@@ -368,6 +367,10 @@ export function DiscountForm({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Beda tarif untuk customer personal vs corporate (identitas
+                akun). Kosongkan untuk berlaku ke semua tipe akun.
+              </p>
             </div>
 
             {/* Priority */}

@@ -85,6 +85,11 @@ export function DiscountList({
     }
   };
 
+  const USER_TYPE_LABEL: Record<string, string> = {
+    personal: "Personal",
+    corporate: "Corporate",
+  };
+
   const getVendorBadgeColor = (vendor: string) => {
     const colors: Record<string, string> = {
       JNTEXPRESS: "bg-blue-100 text-blue-800",
@@ -165,7 +170,7 @@ export function DiscountList({
               <TableHead>Diskon</TableHead>
               <TableHead>Min. Order</TableHead>
               <TableHead>Max. Potongan</TableHead>
-              <TableHead>User Type</TableHead>
+              <TableHead>Tipe Akun</TableHead>
               <TableHead>Berlaku Sampai</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
@@ -210,7 +215,10 @@ export function DiscountList({
                 </TableCell>
                 <TableCell>
                   {discount.user_type ? (
-                    <Badge variant="secondary">{discount.user_type}</Badge>
+                    <Badge variant="secondary">
+                      {USER_TYPE_LABEL[discount.user_type] ??
+                        discount.user_type}
+                    </Badge>
                   ) : (
                     <span className="text-muted-foreground">Semua</span>
                   )}

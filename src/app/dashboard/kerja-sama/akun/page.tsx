@@ -236,7 +236,7 @@ export default function KerjaSamaAkunPage() {
                           <TableHead>Nama</TableHead>
                           <TableHead>Tipe Akun</TableHead>
                           <TableHead>Limit Kredit</TableHead>
-                          <TableHead>Termin</TableHead>
+                          <TableHead>Tanggal Tagih</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
@@ -260,7 +260,9 @@ export default function KerjaSamaAkunPage() {
                             <TableCell className="whitespace-nowrap tabular-nums">
                               {formatRupiah(acc.credit_limit)}
                             </TableCell>
-                            <TableCell>{acc.billing_term_days} hari</TableCell>
+                            <TableCell>
+                              Tgl. {acc.billing_due_day}
+                            </TableCell>
                             <TableCell>
                               {acc.kerja_sama_is_active ? (
                                 <Badge className="border-green-200 bg-green-100 text-green-800">
