@@ -79,6 +79,24 @@ import type {
   ExpeditionVendorSettingPatchResponse,
 } from "@/types/expeditionVendorSettings";
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
+import type {
+  KerjaSamaAccountListResponse,
+  KerjaSamaAccountDetailResponse,
+  CreateKerjaSamaAccountPayload,
+  UpdateKerjaSamaAccountPayload,
+  UpdateCreditLimitPayload,
+  ToggleActivePayload,
+  ToggleActiveResponse,
+  KerjaSamaLedgerResponse,
+  RecordPaymentPayload,
+  RecordPaymentResponse,
+  KerjaSamaInvoiceListResponse,
+  KerjaSamaInvoiceDetailResponse,
+  GenerateInvoicePayload,
+  GenerateInvoiceResponse,
+  KerjaSamaAccount,
+  KerjaSamaInvoice,
+} from "@/types/kerjaSama";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 import { clearPendingVerificationEmail } from "@/lib/pending-verification-email";
 
@@ -1737,6 +1755,153 @@ export const createFeedback = async (body: {
   comment: string;
 }): Promise<unknown> => {
   const res = await apiClient.post("/admin/feedbacks", body);
+  return res.data;
+};
+
+// ✅ Kerja Sama — Akun (postpaid/kredit). Lihat docs/be-fe/kerja-sama-akun-invoice.md
+export const getKerjaSamaAccounts = async (params?: {
+  account_type?: "personal" | "corporate";
+  kerja_sama_is_active?: 0 | 1;
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<KerjaSamaAccountListResponse> => {
+  const res = await apiClient.get<KerjaSamaAccountListResponse>(
+    "/admin/kerja-sama/accounts",
+    { params }
+  );
+  return res.data;
+};
+
+export const createKerjaSamaAccount = async (
+  payload: CreateKerjaSamaAccountPayload
+): Promise<{ status?: string; data: KerjaSamaAccount }> => {
+  const res = await apiClient.post("/admin/kerja-sama/accounts", payload);
+  return res.data;
+};
+
+export const getKerjaSamaAccount = async (
+  userId: number
+): Promise<KerjaSamaAccountDetailResponse> => {
+  const res = await apiClient.get<KerjaSamaAccountDetailResponse>(
+    `/admin/kerja-sama/accounts/${userId}`
+  );
+  return res.data;
+};
+
+export const updateKerjaSamaAccount = async (
+  userId: number,
+  payload: UpdateKerjaSamaAccountPayload
+): Promise<{ status?: string; data: KerjaSamaAccount }> => {
+  const res = await apiClient.put(
+    `/admin/kerja-sama/accounts/${userId}`,
+    payload
+  );
+  return res.data;
+};
+
+export const updateKerjaSamaCreditLimit = async (
+  userId: number,
+  payload: UpdateCreditLimitPayload
+): Promise<{ status?: string; data: KerjaSamaAccount }> => {
+  const res = await apiClient.patch(
+    `/admin/kerja-sama/accounts/${userId}/credit-limit`,
+    payload
+  );
+  return res.data;
+};
+
+export const toggleKerjaSamaActive = async (
+  userId: number,
+  payload?: ToggleActivePayload
+): Promise<ToggleActiveResponse> => {
+  const res = await apiClient.patch(
+    `/admin/kerja-sama/accounts/${userId}/toggle-active`,
+    payload ?? {}
+  );
+  return res.data;
+};
+
+export const getKerjaSamaLedger = async (
+  userId: number,
+  params?: {
+    type?: string;
+    status?: string;
+    per_page?: number;
+    page?: number;
+  }
+): Promise<KerjaSamaLedgerResponse> => {
+  const res = await apiClient.get<KerjaSamaLedgerResponse>(
+    `/admin/kerja-sama/accounts/${userId}/ledger`,
+    { params }
+  );
+  return res.data;
+};
+
+export const recordKerjaSamaPayment = async (
+  userId: number,
+  payload: RecordPaymentPayload
+): Promise<RecordPaymentResponse> => {
+  const res = await apiClient.post(
+    `/admin/kerja-sama/accounts/${userId}/payments`,
+    payload
+  );
+  return res.data;
+};
+
+// ✅ Kerja Sama — Invoice
+export const getKerjaSamaInvoices = async (params?: {
+  user_id?: number;
+  status?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<KerjaSamaInvoiceListResponse> => {
+  const res = await apiClient.get<KerjaSamaInvoiceListResponse>(
+    "/admin/kerja-sama/invoices",
+    { params }
+  );
+  return res.data;
+};
+
+export const generateKerjaSamaInvoice = async (
+  payload: GenerateInvoicePayload
+): Promise<GenerateInvoiceResponse> => {
+  const res = await apiClient.post(
+    "/admin/kerja-sama/invoices/generate",
+    payload
+  );
+  return res.data;
+};
+
+export const getKerjaSamaInvoice = async (
+  id: number
+): Promise<KerjaSamaInvoiceDetailResponse> => {
+  const res = await apiClient.get<KerjaSamaInvoiceDetailResponse>(
+    `/admin/kerja-sama/invoices/${id}`
+  );
+  return res.data;
+};
+
+export const issueKerjaSamaInvoice = async (
+  id: number
+): Promise<{ status?: string; message?: string; data: KerjaSamaInvoice }> => {
+  const res = await apiClient.patch(`/admin/kerja-sama/invoices/${id}/issue`);
+  return res.data;
+};
+
+/** Download PDF invoice — response biner, bukan JSON. */
+export const downloadKerjaSamaInvoice = async (id: number): Promise<Blob> => {
+  const res = await apiClient.get(`/admin/kerja-sama/invoices/${id}/download`, {
+    responseType: "blob",
+  });
+  return res.data;
+};
+
+/** Hanya bisa untuk invoice status draft (422 kalau sudah issued/paid). */
+export const deleteKerjaSamaInvoice = async (
+  id: number
+): Promise<{ status?: string; message?: string }> => {
+  const res = await apiClient.delete(`/admin/kerja-sama/invoices/${id}`);
   return res.data;
 };
 

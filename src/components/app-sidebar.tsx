@@ -24,12 +24,15 @@ import {
   ArrowDownToLine,
   Ticket,
   MessageCircle,
+  Handshake,
+  ReceiptText,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
 import { NavAccount } from "@/components/nav-account";
 import { NavData } from "@/components/nav-data";
+import { NavKerjaSama } from "@/components/nav-kerja-sama";
 import { NavManagementUser } from "@/components/nav-management-user";
 import { NavMain } from "@/components/nav-main";
 import { NavReport } from "@/components/nav-report";
@@ -188,6 +191,22 @@ const data = {
       permission: "expedition.orders.list",
     },
   ],
+  kerjaSama: [
+    {
+      title: "Akun Kerja Sama",
+      url: "/dashboard/kerja-sama/akun",
+      icon: Handshake,
+      matchPrefix: true,
+      permission: "kerja-sama.accounts.view",
+    },
+    {
+      title: "Invoice Kerja Sama",
+      url: "/dashboard/kerja-sama/invoices",
+      icon: ReceiptText,
+      matchPrefix: true,
+      permission: "kerja-sama.invoices.view",
+    },
+  ],
   account: [
     {
       title: "Profil",
@@ -313,6 +332,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasPermission,
     authLoading
   );
+  const filteredKerjaSama = filterSidebarByPermission(
+    data.kerjaSama,
+    hasPermission,
+    authLoading
+  );
   const filteredNavSecondary = filterSidebarByPermission(
     data.navSecondary,
     hasPermission,
@@ -347,6 +371,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
         {filteredReport.length > 0 && <NavReport items={filteredReport} />}
         {filteredData.length > 0 && <NavData items={filteredData} />}
+        {filteredKerjaSama.length > 0 && (
+          <NavKerjaSama items={filteredKerjaSama} />
+        )}
         {filteredAccount.length > 0 && (
           <NavAccount items={filteredAccount} />
         )}
