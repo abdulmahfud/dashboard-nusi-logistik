@@ -32,7 +32,8 @@ export default function CreateUserPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [roles, setRoles] = useState<SimpleRole[]>([]);
-  const { hasPermission, loading: authLoading } = useAuth();
+  const { user, hasPermission, loading: authLoading } = useAuth();
+  const isSuperAdmin = user?.roles?.includes("superadmin") ?? false;
 
   const [formData, setFormData] = useState<UserCreateRequest>({
     name: "",
@@ -60,8 +61,13 @@ export default function CreateUserPage() {
     }, [authLoading, hasPermission, router]);
 
   useEffect(() => {
-    fetchRoles();
-  }, []);
+    // Role picker hanya untuk superadmin — BE mengabaikan field `roles`
+    // kalau requester bukan superadmin (default jadi "user"), jadi tidak
+    // perlu ambil daftar role untuk role lain.
+    if (isSuperAdmin) {
+      fetchRoles();
+    }
+  }, [isSuperAdmin]);
 
   const handleInputChange = (field: keyof UserCreateRequest, value: string) => {
     setFormData((prev) => ({
@@ -165,7 +171,12 @@ export default function CreateUserPage() {
 
     try {
       setLoading(true);
-      await createUser(formData);
+      // BE hanya memproses `roles` kalau requester superadmin — jangan kirim
+      // untuk menghindari kesan role terpilih benar-benar tersimpan.
+      const payload = isSuperAdmin
+        ? formData
+        : { ...formData, roles: undefined };
+      await createUser(payload);
       toast.success("Pengguna berhasil dibuat");
       router.push("/dashboard/users");
     } catch (error: unknown) {
@@ -353,27 +364,42 @@ export default function CreateUserPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={(formData.roles && formData.roles[0]) || "user"}
-                    onValueChange={handleRoleChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih role pengguna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    Tentukan level akses pengguna dalam sistem
-                  </p>
-                </div>
+                {isSuperAdmin ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={(formData.roles && formData.roles[0]) || "user"}
+                      onValueChange={handleRoleChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih role pengguna" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Tentukan level akses pengguna dalam sistem
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <p className="text-sm text-gray-700">
+                      Pengguna baru otomatis mendapat role{" "}
+                      <span className="font-medium">user</span>.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Hanya superadmin yang bisa menentukan role staff
+                      (finance/sales/operations/customer-service) saat
+                      membuat pengguna.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3 pt-6">
                   <Button

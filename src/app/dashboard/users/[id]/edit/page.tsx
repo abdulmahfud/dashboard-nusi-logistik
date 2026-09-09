@@ -31,7 +31,8 @@ export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
   const userId = parseInt(params.id as string);
-  const { hasPermission, loading: authLoading } = useAuth();
+  const { user: currentUser, hasPermission, loading: authLoading } = useAuth();
+  const isSuperAdmin = currentUser?.roles?.includes("superadmin") ?? false;
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,14 +53,16 @@ export default function EditUserPage() {
   const fetchUser = async () => {
     try {
       setLoading(true);
+      // Role picker hanya untuk superadmin — BE mengabaikan field `role`
+      // kalau requester bukan superadmin, jadi tidak perlu daftar role lain.
       const [userResponse, rolesResponse] = await Promise.all([
         getUserById(userId),
-        getAllRoles(),
+        isSuperAdmin ? getAllRoles() : Promise.resolve(null),
       ]);
 
       const userData = userResponse.data;
       setUser(userData);
-      setRoles(rolesResponse.data);
+      if (rolesResponse) setRoles(rolesResponse.data);
 
       setFormData({
         name: userData.name,
@@ -85,10 +88,11 @@ export default function EditUserPage() {
     }, [authLoading, hasPermission, router]);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && !authLoading) {
       fetchUser();
     }
-  }, [userId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, authLoading, isSuperAdmin]);
 
   const handleInputChange = (field: keyof UserUpdateRequest, value: string) => {
     setFormData((prev) => ({
@@ -159,7 +163,9 @@ export default function EditUserPage() {
         name: formData.name,
         email: formData.email,
         whatsapp: formData.whatsapp,
-        role: formData.role,
+        // BE hanya memproses `role` kalau requester superadmin — jangan
+        // kirim untuk menghindari kesan role terpilih benar-benar tersimpan.
+        ...(isSuperAdmin ? { role: formData.role } : {}),
       };
 
       if (changePassword && formData.password) {
@@ -322,27 +328,42 @@ export default function EditUserPage() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={formData.role || "user"}
-                    onValueChange={(value) => handleInputChange("role", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih role pengguna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">
-                    Tentukan level akses pengguna dalam sistem
-                  </p>
-                </div>
+                {isSuperAdmin ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={formData.role || "user"}
+                      onValueChange={(value) =>
+                        handleInputChange("role", value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih role pengguna" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.name}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Tentukan level akses pengguna dalam sistem
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <p className="text-sm text-gray-700">
+                      {formData.role || "user"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Hanya superadmin yang bisa mengubah role staff
+                      (finance/sales/operations/customer-service).
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-4 p-4 border rounded-lg">
                   <div className="flex items-center space-x-2">
