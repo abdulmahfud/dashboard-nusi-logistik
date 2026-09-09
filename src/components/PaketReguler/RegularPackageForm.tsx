@@ -36,8 +36,10 @@ import {
   User,
   CircleChevronRight,
   Loader2,
+  Boxes,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicker";
 import {
   getShippers,
@@ -53,6 +55,7 @@ import {
   getAnterajaShipmentCost,
   getNinjaShipmentCost,
   searchAddressNew,
+  getProducts,
 } from "@/lib/apiClient";
 import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 import { deliveryTypeToPickup, type DeliveryType } from "@/lib/utils";
@@ -61,6 +64,8 @@ import type {
   Receiver,
 } from "@/types/dataRegulerForm";
 import { itemTypes } from "@/types/dataRegulerForm";
+import type { Product } from "@/types/product";
+import { formatRupiah } from "@/lib/currency";
 
 type VendorKey =
   | "jntexpress"
@@ -203,6 +208,12 @@ export default function RegularPackageForm({
 
   // Address untuk geocoding di map
   const [senderAddressForGeocode, setSenderAddressForGeocode] = useState<string>("");
+
+  // Katalog Produk — pilih produk tersimpan untuk auto-isi detail paket
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState("");
 
   const normalizeVendorKey = (vendor: string): string =>
     vendor.toLowerCase().replace(/[\s_-]/g, "");
@@ -629,6 +640,64 @@ export default function RegularPackageForm({
     if (["receiverName", "receiverPhone", "receiverAddress"].includes(field)) {
       setReceiverId(null);
     }
+  };
+
+  const loadCatalogProducts = async (search = "") => {
+    setCatalogLoading(true);
+    try {
+      const res = await getProducts({
+        search: search || undefined,
+        is_active: 1,
+        per_page: 100,
+      });
+      setCatalogProducts(res.data.data);
+    } catch (error) {
+      console.error("Error loading product catalog:", error);
+      toast.error("Gagal memuat katalog produk");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const handleOpenCatalog = () => {
+    setCatalogOpen(true);
+    loadCatalogProducts(catalogSearch);
+  };
+
+  // Isi otomatis field detail paket dari produk katalog terpilih.
+  // Pakai functional update (bukan lewat handleChange) supaya beberapa
+  // field bisa diubah sekaligus tanpa saling menimpa satu sama lain.
+  const applyProductFromCatalog = (product: Product) => {
+    const weightGrams = String(
+      Math.max(1, Math.round(Number(product.weight) * 1000))
+    );
+    const matchedType = itemTypes.find(
+      (type) => type.toLowerCase() === (product.category || "").toLowerCase()
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      itemContent: product.name,
+      itemType: matchedType ? matchedType.toLowerCase() : prev.itemType,
+      itemValue:
+        product.price != null && product.price !== ""
+          ? String(Math.round(Number(product.price)))
+          : prev.itemValue,
+      weight: weightGrams,
+      length: product.panjang != null ? String(product.panjang) : prev.length,
+      width: product.lebar != null ? String(product.lebar) : prev.width,
+      height: product.tinggi != null ? String(product.tinggi) : prev.height,
+    }));
+    setFormErrors((prev) => ({
+      ...prev,
+      itemContent: "",
+      itemType: "",
+      itemValue: "",
+      weight: "",
+    }));
+
+    setCatalogOpen(false);
+    toast.success(`Produk "${product.name}" diterapkan ke form.`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1477,10 +1546,22 @@ export default function RegularPackageForm({
         </Card>
         {/* Section Detail Product */}
         <Card className="p-6">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <Package className="h-5 w-5" />
-            Detail Paket
-          </h2>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Detail Paket
+            </h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleOpenCatalog}
+            >
+              <Boxes className="h-4 w-4" />
+              Pilih dari Katalog Produk
+            </Button>
+          </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1676,6 +1757,74 @@ export default function RegularPackageForm({
         </Card>
       </form>
       {/* Hasil cek ongkir dihandle parent */}
+
+      {/* Dialog: Pilih dari Katalog Produk */}
+      <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <DialogContent className="flex max-h-[80vh] flex-col gap-0 overflow-hidden sm:max-w-lg">
+          <DialogHeader className="shrink-0 text-left">
+            <DialogTitle>Pilih dari Katalog Produk</DialogTitle>
+            <DialogDescription>
+              Isi barang, jenis, nilai, berat, dan dimensi akan otomatis
+              terisi dari produk yang dipilih.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="shrink-0 flex gap-2 py-2">
+            <Input
+              placeholder="Cari nama produk…"
+              value={catalogSearch}
+              onChange={(e) => setCatalogSearch(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && loadCatalogProducts(catalogSearch)
+              }
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => loadCatalogProducts(catalogSearch)}
+              disabled={catalogLoading}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto space-y-2">
+            {catalogLoading ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Memuat…
+              </div>
+            ) : catalogProducts.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                <Boxes className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                Belum ada produk aktif di katalog kamu.
+              </div>
+            ) : (
+              catalogProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="p-3 border rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300"
+                  onClick={() => applyProductFromCatalog(product)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm">{product.name}</p>
+                    {product.price != null && product.price !== "" && (
+                      <p className="text-sm text-blue-600 font-medium whitespace-nowrap">
+                        {formatRupiah(product.price)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {product.category ? `${product.category} · ` : ""}
+                    {product.weight} kg
+                    {product.panjang && product.lebar && product.tinggi
+                      ? ` · ${product.panjang}x${product.lebar}x${product.tinggi} cm`
+                      : ""}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

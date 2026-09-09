@@ -97,6 +97,13 @@ import type {
   KerjaSamaAccount,
   KerjaSamaInvoice,
 } from "@/types/kerjaSama";
+import type {
+  ProductListResponse,
+  ProductDetailResponse,
+  CreateProductPayload,
+  UpdateProductPayload,
+  ToggleProductActiveResponse,
+} from "@/types/product";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 import { clearPendingVerificationEmail } from "@/lib/pending-verification-email";
 
@@ -1902,6 +1909,61 @@ export const deleteKerjaSamaInvoice = async (
   id: number
 ): Promise<{ status?: string; message?: string }> => {
   const res = await apiClient.delete(`/admin/kerja-sama/invoices/${id}`);
+  return res.data;
+};
+
+// ✅ Katalog Produk — CRUD produk milik user login. Lihat docs/be-fe/katalog-produk.md
+export const getProducts = async (params?: {
+  search?: string;
+  category?: string;
+  is_active?: 0 | 1;
+  per_page?: number;
+  page?: number;
+  /** Khusus superadmin — filter ke user tertentu. */
+  user_id?: number;
+}): Promise<ProductListResponse> => {
+  const res = await apiClient.get<ProductListResponse>("/admin/products", {
+    params,
+  });
+  return res.data;
+};
+
+export const createProduct = async (
+  payload: CreateProductPayload
+): Promise<ProductDetailResponse> => {
+  const res = await apiClient.post("/admin/products", payload);
+  return res.data;
+};
+
+export const getProduct = async (
+  id: number
+): Promise<ProductDetailResponse> => {
+  const res = await apiClient.get<ProductDetailResponse>(
+    `/admin/products/${id}`
+  );
+  return res.data;
+};
+
+export const updateProduct = async (
+  id: number,
+  payload: UpdateProductPayload
+): Promise<ProductDetailResponse> => {
+  const res = await apiClient.put(`/admin/products/${id}`, payload);
+  return res.data;
+};
+
+/** Tidak butuh body — otomatis membalik status is_active saat ini. */
+export const toggleProductActive = async (
+  id: number
+): Promise<ToggleProductActiveResponse> => {
+  const res = await apiClient.patch(`/admin/products/${id}/toggle-active`);
+  return res.data;
+};
+
+export const deleteProduct = async (
+  id: number
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await apiClient.delete(`/admin/products/${id}`);
   return res.data;
 };
 

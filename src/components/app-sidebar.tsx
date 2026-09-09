@@ -26,6 +26,7 @@ import {
   MessageCircle,
   Handshake,
   ReceiptText,
+  Boxes,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -131,6 +132,12 @@ const data = {
       url: "/dashboard/paket/paket-reguler",
       icon: Truck,
       permission: "expedition.orders.create",
+    },
+    {
+      title: "Katalog Produk",
+      url: "/dashboard/paket/katalog-produk",
+      icon: Boxes,
+      permission: "products.index",
     },
     {
       title: "Pembayaran Paket",
