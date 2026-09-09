@@ -104,6 +104,13 @@ import type {
   UpdateProductPayload,
   ToggleProductActiveResponse,
 } from "@/types/product";
+import type {
+  FlatShippingRateListResponse,
+  FlatShippingRateDetailResponse,
+  FlatShippingRatePayload,
+  UpdateFlatShippingRatePayload,
+  ToggleFlatShippingRateStatusResponse,
+} from "@/types/flatShippingRate";
 import { isDashboardGatewayReturnPath } from "@/lib/dashboard-gateway-return-paths";
 import { clearPendingVerificationEmail } from "@/lib/pending-verification-email";
 
@@ -1964,6 +1971,62 @@ export const deleteProduct = async (
   id: number
 ): Promise<{ success: boolean; message?: string }> => {
   const res = await apiClient.delete(`/admin/products/${id}`);
+  return res.data;
+};
+
+// ✅ Flat Ongkir — program harga tetap per cakupan provinsi. Lihat docs/be-fe/flat-ongkir-jawa-bali.md
+export const getFlatShippingRates = async (params?: {
+  vendor?: string;
+  is_active?: 0 | 1;
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<FlatShippingRateListResponse> => {
+  const res = await apiClient.get<FlatShippingRateListResponse>(
+    "/admin/flat-shipping-rates",
+    { params }
+  );
+  return res.data;
+};
+
+export const createFlatShippingRate = async (
+  payload: FlatShippingRatePayload
+): Promise<FlatShippingRateDetailResponse> => {
+  const res = await apiClient.post("/admin/flat-shipping-rates", payload);
+  return res.data;
+};
+
+export const getFlatShippingRate = async (
+  id: number
+): Promise<FlatShippingRateDetailResponse> => {
+  const res = await apiClient.get<FlatShippingRateDetailResponse>(
+    `/admin/flat-shipping-rates/${id}`
+  );
+  return res.data;
+};
+
+export const updateFlatShippingRate = async (
+  id: number,
+  payload: UpdateFlatShippingRatePayload
+): Promise<FlatShippingRateDetailResponse> => {
+  const res = await apiClient.put(`/admin/flat-shipping-rates/${id}`, payload);
+  return res.data;
+};
+
+/** Tidak butuh body — otomatis membalik is_active saat ini. */
+export const toggleFlatShippingRateStatus = async (
+  id: number
+): Promise<ToggleFlatShippingRateStatusResponse> => {
+  const res = await apiClient.patch(
+    `/admin/flat-shipping-rates/${id}/toggle-status`
+  );
+  return res.data;
+};
+
+export const deleteFlatShippingRate = async (
+  id: number
+): Promise<{ status?: string; message?: string }> => {
+  const res = await apiClient.delete(`/admin/flat-shipping-rates/${id}`);
   return res.data;
 };
 

@@ -27,6 +27,7 @@ import {
   Handshake,
   ReceiptText,
   Boxes,
+  Tag,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -156,6 +157,12 @@ const data = {
       url: "/dashboard/paket/diskon-pengiriman",
       icon: BadgePercent,
       permission: "discounts.create",
+    },
+    {
+      title: "Flat Ongkir",
+      url: "/dashboard/paket/flat-ongkir",
+      icon: Tag,
+      permission: "flat-shipping-rates.view",
     },
   ],
   navSecondary: [

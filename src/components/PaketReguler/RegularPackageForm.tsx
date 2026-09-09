@@ -1814,7 +1814,10 @@ export default function RegularPackageForm({
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     {product.category ? `${product.category} · ` : ""}
-                    {product.weight} kg
+                    {Math.round(Number(product.weight) * 1000).toLocaleString(
+                      "id-ID"
+                    )}{" "}
+                    gram
                     {product.panjang && product.lebar && product.tinggi
                       ? ` · ${product.panjang}x${product.lebar}x${product.tinggi} cm`
                       : ""}

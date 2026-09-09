@@ -27,60 +27,57 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Power, PowerOff, Boxes } from "lucide-react";
-import { Product } from "@/types/product";
+import { MoreHorizontal, Edit, Trash2, Power, PowerOff, Tag } from "lucide-react";
+import { FlatShippingRate } from "@/types/flatShippingRate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "@/lib/currency";
 
-interface ProductListProps {
-  products: Product[];
+interface FlatRateListProps {
+  rates: FlatShippingRate[];
   isLoading: boolean;
   canUpdate: boolean;
   canDelete: boolean;
-  onEdit: (product: Product) => void;
+  onEdit: (rate: FlatShippingRate) => void;
   onDelete: (id: number) => Promise<void>;
   onToggleStatus: (id: number) => Promise<void>;
 }
 
-export function ProductList({
-  products,
+export function FlatRateList({
+  rates,
   isLoading,
   canUpdate,
   canDelete,
   onEdit,
   onDelete,
   onToggleStatus,
-}: ProductListProps) {
+}: FlatRateListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedRate, setSelectedRate] = useState<FlatShippingRate | null>(
+    null
+  );
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const formatDimensions = (product: Product) => {
-    if (!product.panjang && !product.lebar && !product.tinggi) return "-";
-    return `${product.panjang ?? "-"} x ${product.lebar ?? "-"} x ${
-      product.tinggi ?? "-"
-    } cm`;
+  const formatProvinces = (rate: FlatShippingRate) => {
+    if (!rate.covered_provinces || rate.covered_provinces.length === 0)
+      return "-";
+    if (rate.covered_provinces.length <= 2)
+      return rate.covered_provinces.join(", ");
+    return `${rate.covered_provinces.slice(0, 2).join(", ")} +${
+      rate.covered_provinces.length - 2
+    } lainnya`;
   };
 
-  // Disimpan di API sebagai kg — tampilkan sebagai gram biar linier dengan
-  // form Kirim Paket.
-  const formatWeightGram = (product: Product) => {
-    const grams = Math.round(Number(product.weight) * 1000);
-    if (!Number.isFinite(grams)) return "-";
-    return `${grams.toLocaleString("id-ID")} gram`;
-  };
-
-  const handleDeleteClick = (product: Product) => {
-    setSelectedProduct(product);
+  const handleDeleteClick = (rate: FlatShippingRate) => {
+    setSelectedRate(rate);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (selectedProduct) {
-      setDeletingId(selectedProduct.id);
+    if (selectedRate) {
+      setDeletingId(selectedRate.id);
       try {
-        await onDelete(selectedProduct.id);
+        await onDelete(selectedRate.id);
       } catch (error) {
         console.error("Delete error:", error);
       } finally {
@@ -88,7 +85,7 @@ export function ProductList({
       }
     }
     setDeleteDialogOpen(false);
-    setSelectedProduct(null);
+    setSelectedRate(null);
   };
 
   const handleToggleStatus = async (id: number) => {
@@ -114,14 +111,16 @@ export function ProductList({
     );
   }
 
-  if (products.length === 0) {
+  if (rates.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-muted-foreground">
-          <Boxes className="h-12 w-12 mx-auto mb-4 opacity-20" />
-          <h3 className="text-lg font-medium mb-2">Belum ada produk</h3>
+          <Tag className="h-12 w-12 mx-auto mb-4 opacity-20" />
+          <h3 className="text-lg font-medium mb-2">
+            Belum ada program flat ongkir
+          </h3>
           <p className="text-sm">
-            Tambahkan produk agar bisa dipilih cepat saat membuat order.
+            Buat program baru untuk memberi harga tetap di rute tertentu.
           </p>
         </div>
       </div>
@@ -134,42 +133,43 @@ export function ProductList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nama Produk</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Berat</TableHead>
-              <TableHead>Dimensi</TableHead>
-              <TableHead>Harga</TableHead>
+              <TableHead>Nama Program</TableHead>
+              <TableHead>Vendor</TableHead>
+              <TableHead>Harga Flat</TableHead>
+              <TableHead>Cakupan Provinsi</TableHead>
+              <TableHead>Maks. Berat</TableHead>
+              <TableHead>Prioritas</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.name}</TableCell>
+            {rates.map((rate) => (
+              <TableRow key={rate.id}>
+                <TableCell className="font-medium">{rate.name}</TableCell>
                 <TableCell>
-                  {product.category ? (
-                    <Badge variant="outline">{product.category}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
+                  <Badge variant="outline">{rate.vendor || "Semua"}</Badge>
                 </TableCell>
-                <TableCell>{formatWeightGram(product)}</TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {formatDimensions(product)}
+                <TableCell className="font-medium text-green-600">
+                  {formatRupiah(rate.flat_price)}
                 </TableCell>
-                <TableCell>
-                  {product.price ? formatRupiah(product.price) : "-"}
+                <TableCell
+                  className="max-w-[220px] truncate"
+                  title={rate.covered_provinces?.join(", ")}
+                >
+                  {formatProvinces(rate)}
                 </TableCell>
+                <TableCell>{rate.max_weight} kg</TableCell>
+                <TableCell>{rate.priority}</TableCell>
                 <TableCell>
                   <Badge
                     className={
-                      product.is_active
+                      rate.is_active
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-100 text-gray-800"
                     }
                   >
-                    {product.is_active ? "Aktif" : "Tidak Aktif"}
+                    {rate.is_active ? "Aktif" : "Tidak Aktif"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
@@ -179,8 +179,7 @@ export function ProductList({
                         variant="ghost"
                         className="h-8 w-8 p-0"
                         disabled={
-                          deletingId === product.id ||
-                          togglingId === product.id
+                          deletingId === rate.id || togglingId === rate.id
                         }
                       >
                         <MoreHorizontal className="h-4 w-4" />
@@ -189,10 +188,9 @@ export function ProductList({
                     <DropdownMenuContent align="end">
                       {canUpdate && (
                         <DropdownMenuItem
-                          onClick={() => onEdit(product)}
+                          onClick={() => onEdit(rate)}
                           disabled={
-                            deletingId === product.id ||
-                            togglingId === product.id
+                            deletingId === rate.id || togglingId === rate.id
                           }
                         >
                           <Edit className="mr-2 h-4 w-4" />
@@ -201,20 +199,19 @@ export function ProductList({
                       )}
                       {canUpdate && (
                         <DropdownMenuItem
-                          onClick={() => handleToggleStatus(product.id)}
+                          onClick={() => handleToggleStatus(rate.id)}
                           disabled={
-                            deletingId === product.id ||
-                            togglingId === product.id
+                            deletingId === rate.id || togglingId === rate.id
                           }
                         >
-                          {togglingId === product.id ? (
+                          {togglingId === rate.id ? (
                             <>
                               <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                              {product.is_active
+                              {rate.is_active
                                 ? "Menonaktifkan..."
                                 : "Mengaktifkan..."}
                             </>
-                          ) : product.is_active ? (
+                          ) : rate.is_active ? (
                             <>
                               <PowerOff className="mr-2 h-4 w-4" />
                               Nonaktifkan
@@ -229,14 +226,13 @@ export function ProductList({
                       )}
                       {canDelete && (
                         <DropdownMenuItem
-                          onClick={() => handleDeleteClick(product)}
+                          onClick={() => handleDeleteClick(rate)}
                           className="text-red-600"
                           disabled={
-                            deletingId === product.id ||
-                            togglingId === product.id
+                            deletingId === rate.id || togglingId === rate.id
                           }
                         >
-                          {deletingId === product.id ? (
+                          {deletingId === rate.id ? (
                             <>
                               <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
                               Menghapus...
@@ -261,10 +257,10 @@ export function ProductList({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
+            <AlertDialogTitle>Hapus Program Flat Ongkir</AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus produk &quot;
-              {selectedProduct?.name}&quot;? Tindakan ini tidak dapat
+              Apakah Anda yakin ingin menghapus program &quot;
+              {selectedRate?.name}&quot;? Tindakan ini tidak dapat
               dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>

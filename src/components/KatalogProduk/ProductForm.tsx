@@ -17,6 +17,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Product, CreateProductPayload } from "@/types/product";
 import { itemTypes } from "@/types/dataRegulerForm";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { WeightInput } from "@/components/ui/weight-input";
 
 interface ProductFormProps {
   product?: Product | null;
@@ -44,7 +45,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         name: product.name || "",
         price: product.price != null ? String(product.price) : "",
         category: product.category || "none",
-        weight: product.weight != null ? String(product.weight) : "",
+        // API simpan/kembalikan kg — tampilkan sebagai gram di form, sama
+        // seperti input berat di form Kirim Paket, biar linier.
+        weight:
+          product.weight != null
+            ? String(Math.round(Number(product.weight) * 1000))
+            : "",
         panjang: product.panjang != null ? String(product.panjang) : "",
         lebar: product.lebar != null ? String(product.lebar) : "",
         tinggi: product.tinggi != null ? String(product.tinggi) : "",
@@ -67,8 +73,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       newErrors.name = "Nama produk wajib diisi";
     }
 
-    if (!formData.weight || parseFloat(formData.weight) <= 0) {
-      newErrors.weight = "Berat wajib diisi (lebih dari 0 kg)";
+    if (!formData.weight || parseInt(formData.weight) <= 0) {
+      newErrors.weight = "Berat wajib diisi (lebih dari 0 gram)";
     }
 
     setErrors(newErrors);
@@ -84,7 +90,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
     const submitData: CreateProductPayload = {
       name: formData.name.trim(),
-      weight: parseFloat(formData.weight),
+      // FE isi gram, API-nya minta kg.
+      weight: parseInt(formData.weight) / 1000,
       is_active: formData.is_active,
     };
     if (formData.price) submitData.price = parseFloat(formData.price);
@@ -163,16 +170,13 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             {/* Weight */}
             <div className="space-y-2">
               <Label htmlFor="weight">
-                Berat (kg) <span className="text-red-500">*</span>
+                Berat (gram) <span className="text-red-500">*</span>
               </Label>
-              <Input
+              <WeightInput
                 id="weight"
-                type="number"
-                min="0.01"
-                step="0.01"
                 value={formData.weight}
-                onChange={(e) => handleInputChange("weight", e.target.value)}
-                placeholder="0.3"
+                onChange={(value) => handleInputChange("weight", value)}
+                placeholder="300"
                 className={errors.weight ? "border-red-500" : ""}
               />
               {errors.weight && (
