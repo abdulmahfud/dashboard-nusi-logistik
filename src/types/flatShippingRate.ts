@@ -66,17 +66,3 @@ export interface ToggleFlatShippingRateStatusResponse {
   message?: string;
   data: { is_active: boolean };
 }
-
-/** Vendor yang diikutkan evaluasi flat rate (GoSend sengaja tidak diikutkan). */
-export const FLAT_RATE_VENDORS = [
-  { value: "IDEXPRESS", label: "ID Express" },
-  { value: "ANTERAJA", label: "Anteraja" },
-  { value: "JNE", label: "JNE" },
-  { value: "JNTCARGO", label: "J&T Cargo" },
-  { value: "JNTEXPRESS", label: "J&T Express" },
-  { value: "LION", label: "Lion Parcel" },
-  { value: "NINJAEXPRESS", label: "Ninja Express" },
-  { value: "PAXEL", label: "Paxel" },
-  { value: "POSINDONESIA", label: "Pos Indonesia" },
-  { value: "SAP", label: "SAP Express" },
-];

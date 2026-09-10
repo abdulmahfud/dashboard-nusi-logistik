@@ -19,11 +19,14 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import {
   FlatShippingRate,
   FlatShippingRatePayload,
-  FLAT_RATE_VENDORS,
 } from "@/types/flatShippingRate";
 import type { Province } from "@/types/dataRegulerForm";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { getProvinces } from "@/lib/apiClient";
+import {
+  fetchPricingEligibleVendors,
+  type PricingVendorOption,
+} from "@/lib/pricingVendors";
 import { toast } from "sonner";
 
 interface FlatRateFormProps {
@@ -52,12 +55,23 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
   });
   const [coveredProvinces, setCoveredProvinces] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vendorOptions, setVendorOptions] = useState<PricingVendorOption[]>(
+    []
+  );
+  const [loadingVendors, setLoadingVendors] = useState(true);
 
   useEffect(() => {
     getProvinces()
       .then((res) => setProvinces(res.data))
       .catch(() => toast.error("Gagal memuat daftar provinsi"))
       .finally(() => setLoadingProvinces(false));
+  }, []);
+
+  useEffect(() => {
+    fetchPricingEligibleVendors()
+      .then(setVendorOptions)
+      .catch(() => toast.error("Gagal memuat daftar vendor"))
+      .finally(() => setLoadingVendors(false));
   }, []);
 
   useEffect(() => {
@@ -175,15 +189,21 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
               <Select
                 value={formData.vendor}
                 onValueChange={(value) => handleInputChange("vendor", value)}
+                disabled={loadingVendors}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih vendor" />
+                  <SelectValue
+                    placeholder={
+                      loadingVendors ? "Memuat daftar vendor..." : "Pilih vendor"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Vendor</SelectItem>
-                  {FLAT_RATE_VENDORS.map((v) => (
+                  {vendorOptions.map((v) => (
                     <SelectItem key={v.value} value={v.value}>
                       {v.label}
+                      {!v.is_active ? " (Nonaktif)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

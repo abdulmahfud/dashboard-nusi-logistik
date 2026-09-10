@@ -94,6 +94,8 @@ export default function ExpeditionVendorSettingsPage() {
           note: "Auto-added dari frontend (vendor SAP).",
           created_at: nowIso,
           updated_at: nowIso,
+          vendor_code: "SAP",
+          eligible_for_pricing_rules: true,
         });
       }
 

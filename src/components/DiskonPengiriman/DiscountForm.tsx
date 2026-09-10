@@ -17,22 +17,17 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save } from "lucide-react";
 import { ExpeditionDiscount } from "@/types/discount";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import {
+  fetchPricingEligibleVendors,
+  type PricingVendorOption,
+} from "@/lib/pricingVendors";
+import { toast } from "sonner";
 
 interface DiscountFormProps {
   discount?: ExpeditionDiscount | null;
   onSubmit: (data: ExpeditionDiscount) => void;
   onCancel: () => void;
 }
-
-const VENDORS = [
-  { value: "JNTEXPRESS", label: "JNT Express" },
-  { value: "PAXEL", label: "Paxel" },
-  { value: "SAP", label: "SAP Express" },
-  { value: "LION", label: "Lion Parcel" },
-  { value: "SICEPAT", label: "SiCepat" },
-  { value: "TIKI", label: "TIKI" },
-  { value: "POS", label: "Pos Indonesia" },
-];
 
 const USER_TYPES = [
   { value: "all", label: "Semua Tipe Akun" },
@@ -61,6 +56,17 @@ export function DiscountForm({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [vendorOptions, setVendorOptions] = useState<PricingVendorOption[]>(
+    []
+  );
+  const [loadingVendors, setLoadingVendors] = useState(true);
+
+  useEffect(() => {
+    fetchPricingEligibleVendors()
+      .then(setVendorOptions)
+      .catch(() => toast.error("Gagal memuat daftar vendor"))
+      .finally(() => setLoadingVendors(false));
+  }, []);
 
   useEffect(() => {
     if (discount) {
@@ -191,16 +197,24 @@ export function DiscountForm({
               <Select
                 value={formData.vendor}
                 onValueChange={(value) => handleInputChange("vendor", value)}
+                disabled={loadingVendors}
               >
                 <SelectTrigger
                   className={errors.vendor ? "border-red-500" : ""}
                 >
-                  <SelectValue placeholder="Pilih vendor ekspedisi" />
+                  <SelectValue
+                    placeholder={
+                      loadingVendors
+                        ? "Memuat daftar vendor..."
+                        : "Pilih vendor ekspedisi"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {VENDORS.map((vendor) => (
+                  {vendorOptions.map((vendor) => (
                     <SelectItem key={vendor.value} value={vendor.value}>
                       {vendor.label}
+                      {!vendor.is_active ? " (Nonaktif)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
