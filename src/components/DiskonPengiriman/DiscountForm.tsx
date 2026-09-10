@@ -21,6 +21,7 @@ import {
   fetchPricingEligibleVendors,
   type PricingVendorOption,
 } from "@/lib/pricingVendors";
+import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from "@/lib/priorityScale";
 import { toast } from "sonner";
 
 interface DiscountFormProps {
@@ -52,7 +53,7 @@ export function DiscountForm({
     valid_until: "",
     description: "",
     usage_limit: "",
-    priority: "1",
+    priority: DEFAULT_PRIORITY,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -83,7 +84,7 @@ export function DiscountForm({
         valid_until: discount.valid_until || "",
         description: discount.description || "",
         usage_limit: discount.usage_limit?.toString() || "",
-        priority: discount.priority?.toString() || "1",
+        priority: discount.priority?.toString() || DEFAULT_PRIORITY,
       });
     }
   }, [discount]);
@@ -363,15 +364,17 @@ export function DiscountForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1 (Tertinggi)</SelectItem>
-                  <SelectItem value="2">2 (Tinggi)</SelectItem>
-                  <SelectItem value="3">3 (Sedang)</SelectItem>
-                  <SelectItem value="4">4 (Rendah)</SelectItem>
-                  <SelectItem value="5">5 (Terendah)</SelectItem>
+                  {PRIORITY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Diskon dengan prioritas tinggi akan diprioritaskan
+                Pemenang utama tetap potongan terbesar buat customer —
+                prioritas cuma tiebreaker kalau 2 diskon menghasilkan
+                potongan yang persis sama.
               </p>
             </div>
 

@@ -27,6 +27,7 @@ import {
   fetchPricingEligibleVendors,
   type PricingVendorOption,
 } from "@/lib/pricingVendors";
+import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from "@/lib/priorityScale";
 import { toast } from "sonner";
 
 interface FlatRateFormProps {
@@ -50,7 +51,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
     is_active: true,
     valid_from: "",
     valid_until: "",
-    priority: "0",
+    priority: DEFAULT_PRIORITY,
     description: "",
   });
   const [coveredProvinces, setCoveredProvinces] = useState<string[]>([]);
@@ -87,7 +88,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
         is_active: rate.is_active,
         valid_from: rate.valid_from || "",
         valid_until: rate.valid_until || "",
-        priority: String(rate.priority ?? 0),
+        priority: rate.priority != null ? String(rate.priority) : DEFAULT_PRIORITY,
         description: rate.description || "",
       });
       setCoveredProvinces(rate.covered_provinces || []);
@@ -141,7 +142,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
       covered_provinces: coveredProvinces,
       max_weight: parseFloat(formData.max_weight),
       is_active: formData.is_active,
-      priority: parseInt(formData.priority) || 0,
+      priority: parseInt(formData.priority) || Number(DEFAULT_PRIORITY),
       // BE selalu paksa jadi null sekarang — "jenis layanan" tidak dipakai
       // lagi, jadi field ini sengaja tidak dikirim.
     };
@@ -257,15 +258,16 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">0 (Normal)</SelectItem>
-                  <SelectItem value="1">1 (Tinggi)</SelectItem>
-                  <SelectItem value="2">2 (Lebih Tinggi)</SelectItem>
-                  <SelectItem value="3">3 (Sangat Tinggi)</SelectItem>
+                  {PRIORITY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 Kalau ada 2 program match sekaligus, angka prioritas lebih
-                tinggi yang dipakai
+                kecil yang dipakai
               </p>
             </div>
 
