@@ -229,16 +229,23 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="priority">Prioritas</Label>
-              <Input
-                id="priority"
-                type="number"
-                min="0"
+              <Select
                 value={formData.priority}
-                onChange={(e) => handleInputChange("priority", e.target.value)}
-              />
+                onValueChange={(value) => handleInputChange("priority", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">0 (Normal)</SelectItem>
+                  <SelectItem value="1">1 (Tinggi)</SelectItem>
+                  <SelectItem value="2">2 (Lebih Tinggi)</SelectItem>
+                  <SelectItem value="3">3 (Sangat Tinggi)</SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">
-                Kalau ada 2 program match sekaligus, prioritas lebih tinggi
-                yang dipakai
+                Kalau ada 2 program match sekaligus, angka prioritas lebih
+                tinggi yang dipakai
               </p>
             </div>
 
