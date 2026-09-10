@@ -166,7 +166,6 @@ export function DiscountList({
           <TableHeader>
             <TableRow>
               <TableHead>Vendor</TableHead>
-              <TableHead>Layanan</TableHead>
               <TableHead>Diskon</TableHead>
               <TableHead>Min. Order</TableHead>
               <TableHead>Max. Potongan</TableHead>
@@ -183,13 +182,6 @@ export function DiscountList({
                   <Badge className={getVendorBadgeColor(discount.vendor)}>
                     {discount.vendor}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  {discount.service_type ? (
-                    <Badge variant="outline">{discount.service_type}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">Semua</span>
-                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">

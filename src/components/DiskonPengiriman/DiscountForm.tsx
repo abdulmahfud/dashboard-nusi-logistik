@@ -34,14 +34,6 @@ const VENDORS = [
   { value: "POS", label: "Pos Indonesia" },
 ];
 
-const SERVICE_TYPES = [
-  { value: "all", label: "Semua Layanan" },
-  { value: "REGULER", label: "Reguler" },
-  { value: "COD", label: "COD (Cash on Delivery)" },
-  { value: "EXPRESS", label: "Express" },
-  { value: "INSTANT", label: "Instant" },
-];
-
 const USER_TYPES = [
   { value: "all", label: "Semua Tipe Akun" },
   { value: "personal", label: "Personal" },
@@ -55,7 +47,6 @@ export function DiscountForm({
 }: DiscountFormProps) {
   const [formData, setFormData] = useState({
     vendor: "",
-    service_type: "all",
     discount_type: "percentage" as "percentage" | "fixed_amount",
     discount_value: "",
     minimum_order_value: "",
@@ -75,7 +66,6 @@ export function DiscountForm({
     if (discount) {
       setFormData({
         vendor: discount.vendor || "",
-        service_type: discount.service_type || "all",
         discount_type: discount.discount_type,
         discount_value: discount.discount_value.toString(),
         minimum_order_value: discount.minimum_order_value?.toString() || "",
@@ -171,8 +161,8 @@ export function DiscountForm({
         : null,
       usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
       priority: parseInt(formData.priority),
-      service_type:
-        formData.service_type === "all" ? null : formData.service_type || null,
+      // BE selalu paksa jadi null sekarang — "jenis layanan" tidak dipakai lagi.
+      service_type: null,
       user_type:
         formData.user_type === "all" ? null : formData.user_type || null,
     };
@@ -218,31 +208,6 @@ export function DiscountForm({
               {errors.vendor && (
                 <p className="text-sm text-red-500">{errors.vendor}</p>
               )}
-            </div>
-
-            {/* Service Type */}
-            <div className="space-y-2">
-              <Label htmlFor="service_type">Jenis Layanan</Label>
-              <Select
-                value={formData.service_type}
-                onValueChange={(value) =>
-                  handleInputChange("service_type", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih jenis layanan (opsional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SERVICE_TYPES.map((service) => (
-                    <SelectItem key={service.value} value={service.value}>
-                      {service.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Kosongkan untuk berlaku pada semua jenis layanan
-              </p>
             </div>
 
             {/* Discount Type */}

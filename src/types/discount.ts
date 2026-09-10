@@ -1,6 +1,7 @@
 export interface ExpeditionDiscount {
   id: number;
   vendor: string;
+  /** BE selalu paksa null sekarang — "jenis layanan" tidak dibedakan lagi. */
   service_type: string | null;
   description: string;
   discount_type: "percentage" | "fixed_amount";

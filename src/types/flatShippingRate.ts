@@ -6,6 +6,7 @@ export interface FlatShippingRate {
   vendor: string | null;
   flat_price: string | number;
   covered_provinces: string[];
+  /** BE selalu paksa null sekarang — "jenis layanan" tidak dibedakan lagi. */
   service_types: string[] | null;
   max_weight: string | number;
   max_length: number | null;
@@ -79,5 +80,3 @@ export const FLAT_RATE_VENDORS = [
   { value: "POSINDONESIA", label: "Pos Indonesia" },
   { value: "SAP", label: "SAP Express" },
 ];
-
-export const FLAT_RATE_SERVICE_TYPES = ["REGULER", "COD", "EXPRESS", "INSTANT"];

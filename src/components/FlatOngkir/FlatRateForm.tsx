@@ -20,7 +20,6 @@ import {
   FlatShippingRate,
   FlatShippingRatePayload,
   FLAT_RATE_VENDORS,
-  FLAT_RATE_SERVICE_TYPES,
 } from "@/types/flatShippingRate";
 import type { Province } from "@/types/dataRegulerForm";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -52,7 +51,6 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
     description: "",
   });
   const [coveredProvinces, setCoveredProvinces] = useState<string[]>([]);
-  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -79,7 +77,6 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
         description: rate.description || "",
       });
       setCoveredProvinces(rate.covered_provinces || []);
-      setServiceTypes(rate.service_types || []);
     }
   }, [rate]);
 
@@ -93,12 +90,6 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
   const toggleProvince = (name: string) => {
     setCoveredProvinces((prev) =>
       prev.includes(name) ? prev.filter((p) => p !== name) : [...prev, name]
-    );
-  };
-
-  const toggleServiceType = (type: string) => {
-    setServiceTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
   };
 
@@ -137,8 +128,9 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
       max_weight: parseFloat(formData.max_weight),
       is_active: formData.is_active,
       priority: parseInt(formData.priority) || 0,
+      // BE selalu paksa jadi null sekarang — "jenis layanan" tidak dipakai
+      // lagi, jadi field ini sengaja tidak dikirim.
     };
-    if (serviceTypes.length > 0) submitData.service_types = serviceTypes;
     if (formData.max_length) submitData.max_length = parseInt(formData.max_length);
     if (formData.max_width) submitData.max_width = parseInt(formData.max_width);
     if (formData.max_height) submitData.max_height = parseInt(formData.max_height);
@@ -324,25 +316,6 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
               cek ongkir membawa dimensi — saat ini belum, jadi hanya limit
               berat yang praktiknya aktif.
             </p>
-          </div>
-
-          {/* Service Types */}
-          <div className="space-y-2">
-            <Label>Jenis Layanan (kosongkan untuk semua)</Label>
-            <div className="flex flex-wrap gap-4">
-              {FLAT_RATE_SERVICE_TYPES.map((type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-2 text-sm cursor-pointer"
-                >
-                  <Checkbox
-                    checked={serviceTypes.includes(type)}
-                    onCheckedChange={() => toggleServiceType(type)}
-                  />
-                  {type}
-                </label>
-              ))}
-            </div>
           </div>
 
           {/* Covered Provinces */}
