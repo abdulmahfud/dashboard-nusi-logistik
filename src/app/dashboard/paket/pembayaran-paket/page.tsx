@@ -18,7 +18,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getOrders, createPayment } from "@/lib/apiClient";
+import { getOrders, createPayment, getWalletBalance } from "@/lib/apiClient";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface PendingOrder {
   id: number;
@@ -57,10 +59,27 @@ const calculatePaymentAmount = (order: PendingOrder): number => {
 };
 
 export default function PembayaranPaketPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  // Akun agen prepaid-only: cuma boleh bayar via saldo wallet, tidak pernah
+  // Xendit. Lihat docs/be-fe/akun-agen.md §2 & update-deteksi-tipe-akun-me.md
+  const isAgen = user?.account_type === "agen";
+
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAgen) return;
+    setWalletLoading(true);
+    getWalletBalance()
+      .then((res) => setWalletBalance(Number(res.data?.balance) || 0))
+      .catch(() => setWalletBalance(0))
+      .finally(() => setWalletLoading(false));
+  }, [isAgen]);
 
   const fetchPendingOrders = useCallback(async () => {
     try {
@@ -145,6 +164,13 @@ export default function PembayaranPaketPage() {
       return;
     }
 
+    if (isAgen && walletBalance < getTotalAmount()) {
+      toast.error(
+        "Saldo tidak cukup. Akun agen hanya bisa membayar via saldo wallet — silakan topup dulu."
+      );
+      return;
+    }
+
     try {
       setPaymentLoading(true);
 
@@ -171,13 +197,19 @@ export default function PembayaranPaketPage() {
       const paymentResponse = await createPayment({
         shipping_data: bulkShippingData,
         amount: getTotalAmount(),
+        payment_method: isAgen ? "wallet" : undefined,
       });
 
       if (paymentResponse.success && paymentResponse.data) {
-        // Open payment URL
         if (paymentResponse.data.invoice_url) {
+          // Xendit: buka halaman invoice
           window.open(paymentResponse.data.invoice_url, "_blank");
           toast.success("Invoice pembayaran berhasil dibuat");
+        } else if (paymentResponse.data.payment_method === "wallet") {
+          // Wallet: langsung lunas, tidak ada invoice eksternal
+          toast.success("Pembayaran via saldo wallet berhasil.");
+          setSelectedOrders([]);
+          void fetchPendingOrders();
         }
       } else {
         toast.error(
@@ -395,10 +427,27 @@ export default function PembayaranPaketPage() {
                       {selectedOrders.length} order dipilih - Total:{" "}
                       {formatCurrency(getTotalAmount())}
                     </p>
+                    {isAgen && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Saldo wallet:{" "}
+                        {walletLoading
+                          ? "Memuat..."
+                          : formatCurrency(walletBalance)}
+                      </p>
+                    )}
                   </div>
+                  {isAgen && !walletLoading && walletBalance < getTotalAmount() ? (
+                    <Button
+                      onClick={() => router.push("/dashboard/wallet")}
+                      className="bg-blue-500 text-white hover:bg-blue-600"
+                      size="lg"
+                    >
+                      Topup Saldo
+                    </Button>
+                  ) : (
                   <Button
                     onClick={handleBulkPayment}
-                    disabled={paymentLoading}
+                    disabled={paymentLoading || walletLoading}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600"
                     size="lg"
                   >
@@ -414,6 +463,7 @@ export default function PembayaranPaketPage() {
                       </>
                     )}
                   </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

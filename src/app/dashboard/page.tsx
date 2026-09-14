@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SectionCardsBalance } from "@/components/section-cards-balance";
+import { SectionCardsCredit } from "@/components/section-cards-credit";
 import { SectionCardsCod } from "@/components/section-cards-cod";
 import { SectionCardsReguler } from "@/components/section-cards-reguler";
 import { SectionCardsTrouble } from "@/components/section-cards-trouble";
@@ -50,6 +51,7 @@ function DashboardContent() {
               </h2>
               <div className="mx-2 space-y-2">
                 <SectionCardsBalance />
+                <SectionCardsCredit user={user} />
                 <SectionCardsReguler />
                 <SectionCardsCod />
                 <SectionCardsTrouble />

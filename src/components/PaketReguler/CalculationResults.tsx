@@ -1210,6 +1210,16 @@ export default function CalculationResults({
         );
         const lower = message.toLowerCase();
         if (
+          lower.includes("limit kredit") ||
+          lower.includes("kerja sama") ||
+          (lower.includes("akun") && lower.includes("nonaktif"))
+        ) {
+          // Akun corporate (kerja sama) ditolak karena suspend/limit kredit
+          // tidak cukup — order memang tidak dibuat sama sekali (doc §4),
+          // jadi tidak ada jalur "bayar sekarang"/ganti metode bayar di sini.
+          // Cukup tampilkan pesan dari BE apa adanya, lebih lama biar terbaca.
+          toast.error(message, { duration: 8000 });
+        } else if (
           lower.includes("saldo") &&
           (lower.includes("kurang") || lower.includes("tidak cukup"))
         ) {
