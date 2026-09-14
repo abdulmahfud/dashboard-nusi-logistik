@@ -31,6 +31,7 @@ import { MoreHorizontal, Edit, Trash2, Power, PowerOff, Tag } from "lucide-react
 import { FlatShippingRate } from "@/types/flatShippingRate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "@/lib/currency";
+import { getVendorBadgeClass } from "@/lib/pricingVendors";
 
 interface FlatRateListProps {
   rates: FlatShippingRate[];
@@ -148,7 +149,13 @@ export function FlatRateList({
               <TableRow key={rate.id}>
                 <TableCell className="font-medium">{rate.name}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{rate.vendor || "Semua"}</Badge>
+                  {rate.vendor ? (
+                    <Badge className={getVendorBadgeClass(rate.vendor)}>
+                      {rate.vendor}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Semua</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="font-medium text-green-600">
                   {formatRupiah(rate.flat_price)}

@@ -1,9 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { DiscountForm } from "./DiscountForm";
 import { DiscountList } from "./DiscountList";
 import { ExpeditionDiscount } from "@/types/discount";
@@ -14,7 +28,28 @@ import {
   updateExpeditionDiscount,
   deleteExpeditionDiscount,
   toggleExpeditionDiscountStatus,
+  getExpeditionDiscountStatistics,
 } from "@/lib/apiClient";
+import {
+  fetchPricingEligibleVendors,
+  type PricingVendorOption,
+} from "@/lib/pricingVendors";
+
+const USER_TYPE_FILTERS = [
+  { value: "all", label: "Semua Tipe Akun" },
+  { value: "personal", label: "Personal" },
+  { value: "corporate", label: "Corporate" },
+  { value: "agen", label: "Agen" },
+];
+
+interface DiscountStatistics {
+  total_discounts: number;
+  active_discounts: number;
+  inactive_discounts: number;
+  total_usage: number;
+  vendors: Record<string, number>;
+  discount_types: Record<string, number>;
+}
 
 export function DiscountManagement() {
   const [discounts, setDiscounts] = useState<ExpeditionDiscount[]>([]);
@@ -23,30 +58,80 @@ export function DiscountManagement() {
   const [editingDiscount, setEditingDiscount] =
     useState<ExpeditionDiscount | null>(null);
 
-  // Load discounts on component mount
+  const [search, setSearch] = useState("");
+  const [vendorFilter, setVendorFilter] = useState("all");
+  const [isActiveFilter, setIsActiveFilter] = useState("all");
+  const [userTypeFilter, setUserTypeFilter] = useState("all");
+  const [vendorOptions, setVendorOptions] = useState<PricingVendorOption[]>(
+    []
+  );
+
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [stats, setStats] = useState<DiscountStatistics | null>(null);
+
   useEffect(() => {
-    loadDiscounts();
+    fetchPricingEligibleVendors()
+      .then(setVendorOptions)
+      .catch(() => {
+        // vendor filter cuma nice-to-have, biarkan kosong kalau gagal
+      });
   }, []);
 
-  const loadDiscounts = async () => {
+  const loadStats = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const response = await getExpeditionDiscounts();
-
-      // Handle both success and status fields from backend
-      if (response.status === "success" || response.success) {
-        setDiscounts(response.data.data);
-      } else {
-        console.log("API returned error status:", response);
-        toast.error("Gagal memuat data diskon");
+      const response = await getExpeditionDiscountStatistics();
+      if (response.success) {
+        setStats(response.data);
       }
     } catch (error) {
-      console.error("Error loading discounts:", error);
-      toast.error("Gagal memuat data diskon");
-    } finally {
-      setIsLoading(false);
+      console.error("Error loading discount statistics:", error);
     }
-  };
+  }, []);
+
+  const loadDiscounts = useCallback(
+    async (targetPage = 1) => {
+      try {
+        setIsLoading(true);
+        const response = await getExpeditionDiscounts({
+          page: targetPage,
+          search: search || undefined,
+          vendor: vendorFilter === "all" ? undefined : vendorFilter,
+          is_active:
+            isActiveFilter === "all" ? undefined : isActiveFilter === "1" ? 1 : 0,
+          user_type:
+            userTypeFilter === "all"
+              ? undefined
+              : (userTypeFilter as "personal" | "corporate" | "agen"),
+        });
+
+        if (response.status === "success" || response.success) {
+          setDiscounts(response.data.data);
+          setPage(response.data.current_page);
+          setLastPage(response.data.last_page);
+          setTotal(response.data.total);
+        } else {
+          console.log("API returned error status:", response);
+          toast.error("Gagal memuat data diskon");
+        }
+      } catch (error) {
+        console.error("Error loading discounts:", error);
+        toast.error("Gagal memuat data diskon");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [search, vendorFilter, isActiveFilter, userTypeFilter]
+  );
+
+  useEffect(() => {
+    loadDiscounts(1);
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorFilter, isActiveFilter, userTypeFilter]);
 
   const handleCreateDiscount = () => {
     setEditingDiscount(null);
@@ -86,7 +171,8 @@ export function DiscountManagement() {
         }
       }
       handleCloseForm();
-      loadDiscounts();
+      loadDiscounts(page);
+      loadStats();
     } catch (error) {
       console.error("Error saving discount:", error);
       toast.error("Gagal menyimpan diskon");
@@ -94,7 +180,6 @@ export function DiscountManagement() {
   };
 
   const handleDeleteDiscount = async (id: number) => {
-    // Optimistic update: Remove from UI immediately
     const originalDiscounts = [...discounts];
     setDiscounts((prev) => prev.filter((discount) => discount.id !== id));
 
@@ -102,15 +187,13 @@ export function DiscountManagement() {
       const response = await deleteExpeditionDiscount(id);
       if (response.status === "success" || response.success) {
         toast.success("Diskon berhasil dihapus");
-        // Data already removed optimistically, just confirm with fresh data
-        loadDiscounts();
+        loadDiscounts(page);
+        loadStats();
       } else {
-        // Revert optimistic update on failure
         setDiscounts(originalDiscounts);
         toast.error("Gagal menghapus diskon");
       }
     } catch (error) {
-      // Revert optimistic update on error
       setDiscounts(originalDiscounts);
       console.error("Error deleting discount:", error);
       toast.error("Gagal menghapus diskon");
@@ -118,7 +201,6 @@ export function DiscountManagement() {
   };
 
   const handleToggleStatus = async (id: number) => {
-    // Optimistic update: Toggle status in UI immediately
     const originalDiscounts = [...discounts];
     setDiscounts((prev) =>
       prev.map((discount) =>
@@ -132,15 +214,13 @@ export function DiscountManagement() {
       const response = await toggleExpeditionDiscountStatus(id);
       if (response.status === "success" || response.success) {
         toast.success("Status diskon berhasil diubah");
-        // Optionally refresh to get the latest data from server
-        loadDiscounts();
+        loadDiscounts(page);
+        loadStats();
       } else {
-        // Revert optimistic update on failure
         setDiscounts(originalDiscounts);
         toast.error("Gagal mengubah status diskon");
       }
     } catch (error) {
-      // Revert optimistic update on error
       setDiscounts(originalDiscounts);
       console.error("Error toggling discount status:", error);
       toast.error("Gagal mengubah status diskon");
@@ -159,6 +239,39 @@ export function DiscountManagement() {
 
   return (
     <div className="space-y-6">
+      {stats && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Total Diskon</p>
+              <p className="text-2xl font-semibold">{stats.total_discounts}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Aktif</p>
+              <p className="text-2xl font-semibold text-green-600">
+                {stats.active_discounts}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Tidak Aktif</p>
+              <p className="text-2xl font-semibold text-muted-foreground">
+                {stats.inactive_discounts}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-xs text-muted-foreground">Total Pemakaian</p>
+              <p className="text-2xl font-semibold">{stats.total_usage}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="text-xl font-semibold">
@@ -172,7 +285,76 @@ export function DiscountManagement() {
             Tambah Diskon
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex flex-1 gap-2">
+              <Input
+                placeholder="Cari deskripsi diskon…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && loadDiscounts(1)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => loadDiscounts(1)}
+                disabled={isLoading}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            <Select value={vendorFilter} onValueChange={setVendorFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Vendor</SelectItem>
+                {vendorOptions.map((vendor) => (
+                  <SelectItem key={vendor.value} value={vendor.value}>
+                    {vendor.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Tipe Akun" />
+              </SelectTrigger>
+              <SelectContent>
+                {USER_TYPE_FILTERS.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={isActiveFilter} onValueChange={setIsActiveFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="1">Aktif</SelectItem>
+                <SelectItem value="0">Nonaktif</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                loadDiscounts(page);
+                loadStats();
+              }}
+              disabled={isLoading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+          </div>
+
           <DiscountList
             discounts={discounts}
             isLoading={isLoading}
@@ -180,6 +362,34 @@ export function DiscountManagement() {
             onDelete={handleDeleteDiscount}
             onToggleStatus={handleToggleStatus}
           />
+
+          {!isLoading && discounts.length > 0 && (
+            <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
+              <span>
+                Halaman {page} dari {lastPage} · Total {total} diskon
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadDiscounts(page - 1)}
+                  disabled={page <= 1 || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadDiscounts(page + 1)}
+                  disabled={page >= lastPage || isLoading}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

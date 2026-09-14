@@ -28,21 +28,21 @@ export interface DiscountCalculation {
   discount_value: number;
 }
 
+export interface AvailableDiscountSummary {
+  id: number;
+  description: string;
+  discount_type: "percentage" | "fixed_amount";
+  discount_value: number;
+  minimum_order_value: number | null;
+  maximum_discount_amount: number | null;
+  valid_until: string | null;
+}
+
 export interface AvailableDiscountsResponse {
   status: string;
   data: {
-    available_discounts: ExpeditionDiscount[];
+    available_discounts: AvailableDiscountSummary[];
     best_discount?: DiscountCalculation;
     order_value?: number;
   };
-}
-
-export interface ShippingCostWithDiscount {
-  vendor: string;
-  service_name: string;
-  service_code: string;
-  original_cost: number;
-  discount_info: DiscountCalculation;
-  final_cost: number;
-  estimated_delivery: string;
 }

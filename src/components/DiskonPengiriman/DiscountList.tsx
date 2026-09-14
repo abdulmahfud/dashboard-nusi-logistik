@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { ExpeditionDiscount } from "@/types/discount";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getVendorBadgeClass } from "@/lib/pricingVendors";
 
 interface DiscountListProps {
   discounts: ExpeditionDiscount[];
@@ -88,18 +89,7 @@ export function DiscountList({
   const USER_TYPE_LABEL: Record<string, string> = {
     personal: "Personal",
     corporate: "Corporate",
-  };
-
-  const getVendorBadgeColor = (vendor: string) => {
-    const colors: Record<string, string> = {
-      JNTEXPRESS: "bg-blue-100 text-blue-800",
-      SAP: "bg-green-100 text-green-800",
-      LION: "bg-yellow-100 text-yellow-800",
-      SICEPAT: "bg-purple-100 text-purple-800",
-      TIKI: "bg-red-100 text-red-800",
-      POS: "bg-orange-100 text-orange-800",
-    };
-    return colors[vendor] || "bg-gray-100 text-gray-800";
+    agen: "Agen",
   };
 
   const handleDeleteClick = (discount: ExpeditionDiscount) => {
@@ -179,7 +169,7 @@ export function DiscountList({
             {discounts.map((discount) => (
               <TableRow key={discount.id}>
                 <TableCell>
-                  <Badge className={getVendorBadgeColor(discount.vendor)}>
+                  <Badge className={getVendorBadgeClass(discount.vendor)}>
                     {discount.vendor}
                   </Badge>
                 </TableCell>

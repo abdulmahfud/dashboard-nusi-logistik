@@ -58,7 +58,10 @@ import type {
   BankAccountLaravelPaginator,
 } from "@/types/bankAccount";
 import type { StandardizedTrackingResponse } from "@/types/tracking";
-import type { ExpeditionDiscount } from "@/types/discount";
+import type {
+  ExpeditionDiscount,
+  AvailableDiscountsResponse,
+} from "@/types/discount";
 import type {
   WalletBalanceResponse,
   WalletTopupResponse,
@@ -1428,33 +1431,8 @@ export const patchExpeditionVendorSettings = async (
 // ✅ Get available discounts for expedition
 export const getAvailableDiscounts = async (params: {
   vendor: string;
-  service_type?: string;
   order_value?: number;
-}): Promise<{
-  status: string;
-  data: {
-    available_discounts: Array<{
-      id: number;
-      description: string;
-      discount_type: "percentage" | "fixed_amount";
-      discount_value: number;
-      minimum_order_value: number | null;
-      maximum_discount_amount: number | null;
-      valid_until: string | null;
-    }>;
-    best_discount?: {
-      has_discount: boolean;
-      discount_amount: number;
-      discounted_price: number;
-      original_price: number;
-      discount_id: number | null;
-      discount_description: string | null;
-      discount_type: "percentage" | "fixed_amount";
-      discount_value: number;
-    };
-    order_value?: number;
-  };
-}> => {
+}): Promise<AvailableDiscountsResponse> => {
   const res = await apiClient.get("/admin/expedition-discounts/available", {
     params,
   });
@@ -1466,6 +1444,9 @@ export const getExpeditionDiscounts = async (params?: {
   page?: number;
   per_page?: number;
   search?: string;
+  vendor?: string;
+  is_active?: 0 | 1;
+  user_type?: "personal" | "corporate" | "agen";
 }): Promise<{
   status: string;
   success?: boolean;

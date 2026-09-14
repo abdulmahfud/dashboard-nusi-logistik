@@ -43,3 +43,26 @@ export async function fetchPricingEligibleVendors(): Promise<
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
+
+/**
+ * Badge color per vendor_code, shared antara Diskon Pengiriman & Flat Ongkir
+ * biar konsisten dan tidak drift kalau daftar vendor berubah lagi.
+ * Vendor yang belum ada di sini (termasuk "all"/kosong) jatuh ke abu-abu netral.
+ */
+const VENDOR_BADGE_CLASSES: Record<string, string> = {
+  IDEXPRESS: "bg-blue-100 text-blue-800",
+  ANTERAJA: "bg-cyan-100 text-cyan-800",
+  JNE: "bg-red-100 text-red-800",
+  JNTCARGO: "bg-orange-100 text-orange-800",
+  JNTEXPRESS: "bg-amber-100 text-amber-800",
+  LION: "bg-yellow-100 text-yellow-800",
+  NINJA: "bg-purple-100 text-purple-800",
+  PAXEL: "bg-pink-100 text-pink-800",
+  POSINDONESIA: "bg-indigo-100 text-indigo-800",
+  SAP: "bg-green-100 text-green-800",
+};
+
+export function getVendorBadgeClass(vendorCode: string | null | undefined): string {
+  if (!vendorCode) return "bg-gray-100 text-gray-800";
+  return VENDOR_BADGE_CLASSES[vendorCode] || "bg-gray-100 text-gray-800";
+}

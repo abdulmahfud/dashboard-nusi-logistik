@@ -39,6 +39,7 @@ import { formatDateIdLong } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
 import {
   getKerjaSamaAccount,
+  getKerjaSamaInvoices,
   getKerjaSamaLedger,
   recordKerjaSamaPayment,
   toggleKerjaSamaActive,
@@ -49,6 +50,7 @@ import {
   KERJA_SAMA_LEDGER_STATUS_LABEL,
   KERJA_SAMA_LEDGER_TYPE_LABEL,
   type KerjaSamaAccount,
+  type KerjaSamaInvoice,
   type KerjaSamaLedgerEntry,
 } from "@/types/kerjaSama";
 import { AxiosError } from "axios";
@@ -118,6 +120,9 @@ export default function KerjaSamaAkunDetailPage() {
     max_outstanding: "",
     billing_due_day: "25",
   });
+  // true kalau admin sengaja mengosongkan Max Outstanding supaya di-reset
+  // ke default (= credit_limit), beda dari "belum diisi/tidak diubah".
+  const [resetMaxOutstanding, setResetMaxOutstanding] = useState(false);
 
   // Suspend / activate
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -130,7 +135,12 @@ export default function KerjaSamaAkunDetailPage() {
   const [paymentForm, setPaymentForm] = useState({
     amount: "",
     description: "",
+    kerja_sama_invoice_id: "",
   });
+  const [paymentInvoices, setPaymentInvoices] = useState<KerjaSamaInvoice[]>(
+    []
+  );
+  const [paymentInvoicesLoading, setPaymentInvoicesLoading] = useState(false);
 
   // Ledger
   const [ledger, setLedger] = useState<KerjaSamaLedgerEntry[]>([]);
@@ -246,6 +256,7 @@ export default function KerjaSamaAkunDetailPage() {
         account.max_outstanding != null ? String(account.max_outstanding) : "",
       billing_due_day: String(account.billing_due_day ?? 25),
     });
+    setResetMaxOutstanding(false);
     setCreditOpen(true);
   };
 
@@ -258,7 +269,9 @@ export default function KerjaSamaAkunDetailPage() {
     try {
       await updateKerjaSamaCreditLimit(userId, {
         credit_limit: Number(creditForm.credit_limit),
-        max_outstanding: creditForm.max_outstanding
+        max_outstanding: resetMaxOutstanding
+          ? null
+          : creditForm.max_outstanding
           ? Number(creditForm.max_outstanding)
           : undefined,
         billing_due_day: creditForm.billing_due_day
@@ -267,6 +280,7 @@ export default function KerjaSamaAkunDetailPage() {
       });
       toast.success("Limit kredit berhasil diperbarui.");
       setCreditOpen(false);
+      setResetMaxOutstanding(false);
       await fetchAccount();
     } catch (err) {
       toast.error(getErrorMessage(err, "Gagal memperbarui limit kredit."));
@@ -294,6 +308,22 @@ export default function KerjaSamaAkunDetailPage() {
     }
   };
 
+  const openPayment = async () => {
+    setPaymentOpen(true);
+    setPaymentInvoicesLoading(true);
+    try {
+      const res = await getKerjaSamaInvoices({ user_id: userId });
+      const relevant = res.data.data.filter((inv) =>
+        ["issued", "partially_paid", "overdue"].includes(inv.status)
+      );
+      setPaymentInvoices(relevant);
+    } catch {
+      setPaymentInvoices([]);
+    } finally {
+      setPaymentInvoicesLoading(false);
+    }
+  };
+
   const submitPayment = async () => {
     if (!paymentForm.amount || Number(paymentForm.amount) <= 0) {
       toast.error("Nominal pembayaran wajib diisi (> 0).");
@@ -304,11 +334,14 @@ export default function KerjaSamaAkunDetailPage() {
       const res = await recordKerjaSamaPayment(userId, {
         amount: Number(paymentForm.amount),
         description: paymentForm.description || undefined,
+        kerja_sama_invoice_id: paymentForm.kerja_sama_invoice_id
+          ? Number(paymentForm.kerja_sama_invoice_id)
+          : undefined,
       });
       toast.success("Pembayaran berhasil dicatat.");
       setOutstanding(res.data.outstanding_balance);
       setPaymentOpen(false);
-      setPaymentForm({ amount: "", description: "" });
+      setPaymentForm({ amount: "", description: "", kerja_sama_invoice_id: "" });
       await fetchAccount();
       await fetchLedger(1);
     } catch (err) {
@@ -553,7 +586,7 @@ export default function KerjaSamaAkunDetailPage() {
                           size="sm"
                           variant="outline"
                           className="gap-2"
-                          onClick={() => setPaymentOpen(true)}
+                          onClick={() => void openPayment()}
                         >
                           <CircleDollarSign className="h-4 w-4" />
                           Catat Pembayaran
@@ -989,18 +1022,41 @@ export default function KerjaSamaAkunDetailPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Max Outstanding (Rp)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Max Outstanding (Rp)</Label>
+                  {(creditForm.max_outstanding || resetMaxOutstanding) && (
+                    <button
+                      type="button"
+                      className="text-xs text-blue-600 hover:underline"
+                      onClick={() => {
+                        setCreditForm((p) => ({ ...p, max_outstanding: "" }));
+                        setResetMaxOutstanding(true);
+                      }}
+                    >
+                      Reset ke default (= limit kredit)
+                    </button>
+                  )}
+                </div>
                 <Input
                   type="number"
                   min={0}
                   value={creditForm.max_outstanding}
-                  onChange={(e) =>
+                  placeholder={
+                    resetMaxOutstanding ? "Sama dengan limit kredit" : undefined
+                  }
+                  onChange={(e) => {
+                    setResetMaxOutstanding(false);
                     setCreditForm((p) => ({
                       ...p,
                       max_outstanding: e.target.value,
-                    }))
-                  }
+                    }));
+                  }}
                 />
+                {resetMaxOutstanding && (
+                  <p className="text-xs text-muted-foreground">
+                    Akan disimpan sebagai kosong (mengikuti limit kredit).
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label>Tanggal Jatuh Tempo (1-31)</Label>
@@ -1131,6 +1187,41 @@ export default function KerjaSamaAkunDetailPage() {
                   }
                   placeholder="Mis. Transfer BCA 9 Sept 2026"
                 />
+              </div>
+              <div className="space-y-1">
+                <Label>Terkait Invoice (opsional)</Label>
+                <Select
+                  value={paymentForm.kerja_sama_invoice_id || "none"}
+                  onValueChange={(v) =>
+                    setPaymentForm((p) => ({
+                      ...p,
+                      kerja_sama_invoice_id: v === "none" ? "" : v,
+                    }))
+                  }
+                  disabled={paymentInvoicesLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        paymentInvoicesLoading
+                          ? "Memuat invoice..."
+                          : "Pilih invoice"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak terkait invoice</SelectItem>
+                    {paymentInvoices.map((inv) => (
+                      <SelectItem key={inv.id} value={String(inv.id)}>
+                        {inv.invoice_no} · {formatRupiah(Number(inv.grand_total))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Kalau diisi, status invoice terkait otomatis diperbarui
+                  (lunas/sebagian lunas) sesuai nominal pembayaran ini.
+                </p>
               </div>
             </div>
             <DialogFooter>

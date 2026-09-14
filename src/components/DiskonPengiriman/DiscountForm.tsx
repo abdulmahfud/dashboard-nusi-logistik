@@ -22,6 +22,7 @@ import {
   type PricingVendorOption,
 } from "@/lib/pricingVendors";
 import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from "@/lib/priorityScale";
+import { getExpeditionDiscounts } from "@/lib/apiClient";
 import { toast } from "sonner";
 
 interface DiscountFormProps {
@@ -34,6 +35,7 @@ const USER_TYPES = [
   { value: "all", label: "Semua Tipe Akun" },
   { value: "personal", label: "Personal" },
   { value: "corporate", label: "Corporate" },
+  { value: "agen", label: "Agen" },
 ];
 
 export function DiscountForm({
@@ -61,6 +63,7 @@ export function DiscountForm({
     []
   );
   const [loadingVendors, setLoadingVendors] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchPricingEligibleVendors()
@@ -111,8 +114,8 @@ export function DiscountForm({
       newErrors.vendor = "Vendor wajib dipilih";
     }
 
-    if (!formData.discount_value || parseFloat(formData.discount_value) <= 0) {
-      newErrors.discount_value = "Nilai diskon harus lebih dari 0";
+    if (!formData.discount_value || parseFloat(formData.discount_value) < 0) {
+      newErrors.discount_value = "Nilai diskon tidak boleh negatif";
     }
 
     if (
@@ -141,19 +144,47 @@ export function DiscountForm({
       newErrors.usage_limit = "Batas penggunaan harus lebih dari 0";
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = "Deskripsi wajib diisi";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
+    }
+
+    const submitUserType =
+      formData.user_type === "all" ? null : formData.user_type || null;
+
+    setSubmitting(true);
+    try {
+      // Cek dulu ke list yang ada supaya tidak nabrak constraint unik
+      // (vendor, user_type, discount_type) dan dapat pesan 500 mentah dari BE.
+      const existing = await getExpeditionDiscounts({
+        vendor: formData.vendor,
+        user_type: (submitUserType ?? undefined) as
+          | "personal"
+          | "corporate"
+          | "agen"
+          | undefined,
+      });
+      const conflict = existing.data.data.find(
+        (d) =>
+          d.id !== discount?.id && d.discount_type === formData.discount_type
+      );
+      if (conflict) {
+        toast.error(
+          `Sudah ada diskon ${formData.discount_type === "percentage" ? "persentase" : "nilai tetap"} untuk vendor & tipe akun ini ("${conflict.description || "tanpa deskripsi"}"). Edit aturan yang ada, atau ubah vendor/tipe akun/jenis diskon.`
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("Gagal memeriksa duplikasi diskon:", error);
+      // Tidak blocking — kalau pengecekan gagal, biarkan submit lanjut dan BE yang validasi.
+    } finally {
+      setSubmitting(false);
     }
 
     // Convert string values to appropriate types
@@ -163,15 +194,16 @@ export function DiscountForm({
       minimum_order_value: formData.minimum_order_value
         ? parseFloat(formData.minimum_order_value)
         : null,
-      maximum_discount_amount: formData.maximum_discount_amount
-        ? parseFloat(formData.maximum_discount_amount)
-        : null,
+      maximum_discount_amount:
+        formData.discount_type === "percentage" &&
+        formData.maximum_discount_amount
+          ? parseFloat(formData.maximum_discount_amount)
+          : null,
       usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
       priority: parseInt(formData.priority),
       // BE selalu paksa jadi null sekarang — "jenis layanan" tidak dipakai lagi.
       service_type: null,
-      user_type:
-        formData.user_type === "all" ? null : formData.user_type || null,
+      user_type: submitUserType,
     };
 
     onSubmit(submitData as ExpeditionDiscount);
@@ -306,28 +338,33 @@ export function DiscountForm({
               </p>
             </div>
 
-            {/* Maximum Discount Amount */}
-            <div className="space-y-2">
-              <Label htmlFor="maximum_discount_amount">Maksimal Potongan</Label>
-              <CurrencyInput
-                value={formData.maximum_discount_amount}
-                onChange={(value) =>
-                  handleInputChange("maximum_discount_amount", value)
-                }
-                placeholder="50000"
-                className={
-                  errors.maximum_discount_amount ? "border-red-500" : ""
-                }
-              />
-              {errors.maximum_discount_amount && (
-                <p className="text-sm text-red-500">
-                  {errors.maximum_discount_amount}
+            {/* Maximum Discount Amount — hanya berlaku untuk diskon persentase */}
+            {formData.discount_type === "percentage" && (
+              <div className="space-y-2">
+                <Label htmlFor="maximum_discount_amount">
+                  Maksimal Potongan
+                </Label>
+                <CurrencyInput
+                  value={formData.maximum_discount_amount}
+                  onChange={(value) =>
+                    handleInputChange("maximum_discount_amount", value)
+                  }
+                  placeholder="50000"
+                  className={
+                    errors.maximum_discount_amount ? "border-red-500" : ""
+                  }
+                />
+                {errors.maximum_discount_amount && (
+                  <p className="text-sm text-red-500">
+                    {errors.maximum_discount_amount}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Batasi potongan maksimal untuk diskon persentase.
+                  Kosongkan untuk tanpa batas.
                 </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Untuk diskon persentase, batasi potongan maksimal
-              </p>
-            </div>
+              </div>
+            )}
 
             {/* User Type */}
             <div className="space-y-2">
@@ -425,7 +462,8 @@ export function DiscountForm({
                 <p className="text-sm text-red-500">{errors.usage_limit}</p>
               )}
               <p className="text-xs text-muted-foreground">
-                Kosongkan untuk tanpa batas
+                Kuota GLOBAL — total pemakaian gabungan semua user, bukan
+                per-user. Kosongkan untuk tanpa batas.
               </p>
             </div>
 
@@ -449,9 +487,7 @@ export function DiscountForm({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">
-              Deskripsi <span className="text-red-500">*</span>
-            </Label>
+            <Label htmlFor="description">Deskripsi</Label>
             <Textarea
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
@@ -469,9 +505,17 @@ export function DiscountForm({
             <Button type="button" variant="outline" onClick={onCancel}>
               Batal
             </Button>
-            <Button type="submit" className="h-11 px-6 py-4 font-semibold bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="h-11 px-6 py-4 font-semibold bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out"
+            >
               <Save className="h-4 w-4" />
-              {discount ? "Update Diskon" : "Simpan Diskon"}
+              {submitting
+                ? "Memeriksa..."
+                : discount
+                ? "Update Diskon"
+                : "Simpan Diskon"}
             </Button>
           </div>
         </form>
