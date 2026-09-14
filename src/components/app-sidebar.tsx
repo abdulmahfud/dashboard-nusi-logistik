@@ -30,6 +30,7 @@ import {
   Tag,
   Store,
   Activity,
+  CreditCard,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -251,6 +252,18 @@ const data = {
       url: "/dashboard/akun/rekening",
       icon: Wallet,
       permission: "bank-accounts.index",
+    },
+    {
+      title: "Laporan Pengiriman Saya",
+      url: "/dashboard/akun/laporan-pengiriman",
+      icon: Activity,
+      permission: "users.index",
+    },
+    {
+      title: "Riwayat Kredit Saya",
+      url: "/dashboard/akun/riwayat-kredit",
+      icon: CreditCard,
+      permission: "users.index",
     },
   ],
   data: [
