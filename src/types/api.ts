@@ -16,6 +16,16 @@ export interface UserData {
   permissions: string[];
   /** Saldo dompet (string dari API), jika dikirim di GET /admin/me */
   balance?: string | number;
+  /** Lihat docs/be-fe/update-deteksi-tipe-akun-me.md */
+  account_type?: "personal" | "corporate" | "agen";
+  billing_mode?: "prepaid" | "postpaid";
+  /** Hanya muncul kalau account_type === "corporate". */
+  credit?: {
+    credit_limit: string | number;
+    max_outstanding: string | number | null;
+    outstanding_balance: number;
+    kerja_sama_is_active: boolean;
+  };
 }
 
 export interface UsersResponse {

@@ -28,6 +28,8 @@ import {
   ReceiptText,
   Boxes,
   Tag,
+  Store,
+  Activity,
 } from "lucide-react";
 import * as React from "react";
 import { usePathname } from "next/navigation";
@@ -35,6 +37,7 @@ import { usePathname } from "next/navigation";
 import { NavAccount } from "@/components/nav-account";
 import { NavData } from "@/components/nav-data";
 import { NavKerjaSama } from "@/components/nav-kerja-sama";
+import { NavAgen } from "@/components/nav-agen";
 import { NavManagementUser } from "@/components/nav-management-user";
 import { NavMain } from "@/components/nav-main";
 import { NavReport } from "@/components/nav-report";
@@ -204,6 +207,12 @@ const data = {
       icon: FileText,
       permission: "expedition.orders.list",
     },
+    {
+      title: "Aktivitas Pengiriman per Akun",
+      url: "/dashboard/laporan/laporan-aktivitas-pengiriman",
+      icon: Activity,
+      permission: "reports.shipping.view",
+    },
   ],
   kerjaSama: [
     {
@@ -219,6 +228,15 @@ const data = {
       icon: ReceiptText,
       matchPrefix: true,
       permission: "kerja-sama.invoices.view",
+    },
+  ],
+  agen: [
+    {
+      title: "Akun Agen",
+      url: "/dashboard/agen/akun",
+      icon: Store,
+      matchPrefix: true,
+      permission: "agen-accounts.view",
     },
   ],
   account: [
@@ -351,6 +369,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasPermission,
     authLoading
   );
+  const filteredAgen = filterSidebarByPermission(
+    data.agen,
+    hasPermission,
+    authLoading
+  );
   const filteredNavSecondary = filterSidebarByPermission(
     data.navSecondary,
     hasPermission,
@@ -388,6 +411,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {filteredKerjaSama.length > 0 && (
           <NavKerjaSama items={filteredKerjaSama} />
         )}
+        {filteredAgen.length > 0 && <NavAgen items={filteredAgen} />}
         {filteredAccount.length > 0 && (
           <NavAccount items={filteredAccount} />
         )}

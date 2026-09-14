@@ -101,6 +101,13 @@ import type {
   KerjaSamaInvoice,
 } from "@/types/kerjaSama";
 import type {
+  AgenAccountListResponse,
+  AgenAccountDetailResponse,
+  CreateAgenAccountPayload,
+  UpdateAgenAccountPayload,
+} from "@/types/agenAkun";
+import type { ShippingActivityReportResponse } from "@/types/laporanAktivitasPengiriman";
+import type {
   ProductListResponse,
   ProductDetailResponse,
   CreateProductPayload,
@@ -1873,6 +1880,61 @@ export const getKerjaSamaInvoice = async (
 ): Promise<KerjaSamaInvoiceDetailResponse> => {
   const res = await apiClient.get<KerjaSamaInvoiceDetailResponse>(
     `/admin/kerja-sama/invoices/${id}`
+  );
+  return res.data;
+};
+
+// ✅ Akun Agen (prepaid, bayar via saldo wallet)
+export const getAgenAccounts = async (params?: {
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<AgenAccountListResponse> => {
+  const res = await apiClient.get<AgenAccountListResponse>(
+    "/admin/agen/accounts",
+    { params }
+  );
+  return res.data;
+};
+
+export const createAgenAccount = async (
+  payload: CreateAgenAccountPayload
+): Promise<AgenAccountDetailResponse> => {
+  const res = await apiClient.post<AgenAccountDetailResponse>(
+    "/admin/agen/accounts",
+    payload
+  );
+  return res.data;
+};
+
+export const getAgenAccount = async (
+  userId: number
+): Promise<AgenAccountDetailResponse> => {
+  const res = await apiClient.get<AgenAccountDetailResponse>(
+    `/admin/agen/accounts/${userId}`
+  );
+  return res.data;
+};
+
+export const updateAgenAccount = async (
+  userId: number,
+  payload: UpdateAgenAccountPayload
+): Promise<AgenAccountDetailResponse> => {
+  const res = await apiClient.put<AgenAccountDetailResponse>(
+    `/admin/agen/accounts/${userId}`,
+    payload
+  );
+  return res.data;
+};
+
+// ✅ Laporan Aktivitas Pengiriman per Akun
+export const getUserShippingReport = async (
+  userId: number,
+  params?: { start_date?: string; end_date?: string }
+): Promise<ShippingActivityReportResponse> => {
+  const res = await apiClient.get<ShippingActivityReportResponse>(
+    `/admin/reports/users/${userId}/shipping`,
+    { params }
   );
   return res.data;
 };

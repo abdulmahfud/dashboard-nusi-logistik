@@ -41,6 +41,7 @@ import {
 } from "@/lib/posIndonesiaShipmentCost";
 import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
+import { useAuth } from "@/context/AuthContext";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -190,6 +191,11 @@ export default function CalculationResults({
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  // Akun agen prepaid-only: tidak boleh bayar via Xendit, cuma saldo wallet.
+  // Lihat docs/be-fe/akun-agen.md §2 & docs/be-fe/update-deteksi-tipe-akun-me.md
+  const isAgen = user?.account_type === "agen";
+
   // Reset selection state when form data or result changes
   useEffect(() => {
     // Reset all selection states when new data comes in
@@ -200,10 +206,11 @@ export default function CalculationResults({
     setOrderResult(null);
     setShowSuccessDialog(false);
     setTermsAccepted(false);
-    setPaymentMethod("xendit");
+    setPaymentMethod(isAgen ? "wallet" : "xendit");
     setWalletBalance(0);
     setWalletError(null);
-  }, [result]); // Only depend on result changes, not isSearching or formData
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, isAgen]); // Only depend on result changes, not isSearching or formData
 
   const isCOD = formData?.formData?.paymentMethod === "cod";
 
@@ -1155,7 +1162,11 @@ export default function CalculationResults({
         // Non-COD: response-driven create payment (wallet / xendit)
         const totalAmount = calculateTotal();
         if (paymentMethod === "wallet" && walletBalance < totalAmount) {
-          toast.error("Saldo tidak cukup, silakan topup atau pilih Xendit.");
+          toast.error(
+            isAgen
+              ? "Saldo tidak cukup. Silakan topup saldo wallet terlebih dahulu."
+              : "Saldo tidak cukup, silakan topup atau pilih Xendit."
+          );
           return;
         }
 
@@ -1390,7 +1401,9 @@ export default function CalculationResults({
                   onValueChange={(v) =>
                     setPaymentMethod(v as "wallet" | "xendit")
                   }
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                  className={`grid grid-cols-1 gap-3 ${
+                    isAgen ? "" : "sm:grid-cols-2"
+                  }`}
                 >
                   <label
                     htmlFor="pay-wallet"
@@ -1426,38 +1439,44 @@ export default function CalculationResults({
                     </div>
                   </label>
 
-                  <label
-                    htmlFor="pay-xendit"
-                    className={`rounded-lg border p-3 transition ${
-                      paymentMethod === "xendit"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <RadioGroupItem
-                        value="xendit"
-                        id="pay-xendit"
-                        className="mt-0.5"
-                      />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 font-medium">
-                          <ExternalLink className="h-4 w-4" />
-                          Pembayaran Online
+                  {!isAgen && (
+                    <label
+                      htmlFor="pay-xendit"
+                      className={`rounded-lg border p-3 transition ${
+                        paymentMethod === "xendit"
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <RadioGroupItem
+                          value="xendit"
+                          id="pay-xendit"
+                          className="mt-0.5"
+                        />
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 font-medium">
+                            <ExternalLink className="h-4 w-4" />
+                            Pembayaran Online
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Lanjut ke halaman pembayaran gateway.
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Lanjut ke halaman pembayaran gateway.
-                        </p>
                       </div>
-                    </div>
-                  </label>
+                    </label>
+                  )}
                 </RadioGroup>
                 {walletError && (
                   <p className="text-xs text-red-600">{walletError}</p>
                 )}
                 {!walletLoading && walletBalance < calculateTotal() && (
                   <div className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-                    <span>Saldo tidak cukup, silakan topup atau pilih Xendit.</span>
+                    <span>
+                      {isAgen
+                        ? "Saldo tidak cukup. Akun agen hanya bisa bayar via saldo wallet — silakan topup dulu."
+                        : "Saldo tidak cukup, silakan topup atau pilih Xendit."}
+                    </span>
                     <Button
                       type="button"
                       variant="outline"
@@ -1466,14 +1485,16 @@ export default function CalculationResults({
                     >
                       Topup saldo
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaymentMethod("xendit")}
-                    >
-                      Pembayaran Online
-                    </Button>
+                    {!isAgen && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaymentMethod("xendit")}
+                      >
+                        Pembayaran Online
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>
