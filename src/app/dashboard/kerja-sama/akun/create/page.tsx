@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
@@ -34,16 +33,12 @@ export default function CreateKerjaSamaAkunPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const userInputRef = useRef<HTMLDivElement>(null);
 
-  const [accountType, setAccountType] = useState<"personal" | "corporate">(
-    "corporate"
-  );
   const [form, setForm] = useState({
     company_name: "",
     company_legality_no: "",
     npwp: "",
     pic_name: "",
     pic_ktp_no: "",
-    ktp_no: "",
     billing_address: "",
     billing_phone: "",
     billing_email: "",
@@ -115,15 +110,8 @@ export default function CreateKerjaSamaAkunPage() {
       toast.error("Pilih user yang sudah terdaftar terlebih dahulu.");
       return;
     }
-    if (accountType === "corporate") {
-      if (!form.company_name.trim() || !form.pic_name.trim()) {
-        toast.error(
-          "Nama perusahaan dan nama PIC wajib diisi untuk akun corporate."
-        );
-        return;
-      }
-    } else if (!form.ktp_no.trim()) {
-      toast.error("Nomor KTP wajib diisi untuk akun personal.");
+    if (!form.company_name.trim() || !form.pic_name.trim()) {
+      toast.error("Nama perusahaan dan nama PIC wajib diisi.");
       return;
     }
     if (!form.credit_limit || Number(form.credit_limit) < 0) {
@@ -133,19 +121,15 @@ export default function CreateKerjaSamaAkunPage() {
 
     const payload: CreateKerjaSamaAccountPayload = {
       user_id: selectedUser.id,
-      account_type: accountType,
+      account_type: "corporate",
       credit_limit: Number(form.credit_limit),
+      company_name: form.company_name,
+      pic_name: form.pic_name,
     };
-    if (accountType === "corporate") {
-      payload.company_name = form.company_name;
-      payload.pic_name = form.pic_name;
-      if (form.company_legality_no)
-        payload.company_legality_no = form.company_legality_no;
-      if (form.npwp) payload.npwp = form.npwp;
-      if (form.pic_ktp_no) payload.pic_ktp_no = form.pic_ktp_no;
-    } else {
-      payload.ktp_no = form.ktp_no;
-    }
+    if (form.company_legality_no)
+      payload.company_legality_no = form.company_legality_no;
+    if (form.npwp) payload.npwp = form.npwp;
+    if (form.pic_ktp_no) payload.pic_ktp_no = form.pic_ktp_no;
     if (form.billing_address) payload.billing_address = form.billing_address;
     if (form.billing_phone) payload.billing_phone = form.billing_phone;
     if (form.billing_email) payload.billing_email = form.billing_email;
@@ -286,109 +270,65 @@ export default function CreateKerjaSamaAkunPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">2. Tipe Akun</CardTitle>
+                <CardTitle className="text-lg">2. Data Perusahaan & PIC</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <RadioGroup
-                  value={accountType}
-                  onValueChange={(v) =>
-                    setAccountType(v as "personal" | "corporate")
-                  }
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-                >
-                  <Label
-                    htmlFor="type-corporate"
-                    className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${
-                      accountType === "corporate"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <RadioGroupItem id="type-corporate" value="corporate" />
-                    Corporate (Perusahaan)
-                  </Label>
-                  <Label
-                    htmlFor="type-personal"
-                    className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer ${
-                      accountType === "personal"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <RadioGroupItem id="type-personal" value="personal" />
-                    Personal
-                  </Label>
-                </RadioGroup>
-
-                {accountType === "corporate" ? (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="company_name">
-                        Nama Perusahaan <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="company_name"
-                        value={form.company_name}
-                        onChange={(e) =>
-                          handleField("company_name", e.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pic_name">
-                        Nama PIC <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="pic_name"
-                        value={form.pic_name}
-                        onChange={(e) =>
-                          handleField("pic_name", e.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="company_legality_no">
-                        No. Legalitas (NIB/SIUP)
-                      </Label>
-                      <Input
-                        id="company_legality_no"
-                        value={form.company_legality_no}
-                        onChange={(e) =>
-                          handleField("company_legality_no", e.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="npwp">NPWP</Label>
-                      <Input
-                        id="npwp"
-                        value={form.npwp}
-                        onChange={(e) => handleField("npwp", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pic_ktp_no">No. KTP PIC</Label>
-                      <Input
-                        id="pic_ktp_no"
-                        value={form.pic_ktp_no}
-                        onChange={(e) =>
-                          handleField("pic_ktp_no", e.target.value)
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 md:w-1/2">
-                    <Label htmlFor="ktp_no">
-                      Nomor KTP <span className="text-red-500">*</span>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="company_name">
+                      Nama Perusahaan <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      id="ktp_no"
-                      value={form.ktp_no}
-                      onChange={(e) => handleField("ktp_no", e.target.value)}
+                      id="company_name"
+                      value={form.company_name}
+                      onChange={(e) =>
+                        handleField("company_name", e.target.value)
+                      }
                     />
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label htmlFor="pic_name">
+                      Nama PIC <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="pic_name"
+                      value={form.pic_name}
+                      onChange={(e) =>
+                        handleField("pic_name", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company_legality_no">
+                      No. Legalitas (NIB/SIUP)
+                    </Label>
+                    <Input
+                      id="company_legality_no"
+                      value={form.company_legality_no}
+                      onChange={(e) =>
+                        handleField("company_legality_no", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="npwp">NPWP</Label>
+                    <Input
+                      id="npwp"
+                      value={form.npwp}
+                      onChange={(e) => handleField("npwp", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pic_ktp_no">No. KTP PIC</Label>
+                    <Input
+                      id="pic_ktp_no"
+                      value={form.pic_ktp_no}
+                      onChange={(e) =>
+                        handleField("pic_ktp_no", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

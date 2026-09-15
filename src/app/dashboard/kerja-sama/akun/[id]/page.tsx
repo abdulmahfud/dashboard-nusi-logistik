@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -93,8 +92,10 @@ export default function KerjaSamaAkunDetailPage() {
   // Edit profile
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  // Personal tidak lagi bisa jadi tujuan account_type — cuma upgrade ke
+  // corporate. Lihat docs/be-fe/koreksi-upgrade-personal-ke-corporate.md
+  const [upgradeToCorporate, setUpgradeToCorporate] = useState(false);
   const [editForm, setEditForm] = useState({
-    account_type: "corporate" as "personal" | "corporate",
     company_name: "",
     company_legality_no: "",
     npwp: "",
@@ -213,8 +214,8 @@ export default function KerjaSamaAkunDetailPage() {
 
   const openEdit = () => {
     if (!account) return;
+    setUpgradeToCorporate(false);
     setEditForm({
-      account_type: account.account_type,
       company_name: account.company_name || "",
       company_legality_no: account.company_legality_no || "",
       npwp: account.npwp || "",
@@ -237,7 +238,12 @@ export default function KerjaSamaAkunDetailPage() {
   const submitEdit = async () => {
     setEditSaving(true);
     try {
-      await updateKerjaSamaAccount(userId, editForm);
+      // account_type cuma dikirim saat benar-benar upgrade ke corporate —
+      // jangan pernah kirim "personal", BE menolaknya dengan 422 sekarang.
+      await updateKerjaSamaAccount(userId, {
+        ...editForm,
+        ...(upgradeToCorporate ? { account_type: "corporate" as const } : {}),
+      });
       toast.success("Data akun berhasil diperbarui.");
       setEditOpen(false);
       await fetchAccount();
@@ -767,44 +773,26 @@ export default function KerjaSamaAkunDetailPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-2">
-              <RadioGroup
-                value={editForm.account_type}
-                onValueChange={(v) =>
-                  setEditForm((p) => ({
-                    ...p,
-                    account_type: v as "personal" | "corporate",
-                  }))
-                }
-                className="grid grid-cols-2 gap-3"
-              >
-                <Label
-                  htmlFor="edit-type-corporate"
-                  className={`flex items-center gap-2 rounded-md border p-2 cursor-pointer ${
-                    editForm.account_type === "corporate"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <RadioGroupItem
-                    id="edit-type-corporate"
-                    value="corporate"
-                  />
-                  Corporate
-                </Label>
-                <Label
-                  htmlFor="edit-type-personal"
-                  className={`flex items-center gap-2 rounded-md border p-2 cursor-pointer ${
-                    editForm.account_type === "personal"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200"
-                  }`}
-                >
-                  <RadioGroupItem id="edit-type-personal" value="personal" />
-                  Personal
-                </Label>
-              </RadioGroup>
+              {account?.account_type === "personal" && !upgradeToCorporate && (
+                <div className="flex flex-col gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    Akun ini masih terdaftar sebagai <strong>Personal</strong>.
+                    Akun kerja sama personal baru sudah tidak bisa dibuat lagi
+                    — upgrade ke Corporate untuk melanjutkan kerja sama dengan
+                    akun ini.
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0 bg-blue-500 text-white hover:bg-blue-600"
+                    onClick={() => setUpgradeToCorporate(true)}
+                  >
+                    Upgrade ke Corporate
+                  </Button>
+                </div>
+              )}
 
-              {editForm.account_type === "corporate" ? (
+              {account?.account_type === "corporate" || upgradeToCorporate ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Nama Perusahaan</Label>
