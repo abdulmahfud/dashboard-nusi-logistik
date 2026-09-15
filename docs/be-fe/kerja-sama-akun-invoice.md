@@ -14,7 +14,7 @@ Field-field ini baru ditambahkan ke data User (customer/reseller):
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `account_type` | `"personal"` \| `"corporate"` | Default `"personal"` untuk semua akun lama. Bisa diubah lewat endpoint update. |
+| `account_type` | `"personal"` \| `"corporate"` \| `"agen"` | Default `"personal"` untuk semua akun lama. Bisa diubah lewat endpoint update. **`agen` dikelola lewat endpoint terpisah** (`/admin/agen/accounts`, lihat [akun-agen.md](akun-agen.md)), bukan lewat endpoint di dokumen ini — akun agen tetap `billing_mode = prepaid` selamanya. |
 | `billing_mode` | `"prepaid"` \| `"postpaid"` | Default `"prepaid"`. Berubah jadi `"postpaid"` begitu admin mengaktifkan akun kerja sama. **Field inilah yang menentukan apakah order-nya lewat jalur kredit atau tidak** — terpisah dari `account_type`. |
 | `credit_limit` | number | Batas kredit bulanan (rupiah). |
 | `max_outstanding` | number \| null | Batas outstanding maksimum (opsional, kalau kosong pakai `credit_limit`). |
@@ -288,15 +288,21 @@ Dua hal yang berubah di **response**:
 ```
 Ini muncul di endpoint create-order manapun (semua vendor), sebelum order sempat dibuat sama sekali.
 
-**Kalau limit kredit tidak cukup**: order tetap dibuat, tapi statusnya `menunggu_pembayaran` — sama persis seperti alur prepaid biasa (customer bisa bayar manual untuk order itu, atau admin naikkan limitnya).
+**Update perilaku — perubahan dari sebelumnya**: **kalau limit kredit tidak cukup, order sekarang langsung ditolak (`422`), tidak dibuat sama sekali.** Sebelumnya order tetap dibuat dengan status `menunggu_pembayaran` dan customer bisa bayar manual — jalur itu **dihapus** untuk akun corporate. Sekarang akun corporate **tidak bisa lagi bayar manual** (baik via wallet maupun Xendit) untuk order apa pun — satu-satunya jalan adalah lewat limit kredit yang tersedia. Response saat ditolak:
+```json
+{ "success": false, "message": "Limit kredit akun corporate tidak mencukupi. Order tidak bisa dibuat lewat pembayaran manual — hubungi admin untuk menaikkan limit." }
+```
+Ini muncul di endpoint create-order manapun (semua vendor), sebelum order sempat dibuat sama sekali — sama seperti gate suspend di atas. FE **tidak perlu lagi menampilkan tombol "bayar sekarang"** untuk order corporate yang gagal karena limit — satu-satunya jalan keluar adalah admin menaikkan limit lalu customer submit ulang order-nya. COD tidak terpengaruh oleh perubahan ini (COD tetap bisa dibuat kapan saja, bukan "pembayaran manual").
 
 ---
 
-## 5. Diskon per tipe akun (personal/corporate)
+## 5. Diskon per tipe akun (personal/corporate/agen)
 
-Endpoint diskon ekspedisi (`/admin/expedition-discounts`, **sudah ada sebelum fitur kerja sama**, bukan endpoint baru) sekarang bisa membedakan tarif diskon berdasarkan `account_type` customer (personal/corporate) — sebelumnya field ini ada di skema tapi tidak pernah benar-benar dipakai oleh sistem.
+Endpoint diskon ekspedisi (`/admin/expedition-discounts`, **sudah ada sebelum fitur kerja sama**, bukan endpoint baru) bisa membedakan tarif diskon berdasarkan `account_type` customer (personal/corporate/agen).
 
-Field yang relevan di endpoint ini: `user_type` — nilai `"personal"`, `"corporate"`, atau **kosong/`null`** (kosong = berlaku untuk semua tipe akun).
+**Koreksi dokumentasi**: sebelumnya bagian ini menyatakan mekanisme ini "otomatis bekerja" — itu **klaim yang salah**. Field `user_type` ada di skema sejak awal tapi ternyata **tidak pernah benar-benar dicocokkan** (bug: data user yang login tidak pernah dikirim ke pengecekan diskon) — diskon yang di-scope ke `corporate` tidak pernah berlaku untuk siapa pun sejak fitur ini dibuat. Bug ini **baru benar-benar diperbaiki hari ini**, jadi kalau sebelumnya kamu pernah mencoba fitur ini dan tidak melihat efeknya, itu memang bug-nya, bukan kesalahan konfigurasi.
+
+Field yang relevan di endpoint ini: `user_type` — nilai `"personal"`, `"corporate"`, `"agen"` (baru), atau **kosong/`null`** (kosong = berlaku untuk semua tipe akun).
 
 | Method | Path | Permission |
 |---|---|---|
@@ -323,7 +329,9 @@ Sistem otomatis memilih baris yang sesuai `account_type` customer yang login saa
 
 Kombinasi `(vendor, service_type, user_type, discount_type)` harus unik — tidak bisa ada 2 baris diskon aktif dengan kombinasi persis sama.
 
-**Batasan saat ini**: `user_type` hanya membedakan **personal vs corporate** (identitas legal akun), **belum** membedakan **prepaid vs postpaid (kerja sama)**. Artinya customer personal biasa (prepaid) dan customer personal yang akun kerja sama (postpaid) saat ini mendapat tarif diskon yang sama, selama `account_type`-nya sama-sama `personal`. Kalau ke depannya dibutuhkan tarif diskon khusus untuk akun kerja sama yang berbeda dari personal/corporate prepaid biasa, itu perlu pengembangan tambahan (belum dibangun).
+**Batasan saat ini**: `user_type` hanya membedakan **personal vs corporate vs agen** (identitas tipe akun), **belum** membedakan **prepaid vs postpaid (kerja sama)**. Artinya customer personal biasa (prepaid) dan customer personal yang akun kerja sama (postpaid) saat ini mendapat tarif diskon yang sama, selama `account_type`-nya sama-sama `personal`. Kalau ke depannya dibutuhkan tarif diskon khusus untuk akun kerja sama yang berbeda dari personal/corporate prepaid biasa, itu perlu pengembangan tambahan (belum dibangun).
+
+Lihat [akun-agen.md](akun-agen.md) untuk detail lengkap tipe akun `agen` (field form, aturan pembayaran wallet-only) — dikelola lewat endpoint terpisah `/admin/agen/accounts`, **bukan** lewat `/admin/kerja-sama/accounts` di dokumen ini, karena akun agen tetap prepaid, tidak pernah dapat limit kredit/tagihan bulanan.
 
 ---
 

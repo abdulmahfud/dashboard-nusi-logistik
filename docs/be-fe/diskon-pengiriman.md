@@ -11,6 +11,12 @@ Admin bisa membuat aturan diskon ongkir per vendor (potongan persen atau nominal
 
 **Konsekuensi untuk FE**: form create/edit diskon pengiriman **tidak perlu ada field "jenis layanan"** (jangan tampilkan pilihan REGULER/COD/EXPRESS/INSTAN dkk). Kalaupun field `service_type` masih dikirim di body request, **server akan selalu memaksanya jadi `null`** — apa pun yang dikirim, hasilnya tetap berlaku untuk semua jenis layanan (universal). Jadi field ini aman dihapus dari UI kapan saja tanpa menunggu backend berubah.
 
+## 1a. Update penting: bug `user_type` sudah diperbaiki + opsi baru `agen`
+
+**Koreksi dokumentasi**: bagian §3 di bawah (dan `docs/be-fe/kerja-sama-akun-invoice.md` §5) sebelumnya menyatakan pencocokan `user_type` "otomatis bekerja" — itu **klaim yang keliru**. Ternyata data user yang login **tidak pernah** benar-benar dikirim ke pengecekan diskon di semua vendor sejak fitur ini dibuat, jadi diskon yang di-scope ke `user_type = corporate` **tidak pernah berlaku untuk siapa pun**, dari awal. Bug ini **baru diperbaiki hari ini** — sudah diverifikasi lewat sandbox vendor asli (bukan cuma tes lokal), sekarang benar-benar berfungsi.
+
+Juga ditambahkan tipe akun baru: **`user_type` sekarang menerima `"agen"` juga**, selain `"personal"`/`"corporate"`. Lihat [akun-agen.md](akun-agen.md) untuk detail tipe akun ini.
+
 ---
 
 ## 2. Endpoint
@@ -30,7 +36,7 @@ Semua di bawah prefix `admin` (`/api/admin/...`), butuh `Authorization: Bearer <
 
 ### GET `/admin/expedition-discounts`
 
-Query params opsional: `vendor`, `is_active` (`0`/`1`), `user_type` (`personal`/`corporate`), `search` (cari `description`), `per_page`. **Tidak ada lagi filter `service_type`** — dihapus karena konsepnya sudah tidak ada.
+Query params opsional: `vendor`, `is_active` (`0`/`1`), `user_type` (`personal`/`corporate`/`agen`), `search` (cari `description`), `per_page`. **Tidak ada lagi filter `service_type`** — dihapus karena konsepnya sudah tidak ada.
 
 ### POST `/admin/expedition-discounts`
 
@@ -48,7 +54,7 @@ Body:
   "valid_until": null,
   "description": "Diskon 10% JNT Express",
   "usage_limit": null,
-  "priority": 0
+  "priority": 3
 }
 ```
 
@@ -58,12 +64,12 @@ Validasi:
 - `discount_value` **wajib**, angka ≥ 0 (persen untuk `percentage`, nominal Rupiah untuk `fixed_amount`).
 - `minimum_order_value` opsional — ongkir minimum agar diskon berlaku.
 - `maximum_discount_amount` opsional — cap nominal potongan, khusus tipe `percentage`.
-- `user_type` opsional: `personal`, `corporate`, atau kosongkan untuk berlaku ke semua tipe user. **Tidak ada batas penggunaan minimum yang diwajibkan berbeda antara personal dan corporate** — kalau ingin salah satu tipe user tanpa batas pakai, cukup kosongkan `usage_limit`.
+- `user_type` opsional: `personal`, `corporate`, `agen`, atau kosongkan untuk berlaku ke semua tipe user. **Tidak ada batas penggunaan minimum yang diwajibkan berbeda antar tipe** — kalau ingin salah satu tipe user tanpa batas pakai, cukup kosongkan `usage_limit`.
 - `is_active` opsional, default `true`.
 - `valid_from` / `valid_until` opsional — untuk promo bertanggal.
 - `description` opsional.
 - `usage_limit` opsional. **Penting**: ini kuota **global** (total pemakaian oleh SEMUA user gabungan), bukan kuota per-user. Kosongkan untuk tidak dibatasi.
-- `priority` opsional, default `0` — dipakai kalau lebih dari satu diskon match, yang `priority` lebih tinggi menang.
+- `priority` opsional, **1 (tertinggi) - 5 (terendah)**, default `3`. Dipakai sebagai tiebreaker kalau lebih dari satu diskon match dengan nilai potongan yang sama persis — yang `priority` angkanya lebih kecil menang. Sama seperti flat ongkir (lihat [flat-ongkir-jawa-bali.md](flat-ongkir-jawa-bali.md)), supaya konsisten di FE.
 - `service_type` — **boleh dikirim atau tidak, tidak berpengaruh**. Server selalu menyimpannya sebagai `null`.
 
 Response `201` — object diskon lengkap (`service_type` akan selalu `null`). Response `422` kalau validasi gagal.
@@ -98,7 +104,7 @@ Ringkasan jumlah diskon (total, aktif, nonaktif, per vendor, per tipe, total pem
 
 ## 3. Kaitan dengan cek ongkir
 
-**Tidak ada endpoint baru untuk cek ongkir** — diskon otomatis dievaluasi saat FE memanggil endpoint cek ongkir per vendor yang sudah ada. Kalau ada diskon aktif yang match vendor (dan `user_type` user yang login, kalau diisi), harga di response akan menunjukkan potongannya lewat field tambahan `discount_applied` (boolean), `discount_amount` (nominal potongan), dan harga akhir di field cost/`final_cost` masing-masing vendor sudah otomatis terpotong.
+**Tidak ada endpoint baru untuk cek ongkir** — diskon otomatis dievaluasi saat FE memanggil endpoint cek ongkir per vendor yang sudah ada, berdasarkan `account_type` user yang login (dicocokkan ke `user_type` diskon, kalau diisi — lihat §1a soal bug yang baru diperbaiki). Kalau ada diskon aktif yang match, harga di response akan menunjukkan potongannya lewat field tambahan `discount_applied` (boolean), `discount_amount` (nominal potongan), dan harga akhir di field cost/`final_cost` masing-masing vendor sudah otomatis terpotong.
 
 **Sebelumnya ada 2 vendor yang diskonnya tidak pernah berlaku sama sekali** — **SAP** dan **Anteraja** tidak pernah memanggil sistem perhitungan diskon di `getShipmentCost()` mereka, jadi diskon apa pun yang dibuat untuk kedua vendor ini tidak pernah muncul di harga. Ini sudah diperbaiki:
 - **SAP** — potongan sekarang diterapkan pada `data.services[0].total_cost` (field yang sama yang selama ini dibaca FE untuk harga SATRIA REG), plus field baru `original_cost`, `discount_applied`, `discount_amount`, `flat_rate_applied`, `flat_rate_name` di object yang sama.
@@ -112,6 +118,6 @@ Vendor lain (IdExpress, JNE, JntCargo, JntExpress, Lion, NinjaExpress, Paxel, Po
 
 ## 4. Catatan scope
 
-- `user_type` (`personal`/`corporate`) dan `service_type` adalah dua sumbu yang berbeda — `user_type` masih relevan dan bisa dipilih admin, hanya `service_type` yang dihapus konsepnya.
+- `user_type` (`personal`/`corporate`/`agen`) dan `service_type` adalah dua sumbu yang berbeda — `user_type` masih relevan dan bisa dipilih admin, hanya `service_type` yang dihapus konsepnya.
 - Diskon dan flat ongkir tidak bertumpuk (flat ongkir menang kalau match).
 - `usage_limit` adalah kuota global, bukan kuota per-user — kalau nanti dibutuhkan kuota per-user (misal "tiap user cuma boleh pakai promo ini sekali"), itu perlu pengembangan terpisah (tabel tracking pemakaian per user).
