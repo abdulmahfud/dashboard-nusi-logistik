@@ -9,15 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const CekOngkir = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [calculationResult, setCalculationResult] = useState<
     Record<string, unknown> | undefined
   >(undefined);
-  const [paymentMethod, setPaymentMethod] = useState<string>("non-cod");
-  const lastPaymentMethodRef = useRef<string | undefined>(undefined);
 
   // Initialize the 'framer-motion' module for animations
   useEffect(() => {
@@ -27,23 +25,6 @@ const CekOngkir = () => {
       container.classList.add("motion-safe");
     }
   }, []);
-
-  useEffect(() => {
-    const previousMethod = lastPaymentMethodRef.current;
-    const currentMethod = paymentMethod;
-
-    if (
-      calculationResult &&
-      previousMethod &&
-      currentMethod &&
-      previousMethod !== currentMethod
-    ) {
-      setCalculationResult(undefined);
-      setIsSearching(false);
-    }
-
-    lastPaymentMethodRef.current = currentMethod;
-  }, [paymentMethod, calculationResult]);
 
   return (
     <SidebarProvider>
@@ -71,7 +52,6 @@ const CekOngkir = () => {
                         setIsSearching(false);
                       }}
                       setIsSearching={setIsSearching}
-                      onPaymentMethodChange={setPaymentMethod}
                     />
                   </div>
 

@@ -13,6 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -22,7 +29,16 @@ import {
 } from "@/lib/apiClient";
 import type { WalletTransactionItem } from "@/types/wallet";
 import { AxiosError } from "axios";
-import { AlertCircle, History, Loader2, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  History,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 export default function WalletRiwayatPage() {
@@ -30,6 +46,7 @@ export default function WalletRiwayatPage() {
   const canView = hasPermission("wallet.view");
 
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<WalletTransactionItem[]>([]);
@@ -44,7 +61,7 @@ export default function WalletRiwayatPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await getMyWalletTransactions({ page });
+      const res = await getMyWalletTransactions({ page, per_page: perPage });
       const list = normalizeWalletTransactions(res);
       setRows(list);
       const meta = getWalletPaginatorMeta(res);
@@ -68,7 +85,7 @@ export default function WalletRiwayatPage() {
     } finally {
       setLoading(false);
     }
-  }, [canView, page]);
+  }, [canView, page, perPage]);
 
   useEffect(() => {
     if (!authLoading && user && canView) {
@@ -78,6 +95,11 @@ export default function WalletRiwayatPage() {
       setLoading(false);
     }
   }, [authLoading, user, canView, load]);
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+    setPage(1);
+  };
 
   if (authLoading) {
     return (
@@ -181,33 +203,80 @@ export default function WalletRiwayatPage() {
               ) : (
                 <>
                   <WalletTransactionTable rows={rows} />
-                  {lastPage > 1 && (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <Button
-                        type="button"
-                        variant="blueGradientOutline"
-                        size="sm"
-                        disabled={page <= 1 || loading}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      >
-                        Sebelumnya
-                      </Button>
-                      <span className="text-muted-foreground text-sm">
-                        Halaman {page} / {lastPage}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="blueGradientOutline"
-                        size="sm"
-                        disabled={page >= lastPage || loading}
-                        onClick={() =>
-                          setPage((p) => Math.min(lastPage, p + 1))
-                        }
-                      >
-                        Berikutnya
-                      </Button>
+                  <div className="mt-4 flex items-center justify-between px-1">
+                    <span className="text-sm text-muted-foreground">
+                      Total {total} entri
+                    </span>
+                    <div className="flex items-center space-x-6 lg:space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium">
+                          Baris per halaman
+                        </p>
+                        <Select
+                          value={`${perPage}`}
+                          onValueChange={handlePerPageChange}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue placeholder={perPage} />
+                          </SelectTrigger>
+                          <SelectContent side="top">
+                            {[10, 20, 30, 40, 50].map((size) => (
+                              <SelectItem key={size} value={`${size}`}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        Halaman {page} dari {lastPage}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          disabled={page <= 1 || loading}
+                          onClick={() => setPage(1)}
+                        >
+                          <span className="sr-only">Go to first page</span>
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          disabled={page <= 1 || loading}
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                          <span className="sr-only">Go to previous page</span>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          disabled={page >= lastPage || loading}
+                          onClick={() =>
+                            setPage((p) => Math.min(lastPage, p + 1))
+                          }
+                        >
+                          <span className="sr-only">Go to next page</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          disabled={page >= lastPage || loading}
+                          onClick={() => setPage(lastPage)}
+                        >
+                          <span className="sr-only">Go to last page</span>
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </>
               )}
             </CardContent>

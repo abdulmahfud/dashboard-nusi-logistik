@@ -4,7 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Plus,
+  Search,
+} from "lucide-react";
 import { FlatRateForm } from "./FlatRateForm";
 import { FlatRateList } from "./FlatRateList";
 import {
@@ -46,29 +60,46 @@ export function FlatRateManagement() {
     null
   );
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadRates = useCallback(async (searchQuery = "") => {
-    try {
-      setIsLoading(true);
-      const response = await getFlatShippingRates({
-        search: searchQuery || undefined,
-        per_page: 50,
-      });
-      setRates(response.data.data);
-    } catch (error) {
-      console.error("Error loading flat shipping rates:", error);
-      toast.error(getErrorMessage(error, "Gagal memuat program flat ongkir"));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const loadRates = useCallback(
+    async (searchQuery = "", targetPage = 1, perPageOverride = perPage) => {
+      try {
+        setIsLoading(true);
+        const response = await getFlatShippingRates({
+          search: searchQuery || undefined,
+          page: targetPage,
+          per_page: perPageOverride,
+        });
+        setRates(response.data.data);
+        setPage(response.data.current_page);
+        setLastPage(response.data.last_page || 1);
+        setTotal(response.data.total);
+      } catch (error) {
+        console.error("Error loading flat shipping rates:", error);
+        toast.error(getErrorMessage(error, "Gagal memuat program flat ongkir"));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [perPage]
+  );
 
   useEffect(() => {
-    loadRates();
-  }, [loadRates]);
+    loadRates(search, 1, perPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perPage]);
 
   const handleSearch = () => {
-    loadRates(search);
+    loadRates(search, 1, perPage);
+  };
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
   };
 
   const handleCreateRate = () => {
@@ -96,7 +127,7 @@ export function FlatRateManagement() {
         toast.success("Program flat ongkir berhasil dibuat");
       }
       handleCloseForm();
-      loadRates(search);
+      loadRates(search, page, perPage);
     } catch (error) {
       console.error("Error saving flat shipping rate:", error);
       toast.error(getErrorMessage(error, "Gagal menyimpan program flat ongkir"));
@@ -188,6 +219,79 @@ export function FlatRateManagement() {
             onDelete={handleDeleteRate}
             onToggleStatus={handleToggleStatus}
           />
+
+          {!isLoading && rates.length > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-sm text-muted-foreground">
+                Total {total} program
+              </span>
+              <div className="flex items-center space-x-6 lg:space-x-8">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium">Baris per halaman</p>
+                  <Select
+                    value={`${perPage}`}
+                    onValueChange={handlePerPageChange}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={perPage} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                  Halaman {page} dari {lastPage}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadRates(search, 1, perPage)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadRates(search, page - 1, perPage)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadRates(search, page + 1, perPage)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadRates(search, lastPage, perPage)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

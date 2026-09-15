@@ -659,11 +659,13 @@ export const getJntCargoShipmentCost = async ({
 // ✅ Receiver CRUD operations
 export const getReceiversData = async (
   search?: string,
-  page?: number
+  page?: number,
+  perPage?: number
 ): Promise<ReceiverDataListResponse> => {
-  const params: { search?: string; page?: number } = {};
+  const params: { search?: string; page?: number; per_page?: number } = {};
   if (search) params.search = search;
   if (page) params.page = page;
+  if (perPage) params.per_page = perPage;
 
   const res = await apiClient.get("/admin/receiver", { params });
   return res.data;
@@ -699,11 +701,13 @@ export const getReceiverById = async (
 // ✅ Shipper CRUD operations
 export const getShippersData = async (
   search?: string,
-  page?: number
+  page?: number,
+  perPage?: number
 ): Promise<ShipperDataListResponse> => {
-  const params: { search?: string; page?: number } = {};
+  const params: { search?: string; page?: number; per_page?: number } = {};
   if (search) params.search = search;
   if (page) params.page = page;
+  if (perPage) params.per_page = perPage;
 
   const res = await apiClient.get("/admin/shipper", { params });
   return res.data;
@@ -1003,11 +1007,13 @@ export const getRoles = async (): Promise<RoleListResponse> => {
 // ✅ Role management functions
 export const getRolesWithPagination = async (
   search?: string,
-  page?: number
+  page?: number,
+  perPage?: number
 ): Promise<RoleListResponse> => {
-  const params: { search?: string; page?: number } = {};
+  const params: { search?: string; page?: number; per_page?: number } = {};
   if (search) params.search = search;
   if (page) params.page = page;
+  if (perPage) params.per_page = perPage;
 
   const res = await apiClient.get("/admin/roles", { params });
   return res.data;
@@ -1579,6 +1585,7 @@ export const getWalletBalance = async (): Promise<WalletBalanceResponse> => {
 /** Riwayat transaksi user login — permission: wallet.view */
 export const getMyWalletTransactions = async (params?: {
   page?: number;
+  per_page?: number;
 }): Promise<WalletTransactionsResponse> => {
   const res = await apiClient.get<WalletTransactionsResponse>(
     "/admin/wallet/transactions",
@@ -1610,10 +1617,21 @@ export const requestWalletWithdraw = async (
 };
 
 /** Daftar permintaan withdraw (admin) — GET /admin/withdraws */
-export const getWithdraws = async (): Promise<WithdrawListResponse> => {
-  const res = await apiClient.get<WithdrawListResponse>("/admin/withdraws");
+export const getWithdraws = async (params?: {
+  page?: number;
+  per_page?: number;
+}): Promise<WithdrawListResponse> => {
+  const res = await apiClient.get<WithdrawListResponse>("/admin/withdraws", {
+    params,
+  });
   return res.data;
 };
+
+export function getWithdrawsPaginatorMeta(
+  payload: WithdrawListResponse | undefined
+): LaravelPaginatorMeta | null {
+  return payload?.data ?? null;
+}
 
 /** POST /admin/withdraws/:id/approve */
 export const approveWithdraw = async (
@@ -1634,17 +1652,7 @@ export const rejectWithdraw = async (
 export function normalizeWithdrawRecords(
   payload: WithdrawListResponse | undefined
 ): WithdrawRecord[] {
-  if (!payload?.data) return [];
-  const d = payload.data;
-  if (Array.isArray(d)) return d;
-  if (
-    typeof d === "object" &&
-    "data" in d &&
-    Array.isArray((d as LaravelPaginator<WithdrawRecord>).data)
-  ) {
-    return (d as LaravelPaginator<WithdrawRecord>).data;
-  }
-  return [];
+  return payload?.data?.data ?? [];
 }
 
 /** Normalisasi array transaksi dari response Laravel (array atau paginator). */

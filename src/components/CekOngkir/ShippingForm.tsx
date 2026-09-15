@@ -8,8 +8,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useRef } from "react";
 import { Search, Loader2 } from "lucide-react";
 import {
@@ -31,7 +29,6 @@ import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 interface ShippingFormProps {
   onResult?: (result: Record<string, unknown>) => void;
   setIsSearching?: (isSearching: boolean) => void;
-  onPaymentMethodChange?: (method: string) => void;
 }
 
 interface AddressResult {
@@ -53,7 +50,6 @@ interface AddressResult {
 export default function ShippingForm({
   onResult,
   setIsSearching,
-  onPaymentMethodChange,
 }: ShippingFormProps) {
   const [originQuery, setOriginQuery] = useState("");
   const [destQuery, setDestQuery] = useState("");
@@ -73,7 +69,6 @@ export default function ShippingForm({
     length: "",
     width: "",
     height: "",
-    paymentMethod: "non-cod",
     useInsurance: false,
   });
 
@@ -179,10 +174,6 @@ export default function ShippingForm({
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
-
-    if (field === "paymentMethod" && typeof value === "string") {
-      onPaymentMethodChange?.(value);
-    }
   };
 
   const handleSelectOrigin = (result: AddressResult) => {
@@ -221,26 +212,14 @@ export default function ShippingForm({
       const vendorSettings = Array.isArray(vendorSettingsResponse.data)
         ? vendorSettingsResponse.data
         : [];
-      const isCodOrder = formData.paymentMethod === "cod";
 
       const allowedVendors = new Set(
         vendorSettings
-          .filter(
-            (item) => item.is_active && (!isCodOrder || item.is_cod_active)
-          )
+          .filter((item) => item.is_active)
           .map((item) => normalizeVendorKey(item.vendor))
       );
 
-      if (isCodOrder && allowedVendors.size === 0) {
-        onResult?.({
-          error: true,
-          message: "Saat ini tidak ada ekspedisi yang mendukung COD.",
-        });
-        if (setIsSearching) setIsSearching(false);
-        return;
-      }
-
-      if (!isCodOrder && allowedVendors.size === 0) {
+      if (allowedVendors.size === 0) {
         onResult?.({
           error: true,
           message: "Saat ini tidak ada ekspedisi yang aktif.",
@@ -566,42 +545,6 @@ export default function ShippingForm({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-shipping-label">Metode Pembayaran</Label>
-            <RadioGroup
-              defaultValue="non-cod"
-              value={formData.paymentMethod}
-              onValueChange={(value) => handleChange("paymentMethod", value)}
-              className="grid grid-cols-2 gap-3"
-            >
-              <Label
-                htmlFor="payment-cod"
-                className={cn(
-                  "flex items-center justify-center border rounded-md py-3 px-4 cursor-pointer hover:bg-gray-50 transition-colors",
-                  formData.paymentMethod === "cod" &&
-                    "border-blue-400 bg-blue-50"
-                )}
-              >
-                <RadioGroupItem id="payment-cod" value="cod" className="mr-2" />
-                COD (Cash On Delivery)
-              </Label>
-              <Label
-                htmlFor="payment-non-cod"
-                className={cn(
-                  "flex items-center justify-center border rounded-md py-3 px-4 cursor-pointer hover:bg-gray-50 transition-colors",
-                  formData.paymentMethod === "non-cod" &&
-                    "border-blue-400 bg-blue-50"
-                )}
-              >
-                <RadioGroupItem
-                  id="payment-non-cod"
-                  value="non-cod"
-                  className="mr-2"
-                />
-                Non COD
-              </Label>
-            </RadioGroup>
-          </div>
         </CardContent>
         <CardFooter>
           <Button
@@ -619,10 +562,6 @@ export default function ShippingForm({
               <span className="font-medium">
                 tidak termasuk layanan instant delivery.
               </span>
-            </li>
-            <li>
-              Biaya COD sudah termasuk{" "}
-              <span className="font-medium">PPN 11%</span>.
             </li>
           </ul>
         </div>

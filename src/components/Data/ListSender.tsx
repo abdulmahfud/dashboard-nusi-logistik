@@ -13,15 +13,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { Pencil, Loader2 } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Pencil,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   getShippersData,
@@ -41,15 +46,20 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
   const [data, setData] = useState<Shipper[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [editLoading, setEditLoading] = useState(false);
 
   // Fetch shippers data
-  const fetchShippers = async (search?: string, page: number = 1) => {
+  const fetchShippers = async (
+    search?: string,
+    page: number = 1,
+    perPageOverride: number = perPage
+  ) => {
     try {
       setLoading(true);
-      const response = await getShippersData(search, page);
+      const response = await getShippersData(search, page, perPageOverride);
 
       if (response.success && response.data) {
         setData(response.data.data);
@@ -74,25 +84,32 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
 
   // Initial data load and refresh when trigger changes
   useEffect(() => {
-    fetchShippers(searchTerm, currentPage);
-  }, [refreshTrigger]);
+    fetchShippers(searchTerm, currentPage, perPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger, perPage]);
 
   // Handle search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setCurrentPage(1); // Reset to first page on search
-      fetchShippers(searchTerm, 1);
+      fetchShippers(searchTerm, 1, perPage);
     }, 500);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   // Handle page change
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      fetchShippers(searchTerm, page);
+      fetchShippers(searchTerm, page, perPage);
     }
+  };
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   // Handle edit button click
@@ -116,43 +133,6 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
     }
   };
 
-
-  // Generate pagination numbers with ellipsis
-  const generatePaginationNumbers = () => {
-    const pages = [];
-    const maxVisiblePages = 5;
-
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        pages.push(1, 2, 3, 4, "ellipsis", totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(
-          1,
-          "ellipsis",
-          totalPages - 3,
-          totalPages - 2,
-          totalPages - 1,
-          totalPages
-        );
-      } else {
-        pages.push(
-          1,
-          "ellipsis",
-          currentPage - 1,
-          currentPage,
-          currentPage + 1,
-          "ellipsis",
-          totalPages
-        );
-      }
-    }
-
-    return pages;
-  };
 
   return (
     <Card className="shadow-md">
@@ -251,68 +231,76 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
         </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-between items-center mt-4">
-                <div className="text-sm text-gray-600">
-                  Menampilkan {(currentPage - 1) * 5 + 1} -{" "}
-                  {Math.min(currentPage * 5, totalItems)} dari {totalItems} data
+            {data.length > 0 && (
+              <div className="flex items-center justify-between px-1 mt-4">
+                <span className="text-sm text-muted-foreground">
+                  Total {totalItems} data
+                </span>
+                <div className="flex items-center space-x-6 lg:space-x-8">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-medium">Baris per halaman</p>
+                    <Select
+                      value={`${perPage}`}
+                      onValueChange={handlePerPageChange}
+                    >
+                      <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue placeholder={perPage} />
+                      </SelectTrigger>
+                      <SelectContent side="top">
+                        {[10, 20, 30, 40, 50].map((size) => (
+                          <SelectItem key={size} value={`${size}`}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                    Halaman {currentPage} dari {totalPages}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <span className="sr-only">Go to first page</span>
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <span className="sr-only">Go to previous page</span>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages || loading}
+                    >
+                      <span className="sr-only">Go to next page</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage >= totalPages || loading}
+                    >
+                      <span className="sr-only">Go to last page</span>
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage > 1)
-                            handlePageChange(currentPage - 1);
-                        }}
-                        className={
-                          currentPage === 1
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-
-                    {generatePaginationNumbers().map((page, index) => (
-                      <PaginationItem key={index}>
-                        {page === "ellipsis" ? (
-                          <PaginationEllipsis />
-                        ) : (
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handlePageChange(page as number);
-                            }}
-                            isActive={currentPage === page}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        )}
-                      </PaginationItem>
-                    ))}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage < totalPages)
-                            handlePageChange(currentPage + 1);
-                        }}
-                        className={
-                          currentPage === totalPages
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
               </div>
             )}
           </>

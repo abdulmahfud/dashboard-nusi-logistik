@@ -12,16 +12,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil } from "lucide-react";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Pencil,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +54,7 @@ interface RecipientListProps {
 export default function RecipientList({ refreshTrigger }: RecipientListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [receivers, setReceivers] = useState<Receiver[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
@@ -91,10 +96,14 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
   const [editLoadingDistrict, setEditLoadingDistrict] = useState(false);
 
   // Fetch receivers data
-  const fetchReceivers = async (search?: string, page?: number) => {
+  const fetchReceivers = async (
+    search?: string,
+    page?: number,
+    perPageOverride: number = perPage
+  ) => {
     setLoading(true);
     try {
-      const response = await getReceiversData(search, page);
+      const response = await getReceiversData(search, page, perPageOverride);
       setReceivers(response.data.data);
       setTotalPages(response.data.last_page);
       setTotalRecords(response.data.total);
@@ -109,25 +118,33 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
 
   // Initial load
   useEffect(() => {
-    fetchReceivers("", 1);
-  }, []);
+    fetchReceivers("", 1, perPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perPage]);
 
   // Refresh when trigger changes
   useEffect(() => {
     if (refreshTrigger) {
-      fetchReceivers(searchTerm, currentPage);
+      fetchReceivers(searchTerm, currentPage, perPage);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   // Search effect - reset to page 1 when searching
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
       setCurrentPage(1);
-      fetchReceivers(searchTerm, 1);
+      fetchReceivers(searchTerm, 1, perPage);
     }, 500);
 
     return () => clearTimeout(delayedSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+    setCurrentPage(1);
+  };
 
   // Edit dialog location effects
   useEffect(() => {
@@ -182,7 +199,7 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
   const handlePageChange = (page: number) => {
     if (page !== currentPage && page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      fetchReceivers(searchTerm, page);
+      fetchReceivers(searchTerm, page, perPage);
     }
   };
 
@@ -381,139 +398,75 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
 
             {/* Pagination */}
             {totalRecords > 0 && (
-              <div className="flex justify-between items-center mt-4">
-                <div className="text-sm text-gray-600">
-                  Menampilkan {receivers.length} dari {totalRecords} data
+              <div className="flex items-center justify-between px-1 mt-4">
+                <span className="text-sm text-muted-foreground">
+                  Total {totalRecords} data
+                </span>
+                <div className="flex items-center space-x-6 lg:space-x-8">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-medium">Baris per halaman</p>
+                    <Select
+                      value={`${perPage}`}
+                      onValueChange={handlePerPageChange}
+                    >
+                      <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue placeholder={perPage} />
+                      </SelectTrigger>
+                      <SelectContent side="top">
+                        {[10, 20, 30, 40, 50].map((size) => (
+                          <SelectItem key={size} value={`${size}`}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                    Halaman {currentPage} dari {totalPages}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <span className="sr-only">Go to first page</span>
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1 || loading}
+                    >
+                      <span className="sr-only">Go to previous page</span>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages || loading}
+                    >
+                      <span className="sr-only">Go to next page</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage >= totalPages || loading}
+                    >
+                      <span className="sr-only">Go to last page</span>
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage > 1)
-                            handlePageChange(currentPage - 1);
-                        }}
-                        className={
-                          currentPage === 1
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-
-                    {/* Show first page if not in range */}
-                    {currentPage > 3 && (
-                      <>
-                        <PaginationItem>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handlePageChange(1);
-                            }}
-                            className="cursor-pointer"
-                          >
-                            1
-                          </PaginationLink>
-                        </PaginationItem>
-                        {currentPage > 4 && (
-                          <PaginationItem>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        )}
-                      </>
-                    )}
-
-                    {/* Show page numbers around current page */}
-                    {totalPages <= 7
-                      ? // Show all pages if total is 7 or less
-                        Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                          (page) => (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                href="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handlePageChange(page);
-                                }}
-                                isActive={currentPage === page}
-                                className="cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          )
-                        )
-                      : // Show smart pagination for many pages
-                        Array.from({ length: totalPages }, (_, i) => i + 1)
-                          .filter((page) => {
-                            return (
-                              page === currentPage ||
-                              page === currentPage - 1 ||
-                              page === currentPage + 1 ||
-                              (currentPage <= 2 && page <= 3) ||
-                              (currentPage >= totalPages - 1 &&
-                                page >= totalPages - 2)
-                            );
-                          })
-                          .map((page) => (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                href="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handlePageChange(page);
-                                }}
-                                isActive={currentPage === page}
-                                className="cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ))}
-
-                    {/* Show last page if not in range */}
-                    {currentPage < totalPages - 2 && (
-                      <>
-                        {currentPage < totalPages - 3 && (
-                          <PaginationItem>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        )}
-                        <PaginationItem>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handlePageChange(totalPages);
-                            }}
-                            className="cursor-pointer"
-                          >
-                            {totalPages}
-                          </PaginationLink>
-                        </PaginationItem>
-                      </>
-                    )}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (currentPage < totalPages)
-                            handlePageChange(currentPage + 1);
-                        }}
-                        className={
-                          currentPage === totalPages
-                            ? "pointer-events-none opacity-50"
-                            : "cursor-pointer"
-                        }
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
               </div>
             )}
           </>

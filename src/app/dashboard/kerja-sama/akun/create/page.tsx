@@ -16,7 +16,7 @@ import type { User } from "@/types/users";
 import { AxiosError } from "axios";
 import { ArrowLeft, Handshake, Loader2, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function CreateKerjaSamaAkunPage() {
@@ -32,6 +32,9 @@ export default function CreateKerjaSamaAkunPage() {
   const [showResults, setShowResults] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const userInputRef = useRef<HTMLDivElement>(null);
+  // Penomoran request pencarian — biar respons yang datang belakangan tidak
+  // pernah ditimpa oleh respons lama yang baru sampai duluan (race condition).
+  const searchSeqRef = useRef(0);
 
   const [form, setForm] = useState({
     company_name: "",
@@ -75,23 +78,37 @@ export default function CreateKerjaSamaAkunPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const runUserSearch = useCallback((query: string) => {
+    const trimmed = query.trim();
+    if (trimmed.length < 3) {
+      setUserResults([]);
+      return;
+    }
+    const seq = ++searchSeqRef.current;
+    setSearchingUser(true);
+    getUsers({ search: trimmed, per_page: 10 })
+      .then((res) => {
+        if (seq !== searchSeqRef.current) return; // respons basi, abaikan
+        setUserResults(res.data.data);
+        setShowResults(true);
+      })
+      .catch(() => {
+        if (seq !== searchSeqRef.current) return;
+        setUserResults([]);
+      })
+      .finally(() => {
+        if (seq === searchSeqRef.current) setSearchingUser(false);
+      });
+  }, []);
+
   useEffect(() => {
     if (userQuery.trim().length < 3 || selectedUser) {
       setUserResults([]);
       return;
     }
-    setSearchingUser(true);
-    const t = setTimeout(() => {
-      getUsers({ search: userQuery, per_page: 10 })
-        .then((res) => {
-          setUserResults(res.data.data);
-          setShowResults(true);
-        })
-        .catch(() => setUserResults([]))
-        .finally(() => setSearchingUser(false));
-    }, 300);
+    const t = setTimeout(() => runUserSearch(userQuery), 300);
     return () => clearTimeout(t);
-  }, [userQuery, selectedUser]);
+  }, [userQuery, selectedUser, runUserSearch]);
 
   const handleField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -224,24 +241,37 @@ export default function CreateKerjaSamaAkunPage() {
                     Cari user terdaftar (nama/email){" "}
                     <span className="text-red-500">*</span>
                   </Label>
-                  <div className="relative mt-1">
-                    <Input
-                      id="user-search"
-                      placeholder="Ketik minimal 3 huruf…"
-                      value={userQuery}
-                      onChange={(e) => {
-                        setUserQuery(e.target.value);
-                        setSelectedUser(null);
-                      }}
-                      autoComplete="off"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {searchingUser ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                      ) : (
-                        <Search className="h-4 w-4 text-gray-400" />
-                      )}
+                  <div className="mt-1 flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="user-search"
+                        placeholder="Ketik minimal 3 huruf, lalu Enter atau klik cari…"
+                        value={userQuery}
+                        onChange={(e) => {
+                          setUserQuery(e.target.value);
+                          setSelectedUser(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            runUserSearch(userQuery);
+                          }
+                        }}
+                        autoComplete="off"
+                      />
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => runUserSearch(userQuery)}
+                      disabled={searchingUser}
+                    >
+                      {searchingUser ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                   {showResults && userResults.length > 0 && (
                     <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-white shadow-lg">

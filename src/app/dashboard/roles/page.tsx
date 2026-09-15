@@ -35,6 +35,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   RefreshCw,
   Plus,
   Edit,
@@ -59,6 +66,7 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -68,12 +76,17 @@ export default function RolesPage() {
 
   const { hasPermission, loading: authLoading } = useAuth();
 
-  const fetchRoles = async (page = 1, searchQuery = "") => {
+  const fetchRoles = async (
+    page = 1,
+    searchQuery = "",
+    perPageOverride = perPage
+  ) => {
     try {
       setLoading(true);
       const response = await getRolesWithPagination(
         searchQuery || undefined,
-        page
+        page,
+        perPageOverride
       );
       setData(response.data.data);
       setCurrentPage(response.data.current_page);
@@ -94,12 +107,18 @@ export default function RolesPage() {
   }, [authLoading, hasPermission, router]);
 
   useEffect(() => {
-    fetchRoles(currentPage, search);
-  }, [currentPage]);
+    fetchRoles(currentPage, search, perPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, perPage]);
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchRoles(1, search);
+    fetchRoles(1, search, perPage);
+  };
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   const handleDeleteRole = async (role: Role) => {
@@ -134,16 +153,11 @@ export default function RolesPage() {
     {
       id: "no",
       header: "NO",
-      cell: ({ row, table }) => {
-        const pageIndex = table.getState().pagination.pageIndex;
-        const pageSize = table.getState().pagination.pageSize;
-
-        return (
-          <div className="text-center font-mono">
-            {pageIndex * pageSize + row.index + 1}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="text-center font-mono">
+          {(currentPage - 1) * perPage + row.index + 1}
+        </div>
+      ),
     },
     {
       accessorKey: "name",
@@ -291,7 +305,7 @@ export default function RolesPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => fetchRoles(currentPage, search)}
+                onClick={() => fetchRoles(currentPage, search, perPage)}
                 disabled={loading}
                 className="gap-2"
               >
@@ -354,49 +368,69 @@ export default function RolesPage() {
 
             {/* Pagination */}
             <div className="flex items-center justify-between px-2">
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                Halaman {currentPage} dari {totalPages}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1 || loading}
-                >
-                  <span className="sr-only">Go to first page</span>
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1 || loading}
-                >
-                  <span className="sr-only">Go to previous page</span>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages || loading}
-                >
-                  <span className="sr-only">Go to next page</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages || loading}
-                >
-                  <span className="sr-only">Go to last page</span>
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </div>
               <div className="text-sm text-muted-foreground">
                 Total: {total} roles
+              </div>
+              <div className="flex items-center space-x-6 lg:space-x-8">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium">Baris per halaman</p>
+                  <Select
+                    value={`${perPage}`}
+                    onValueChange={handlePerPageChange}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={perPage} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                  Halaman {currentPage} dari {totalPages}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages || loading}
+                  >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages || loading}
+                  >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

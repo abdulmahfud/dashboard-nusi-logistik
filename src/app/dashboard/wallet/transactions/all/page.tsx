@@ -34,17 +34,26 @@ import type {
   WalletTransactionItem,
 } from "@/types/wallet";
 import { AxiosError } from "axios";
-import { AlertCircle, Globe, Loader2, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Globe,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
-const PER_PAGE_OPTIONS = [15, 25, 50, 100] as const;
+const PER_PAGE_OPTIONS = [10, 20, 30, 40, 50] as const;
 
 export default function WalletAllTransactionsPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
   const canViewAll = hasPermission("wallet.transactions.view_all");
 
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState<number>(15);
+  const [perPage, setPerPage] = useState<number>(20);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -355,7 +364,7 @@ export default function WalletAllTransactionsPage() {
                     setTypeFilter("__all");
                     setStatusFilter("__all");
                     setPage(1);
-                    setPerPage(15);
+                    setPerPage(20);
                     setFilterTick((t) => t + 1);
                   }}
                 >
@@ -402,30 +411,61 @@ export default function WalletAllTransactionsPage() {
                 <>
                   <WalletTransactionTable rows={rows} showUserColumn />
                   {lastPage > 1 && (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <Button
-                        type="button"
-                        variant="blueGradientOutline"
-                        size="sm"
-                        disabled={page <= 1 || loading}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      >
-                        Sebelumnya
-                      </Button>
-                      <span className="text-muted-foreground text-sm">
-                        Halaman {page} / {lastPage}
+                    <div className="mt-4 flex items-center justify-between px-1">
+                      <span className="text-sm text-muted-foreground">
+                        Total {total} entri
                       </span>
-                      <Button
-                        type="button"
-                        variant="blueGradientOutline"
-                        size="sm"
-                        disabled={page >= lastPage || loading}
-                        onClick={() =>
-                          setPage((p) => Math.min(lastPage, p + 1))
-                        }
-                      >
-                        Berikutnya
-                      </Button>
+                      <div className="flex items-center space-x-6 lg:space-x-8">
+                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                          Halaman {page} dari {lastPage}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            disabled={page <= 1 || loading}
+                            onClick={() => setPage(1)}
+                          >
+                            <span className="sr-only">Go to first page</span>
+                            <ChevronsLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            disabled={page <= 1 || loading}
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          >
+                            <span className="sr-only">
+                              Go to previous page
+                            </span>
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            disabled={page >= lastPage || loading}
+                            onClick={() =>
+                              setPage((p) => Math.min(lastPage, p + 1))
+                            }
+                          >
+                            <span className="sr-only">Go to next page</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            disabled={page >= lastPage || loading}
+                            onClick={() => setPage(lastPage)}
+                          >
+                            <span className="sr-only">Go to last page</span>
+                            <ChevronsRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </>

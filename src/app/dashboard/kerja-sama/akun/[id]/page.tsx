@@ -58,6 +58,8 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleDollarSign,
   Handshake,
   Loader2,
@@ -147,7 +149,9 @@ export default function KerjaSamaAkunDetailPage() {
   const [ledger, setLedger] = useState<KerjaSamaLedgerEntry[]>([]);
   const [ledgerLoading, setLedgerLoading] = useState(true);
   const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerPerPage, setLedgerPerPage] = useState(20);
   const [ledgerLastPage, setLedgerLastPage] = useState(1);
+  const [ledgerTotal, setLedgerTotal] = useState(0);
   const [ledgerType, setLedgerType] = useState("all");
   const [ledgerStatus, setLedgerStatus] = useState("all");
   const [outstanding, setOutstanding] = useState<number | null>(null);
@@ -175,12 +179,14 @@ export default function KerjaSamaAkunDetailPage() {
       try {
         const res = await getKerjaSamaLedger(userId, {
           page,
+          per_page: ledgerPerPage,
           type: ledgerType === "all" ? undefined : ledgerType,
           status: ledgerStatus === "all" ? undefined : ledgerStatus,
         });
         setLedger(res.data.data);
         setLedgerPage(res.data.current_page);
         setLedgerLastPage(res.data.last_page);
+        setLedgerTotal(res.data.total);
         setOutstanding(res.outstanding_balance);
       } catch {
         setLedger([]);
@@ -188,8 +194,12 @@ export default function KerjaSamaAkunDetailPage() {
         setLedgerLoading(false);
       }
     },
-    [userId, ledgerType, ledgerStatus]
+    [userId, ledgerType, ledgerStatus, ledgerPerPage]
   );
+
+  const handleLedgerPerPageChange = (value: string) => {
+    setLedgerPerPage(Number(value));
+  };
 
   useEffect(() => {
     if (!authLoading && !hasPermission("kerja-sama.accounts.view")) {
@@ -210,7 +220,7 @@ export default function KerjaSamaAkunDetailPage() {
       void fetchLedger(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ledgerType, ledgerStatus]);
+  }, [ledgerType, ledgerStatus, ledgerPerPage]);
 
   const openEdit = () => {
     if (!account) return;
@@ -727,31 +737,82 @@ export default function KerjaSamaAkunDetailPage() {
                           </TableBody>
                         </Table>
                       </div>
-                      <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
-                        <span>
-                          Halaman {ledgerPage} dari {ledgerLastPage}
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-sm text-muted-foreground">
+                          Total {ledgerTotal} transaksi
                         </span>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fetchLedger(ledgerPage - 1)}
-                            disabled={ledgerPage <= 1 || ledgerLoading}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fetchLedger(ledgerPage + 1)}
-                            disabled={
-                              ledgerPage >= ledgerLastPage || ledgerLoading
-                            }
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                        <div className="flex items-center space-x-6 lg:space-x-8">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium">
+                              Baris per halaman
+                            </p>
+                            <Select
+                              value={`${ledgerPerPage}`}
+                              onValueChange={handleLedgerPerPageChange}
+                            >
+                              <SelectTrigger className="h-8 w-[70px]">
+                                <SelectValue placeholder={ledgerPerPage} />
+                              </SelectTrigger>
+                              <SelectContent side="top">
+                                {[10, 20, 30, 40, 50].map((size) => (
+                                  <SelectItem key={size} value={`${size}`}>
+                                    {size}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                            Halaman {ledgerPage} dari {ledgerLastPage}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="hidden h-8 w-8 p-0 lg:flex"
+                              onClick={() => fetchLedger(1)}
+                              disabled={ledgerPage <= 1 || ledgerLoading}
+                            >
+                              <span className="sr-only">Go to first page</span>
+                              <ChevronsLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                              onClick={() => fetchLedger(ledgerPage - 1)}
+                              disabled={ledgerPage <= 1 || ledgerLoading}
+                            >
+                              <span className="sr-only">
+                                Go to previous page
+                              </span>
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                              onClick={() => fetchLedger(ledgerPage + 1)}
+                              disabled={
+                                ledgerPage >= ledgerLastPage || ledgerLoading
+                              }
+                            >
+                              <span className="sr-only">Go to next page</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="hidden h-8 w-8 p-0 lg:flex"
+                              onClick={() => fetchLedger(ledgerLastPage)}
+                              disabled={
+                                ledgerPage >= ledgerLastPage || ledgerLoading
+                              }
+                            >
+                              <span className="sr-only">Go to last page</span>
+                              <ChevronsRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </>

@@ -6,6 +6,13 @@ import TopNav from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   Table,
@@ -22,6 +29,8 @@ import { AxiosError } from "axios";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Eye,
   Loader2,
   Plus,
@@ -41,6 +50,7 @@ export default function AgenAkunPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -51,6 +61,7 @@ export default function AgenAkunPage() {
       try {
         const res = await getAgenAccounts({
           page: targetPage,
+          per_page: perPage,
           search: search || undefined,
         });
         setRows(res.data.data);
@@ -69,8 +80,12 @@ export default function AgenAkunPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [search]
+    [search, perPage]
   );
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+  };
 
   useEffect(() => {
     if (!authLoading && !hasPermission("agen-accounts.view")) {
@@ -83,7 +98,7 @@ export default function AgenAkunPage() {
       void fetchList(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, hasPermission]);
+  }, [authLoading, hasPermission, perPage]);
 
   if (authLoading) {
     return (
@@ -241,29 +256,74 @@ export default function AgenAkunPage() {
                     </Table>
                   </div>
 
-                  <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
-                    <span>
-                      Halaman {page} dari {lastPage} · Total {total} akun
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-sm text-muted-foreground">
+                      Total {total} akun
                     </span>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchList(page - 1)}
-                        disabled={page <= 1 || loading}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fetchList(page + 1)}
-                        disabled={page >= lastPage || loading}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center space-x-6 lg:space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium">Baris per halaman</p>
+                        <Select
+                          value={`${perPage}`}
+                          onValueChange={handlePerPageChange}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue placeholder={perPage} />
+                          </SelectTrigger>
+                          <SelectContent side="top">
+                            {[10, 20, 30, 40, 50].map((size) => (
+                              <SelectItem key={size} value={`${size}`}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                        Halaman {page} dari {lastPage}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          onClick={() => fetchList(1)}
+                          disabled={page <= 1 || loading}
+                        >
+                          <span className="sr-only">Go to first page</span>
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => fetchList(page - 1)}
+                          disabled={page <= 1 || loading}
+                        >
+                          <span className="sr-only">Go to previous page</span>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 w-8 p-0"
+                          onClick={() => fetchList(page + 1)}
+                          disabled={page >= lastPage || loading}
+                        >
+                          <span className="sr-only">Go to next page</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="hidden h-8 w-8 p-0 lg:flex"
+                          onClick={() => fetchList(lastPage)}
+                          disabled={page >= lastPage || loading}
+                        >
+                          <span className="sr-only">Go to last page</span>
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </>

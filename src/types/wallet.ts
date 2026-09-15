@@ -123,8 +123,10 @@ export interface WithdrawRecord {
   [key: string]: unknown;
 }
 
+/** GET /admin/withdraws — sejak docs/be-fe/update-per-page-5-endpoint.md,
+ * `data` selalu paginator Laravel standar (bukan array polos lagi). */
 export interface WithdrawListResponse {
   success?: boolean;
   message?: string;
-  data?: WithdrawRecord[] | LaravelPaginator<WithdrawRecord>;
+  data?: LaravelPaginator<WithdrawRecord>;
 }

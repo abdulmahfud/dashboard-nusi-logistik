@@ -49,6 +49,8 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Clock,
   Eye,
   FileText,
@@ -455,7 +457,7 @@ function ListBankAccountsInner() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[10, 20, 50, 100].map((n) => (
+                      {[10, 20, 30, 40, 50].map((n) => (
                         <SelectItem key={n} value={String(n)}>
                           {n}
                         </SelectItem>
@@ -483,30 +485,52 @@ function ListBankAccountsInner() {
                   : `Menampilkan ${rows.length} entri${meta ? ` · total ${total}` : ""}`}
               </CardTitle>
               {meta && lastPage > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={loading || currentPage <= 1}
-                    onClick={() => goToPage(currentPage - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Sebelumnya
-                  </Button>
-                  <span className="text-muted-foreground text-sm tabular-nums">
-                    Halaman {currentPage} / {lastPage}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={loading || currentPage >= lastPage}
-                    onClick={() => goToPage(currentPage + 1)}
-                  >
-                    Berikutnya
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center space-x-6 lg:space-x-8">
+                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                    Halaman {currentPage} dari {lastPage}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      disabled={loading || currentPage <= 1}
+                      onClick={() => goToPage(1)}
+                    >
+                      <span className="sr-only">Go to first page</span>
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      disabled={loading || currentPage <= 1}
+                      onClick={() => goToPage(currentPage - 1)}
+                    >
+                      <span className="sr-only">Go to previous page</span>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      disabled={loading || currentPage >= lastPage}
+                      onClick={() => goToPage(currentPage + 1)}
+                    >
+                      <span className="sr-only">Go to next page</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      disabled={loading || currentPage >= lastPage}
+                      onClick={() => goToPage(lastPage)}
+                    >
+                      <span className="sr-only">Go to last page</span>
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardHeader>

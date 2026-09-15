@@ -4,7 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Plus,
+  Search,
+} from "lucide-react";
 import { ProductForm } from "./ProductForm";
 import { ProductList } from "./ProductList";
 import { Product, CreateProductPayload } from "@/types/product";
@@ -41,29 +55,46 @@ export function ProductManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadProducts = useCallback(async (searchQuery = "") => {
-    try {
-      setIsLoading(true);
-      const response = await getProducts({
-        search: searchQuery || undefined,
-        per_page: 50,
-      });
-      setProducts(response.data.data);
-    } catch (error) {
-      console.error("Error loading products:", error);
-      toast.error(getErrorMessage(error, "Gagal memuat katalog produk"));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const loadProducts = useCallback(
+    async (searchQuery = "", targetPage = 1, perPageOverride = perPage) => {
+      try {
+        setIsLoading(true);
+        const response = await getProducts({
+          search: searchQuery || undefined,
+          page: targetPage,
+          per_page: perPageOverride,
+        });
+        setProducts(response.data.data);
+        setPage(response.data.current_page);
+        setLastPage(response.data.last_page || 1);
+        setTotal(response.data.total);
+      } catch (error) {
+        console.error("Error loading products:", error);
+        toast.error(getErrorMessage(error, "Gagal memuat katalog produk"));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [perPage]
+  );
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    loadProducts(search, 1, perPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perPage]);
 
   const handleSearch = () => {
-    loadProducts(search);
+    loadProducts(search, 1, perPage);
+  };
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
   };
 
   const handleCreateProduct = () => {
@@ -91,7 +122,7 @@ export function ProductManagement() {
         toast.success("Produk berhasil dibuat");
       }
       handleCloseForm();
-      loadProducts(search);
+      loadProducts(search, page, perPage);
     } catch (error) {
       console.error("Error saving product:", error);
       toast.error(getErrorMessage(error, "Gagal menyimpan produk"));
@@ -183,6 +214,79 @@ export function ProductManagement() {
             onDelete={handleDeleteProduct}
             onToggleStatus={handleToggleStatus}
           />
+
+          {!isLoading && products.length > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-sm text-muted-foreground">
+                Total {total} produk
+              </span>
+              <div className="flex items-center space-x-6 lg:space-x-8">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium">Baris per halaman</p>
+                  <Select
+                    value={`${perPage}`}
+                    onValueChange={handlePerPageChange}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={perPage} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                  Halaman {page} dari {lastPage}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadProducts(search, 1, perPage)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadProducts(search, page - 1, perPage)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadProducts(search, page + 1, perPage)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadProducts(search, lastPage, perPage)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

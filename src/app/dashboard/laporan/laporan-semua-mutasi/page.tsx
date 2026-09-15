@@ -22,7 +22,15 @@ import { useAuth } from "@/context/AuthContext";
 import { getAllPayments, normalizeAllPayments } from "@/lib/apiClient";
 import type { PaymentAllItem } from "@/types/payment";
 import { formatDateIdLong } from "@/lib/date";
-import { ClipboardListIcon, Loader2, RefreshCw } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardListIcon,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 
 type FilterState = {
   user_id: string;
@@ -104,7 +112,7 @@ export default function LaporanSemuaMutasiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(20);
+  const [perPage, setPerPage] = useState(20);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -162,6 +170,11 @@ export default function LaporanSemuaMutasiPage() {
       void loadData();
     }
   }, [authLoading, canViewAll, loadData]);
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+    setPage(1);
+  };
 
   if (authLoading) {
     return (
@@ -390,27 +403,74 @@ export default function LaporanSemuaMutasiPage() {
                   </Table>
                 </div>
               )}
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-muted-foreground">
-                  Halaman {page} dari {lastPage}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void loadData(page - 1)}
-                    disabled={loading || page <= 1}
-                  >
-                    Sebelumnya
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void loadData(page + 1)}
-                    disabled={loading || page >= lastPage}
-                  >
-                    Berikutnya
-                  </Button>
+              <div className="mt-4 flex items-center justify-between px-1">
+                <span className="text-sm text-muted-foreground">
+                  Total {total} mutasi
+                </span>
+                <div className="flex items-center space-x-6 lg:space-x-8">
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm font-medium">Baris per halaman</p>
+                    <Select
+                      value={`${perPage}`}
+                      onValueChange={handlePerPageChange}
+                    >
+                      <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue placeholder={perPage} />
+                      </SelectTrigger>
+                      <SelectContent side="top">
+                        {[10, 20, 30, 40, 50].map((size) => (
+                          <SelectItem key={size} value={`${size}`}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                    Halaman {page} dari {lastPage}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => void loadData(1)}
+                      disabled={loading || page <= 1}
+                    >
+                      <span className="sr-only">Go to first page</span>
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => void loadData(page - 1)}
+                      disabled={loading || page <= 1}
+                    >
+                      <span className="sr-only">Go to previous page</span>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      onClick={() => void loadData(page + 1)}
+                      disabled={loading || page >= lastPage}
+                    >
+                      <span className="sr-only">Go to next page</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="hidden h-8 w-8 p-0 lg:flex"
+                      onClick={() => void loadData(lastPage)}
+                      disabled={loading || page >= lastPage}
+                    >
+                      <span className="sr-only">Go to last page</span>
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

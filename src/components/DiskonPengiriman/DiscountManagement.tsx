@@ -14,6 +14,8 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Plus,
   RefreshCw,
   Search,
@@ -67,6 +69,7 @@ export function DiscountManagement() {
   );
 
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -97,6 +100,7 @@ export function DiscountManagement() {
         setIsLoading(true);
         const response = await getExpeditionDiscounts({
           page: targetPage,
+          per_page: perPage,
           search: search || undefined,
           vendor: vendorFilter === "all" ? undefined : vendorFilter,
           is_active:
@@ -124,14 +128,18 @@ export function DiscountManagement() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [search, vendorFilter, isActiveFilter, userTypeFilter]
+    [search, vendorFilter, isActiveFilter, userTypeFilter, perPage]
   );
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+  };
 
   useEffect(() => {
     loadDiscounts(1);
     loadStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendorFilter, isActiveFilter, userTypeFilter]);
+  }, [vendorFilter, isActiveFilter, userTypeFilter, perPage]);
 
   const handleCreateDiscount = () => {
     setEditingDiscount(null);
@@ -364,29 +372,74 @@ export function DiscountManagement() {
           />
 
           {!isLoading && discounts.length > 0 && (
-            <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
-              <span>
-                Halaman {page} dari {lastPage} · Total {total} diskon
+            <div className="flex items-center justify-between px-1">
+              <span className="text-sm text-muted-foreground">
+                Total {total} diskon
               </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadDiscounts(page - 1)}
-                  disabled={page <= 1 || isLoading}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadDiscounts(page + 1)}
-                  disabled={page >= lastPage || isLoading}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center space-x-6 lg:space-x-8">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium">Baris per halaman</p>
+                  <Select
+                    value={`${perPage}`}
+                    onValueChange={handlePerPageChange}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={perPage} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                  Halaman {page} dari {lastPage}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadDiscounts(1)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadDiscounts(page - 1)}
+                    disabled={page <= 1 || isLoading}
+                  >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => loadDiscounts(page + 1)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => loadDiscounts(lastPage)}
+                    disabled={page >= lastPage || isLoading}
+                  >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}

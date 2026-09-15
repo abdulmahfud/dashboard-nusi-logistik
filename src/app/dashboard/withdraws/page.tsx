@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   Table,
@@ -27,6 +34,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   approveWithdraw,
   getWithdraws,
+  getWithdrawsPaginatorMeta,
   normalizeWithdrawRecords,
   rejectWithdraw,
 } from "@/lib/apiClient";
@@ -35,6 +43,10 @@ import { AxiosError } from "axios";
 import {
   ArrowDownToLine,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Loader2,
   RefreshCw,
   XCircle,
@@ -94,25 +106,51 @@ export default function WithdrawsAdminPage() {
   const [rejectTarget, setRejectTarget] = useState<WithdrawRecord | null>(
     null
   );
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getWithdraws();
-      setRows(normalizeWithdrawRecords(res));
-    } catch (err) {
-      if (err instanceof AxiosError) {
-        const msg = (err.response?.data as { message?: string })?.message;
-        setError(msg || "Gagal memuat daftar withdraw.");
-      } else {
-        setError("Gagal memuat daftar withdraw.");
+  const fetchList = useCallback(
+    async (targetPage = 1, perPageOverride = perPage) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getWithdraws({
+          page: targetPage,
+          per_page: perPageOverride,
+        });
+        const records = normalizeWithdrawRecords(res);
+        setRows(records);
+        const meta = getWithdrawsPaginatorMeta(res);
+        if (meta) {
+          setPage(meta.current_page);
+          setLastPage(meta.last_page);
+          setTotal(meta.total);
+        } else {
+          setPage(1);
+          setLastPage(1);
+          setTotal(records.length);
+        }
+      } catch (err) {
+        if (err instanceof AxiosError) {
+          const msg = (err.response?.data as { message?: string })?.message;
+          setError(msg || "Gagal memuat daftar withdraw.");
+        } else {
+          setError("Gagal memuat daftar withdraw.");
+        }
+        setRows([]);
+      } finally {
+        setLoading(false);
       }
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [perPage]
+  );
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(Number(value));
+  };
 
   useEffect(() => {
     if (!authLoading && !hasPermission("withdraws.update")) {
@@ -122,16 +160,17 @@ export default function WithdrawsAdminPage() {
 
   useEffect(() => {
     if (!authLoading && hasPermission("withdraws.update")) {
-      void fetchList();
+      void fetchList(1, perPage);
     }
-  }, [authLoading, hasPermission, fetchList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, hasPermission, perPage]);
 
   const handleApprove = async (row: WithdrawRecord) => {
     setActionId(row.id);
     try {
       const res = await approveWithdraw(row.id);
       toast.success(res.message || "Withdraw disetujui.");
-      await fetchList();
+      await fetchList(page, perPage);
     } catch (err) {
       if (err instanceof AxiosError) {
         const msg = (err.response?.data as { message?: string })?.message;
@@ -152,7 +191,7 @@ export default function WithdrawsAdminPage() {
       toast.success(res.message || "Withdraw ditolak.");
       setRejectOpen(false);
       setRejectTarget(null);
-      await fetchList();
+      await fetchList(page, perPage);
     } catch (err) {
       if (err instanceof AxiosError) {
         const msg = (err.response?.data as { message?: string })?.message;
@@ -210,7 +249,7 @@ export default function WithdrawsAdminPage() {
               variant="blueGradientOutline"
               size="sm"
               className="gap-2"
-              onClick={() => void fetchList()}
+              onClick={() => void fetchList(page, perPage)}
               disabled={loading}
             >
               <RefreshCw
@@ -340,6 +379,79 @@ export default function WithdrawsAdminPage() {
                       })}
                     </TableBody>
                   </Table>
+                </div>
+              )}
+
+              {!loading && rows.length > 0 && (
+                <div className="flex items-center justify-between px-1 pt-4">
+                  <span className="text-sm text-muted-foreground">
+                    Total {total} pengajuan
+                  </span>
+                  <div className="flex items-center space-x-6 lg:space-x-8">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium">Baris per halaman</p>
+                      <Select
+                        value={`${perPage}`}
+                        onValueChange={handlePerPageChange}
+                      >
+                        <SelectTrigger className="h-8 w-[70px]">
+                          <SelectValue placeholder={perPage} />
+                        </SelectTrigger>
+                        <SelectContent side="top">
+                          {[10, 20, 30, 40, 50].map((size) => (
+                            <SelectItem key={size} value={`${size}`}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                      Halaman {page} dari {lastPage}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="hidden h-8 w-8 p-0 lg:flex"
+                        onClick={() => fetchList(1, perPage)}
+                        disabled={page <= 1 || loading}
+                      >
+                        <span className="sr-only">Go to first page</span>
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 w-8 p-0"
+                        onClick={() => fetchList(page - 1, perPage)}
+                        disabled={page <= 1 || loading}
+                      >
+                        <span className="sr-only">Go to previous page</span>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 w-8 p-0"
+                        onClick={() => fetchList(page + 1, perPage)}
+                        disabled={page >= lastPage || loading}
+                      >
+                        <span className="sr-only">Go to next page</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="hidden h-8 w-8 p-0 lg:flex"
+                        onClick={() => fetchList(lastPage, perPage)}
+                        disabled={page >= lastPage || loading}
+                      >
+                        <span className="sr-only">Go to last page</span>
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
