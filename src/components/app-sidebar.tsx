@@ -130,6 +130,12 @@ const data = {
       icon: ArrowDownToLine,
       permission: "withdraws.update",
     },
+    {
+      title: "Riwayat Kredit",
+      url: "/dashboard/akun/riwayat-kredit",
+      icon: CreditCard,
+      permission: "users.index",
+    },
   ],
   sendPackage: [
     {
@@ -209,10 +215,16 @@ const data = {
       permission: "expedition.orders.list",
     },
     {
-      title: "Aktivitas Pengiriman per Akun",
+      title: "Aktivitas Pengiriman",
       url: "/dashboard/laporan/laporan-aktivitas-pengiriman",
       icon: Activity,
       permission: "reports.shipping.view",
+    },
+    {
+      title: "Ringkasan Pengiriman",
+      url: "/dashboard/akun/laporan-pengiriman",
+      icon: Activity,
+      permission: "users.index",
     },
   ],
   kerjaSama: [
@@ -252,18 +264,6 @@ const data = {
       url: "/dashboard/akun/rekening",
       icon: Wallet,
       permission: "bank-accounts.index",
-    },
-    {
-      title: "Laporan Pengiriman Saya",
-      url: "/dashboard/akun/laporan-pengiriman",
-      icon: Activity,
-      permission: "users.index",
-    },
-    {
-      title: "Riwayat Kredit Saya",
-      url: "/dashboard/akun/riwayat-kredit",
-      icon: CreditCard,
-      permission: "users.index",
     },
   ],
   data: [
