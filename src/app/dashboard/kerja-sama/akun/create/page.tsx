@@ -31,10 +31,13 @@ export default function CreateKerjaSamaAkunPage() {
   const [searchingUser, setSearchingUser] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchAttempted, setSearchAttempted] = useState(false);
   const userInputRef = useRef<HTMLDivElement>(null);
+  const userInputElRef = useRef<HTMLInputElement>(null);
   // Penomoran request pencarian — biar respons yang datang belakangan tidak
   // pernah ditimpa oleh respons lama yang baru sampai duluan (race condition).
   const searchSeqRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [form, setForm] = useState({
     company_name: "",
@@ -79,9 +82,14 @@ export default function CreateKerjaSamaAkunPage() {
   }, []);
 
   const runUserSearch = useCallback((query: string) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     const trimmed = query.trim();
     if (trimmed.length < 3) {
       setUserResults([]);
+      setSearchAttempted(false);
       return;
     }
     const seq = ++searchSeqRef.current;
@@ -91,23 +99,36 @@ export default function CreateKerjaSamaAkunPage() {
         if (seq !== searchSeqRef.current) return; // respons basi, abaikan
         setUserResults(res.data.data);
         setShowResults(true);
+        setSearchAttempted(true);
       })
       .catch(() => {
         if (seq !== searchSeqRef.current) return;
         setUserResults([]);
+        setSearchAttempted(true);
       })
       .finally(() => {
         if (seq === searchSeqRef.current) setSearchingUser(false);
       });
   }, []);
 
+  // Pencarian manual (klik tombol / Enter) — baca langsung value dari DOM
+  // supaya tidak pernah kepakai state yang lama (mis. setelah paste cepat),
+  // dan batalkan debounce yang mungkin masih tertunda.
+  const triggerManualSearch = useCallback(() => {
+    const liveValue = userInputElRef.current?.value ?? userQuery;
+    runUserSearch(liveValue);
+  }, [runUserSearch, userQuery]);
+
   useEffect(() => {
     if (userQuery.trim().length < 3 || selectedUser) {
       setUserResults([]);
+      setSearchAttempted(false);
       return;
     }
-    const t = setTimeout(() => runUserSearch(userQuery), 300);
-    return () => clearTimeout(t);
+    debounceRef.current = setTimeout(() => runUserSearch(userQuery), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [userQuery, selectedUser, runUserSearch]);
 
   const handleField = (field: keyof typeof form, value: string) => {
@@ -118,6 +139,7 @@ export default function CreateKerjaSamaAkunPage() {
     setSelectedUser(user);
     setUserQuery(`${user.name} (${user.email})`);
     setShowResults(false);
+    setSearchAttempted(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -245,6 +267,7 @@ export default function CreateKerjaSamaAkunPage() {
                     <div className="relative flex-1">
                       <Input
                         id="user-search"
+                        ref={userInputElRef}
                         placeholder="Ketik minimal 3 huruf, lalu Enter atau klik cari…"
                         value={userQuery}
                         onChange={(e) => {
@@ -254,7 +277,7 @@ export default function CreateKerjaSamaAkunPage() {
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            runUserSearch(userQuery);
+                            triggerManualSearch();
                           }
                         }}
                         autoComplete="off"
@@ -263,7 +286,7 @@ export default function CreateKerjaSamaAkunPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => runUserSearch(userQuery)}
+                      onClick={triggerManualSearch}
                       disabled={searchingUser}
                     >
                       {searchingUser ? (
@@ -289,6 +312,15 @@ export default function CreateKerjaSamaAkunPage() {
                       ))}
                     </div>
                   )}
+                  {!searchingUser &&
+                    searchAttempted &&
+                    userResults.length === 0 &&
+                    !selectedUser && (
+                      <div className="absolute z-20 mt-1 w-full rounded-md border bg-white p-3 text-sm text-muted-foreground shadow-lg">
+                        Tidak ada user terdaftar yang cocok dengan &quot;
+                        {userQuery.trim()}&quot;.
+                      </div>
+                    )}
                   {selectedUser && (
                     <p className="mt-2 text-sm text-green-700">
                       Terpilih: {selectedUser.name} ({selectedUser.email})

@@ -24,6 +24,8 @@ import {
   ClipboardList,
   Wallet,
   ExternalLink,
+  Handshake,
+  TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -195,6 +197,12 @@ export default function CalculationResults({
   // Akun agen prepaid-only: tidak boleh bayar via Xendit, cuma saldo wallet.
   // Lihat docs/be-fe/akun-agen.md §2 & docs/be-fe/update-deteksi-tipe-akun-me.md
   const isAgen = user?.account_type === "agen";
+  // Akun corporate (kerja sama/postpaid): tidak bayar di muka sama sekali —
+  // ongkir otomatis ditambahkan ke limit kredit, diproses BE lewat request
+  // yang sama tanpa perubahan payload dari FE (lihat
+  // docs/be-fe/kerja-sama-akun-invoice.md §4). Jadi cuma tampilan yang beda,
+  // bukan endpoint-nya.
+  const isCorporate = user?.account_type === "corporate";
 
   // Reset selection state when form data or result changes
   useEffect(() => {
@@ -215,7 +223,7 @@ export default function CalculationResults({
   const isCOD = formData?.formData?.paymentMethod === "cod";
 
   useEffect(() => {
-    if (!showPaymentSection || isCOD) return;
+    if (!showPaymentSection || isCOD || isCorporate) return;
 
     const loadWalletBalance = async () => {
       setWalletLoading(true);
@@ -241,7 +249,7 @@ export default function CalculationResults({
     };
 
     void loadWalletBalance();
-  }, [showPaymentSection, isCOD]);
+  }, [showPaymentSection, isCOD, isCorporate]);
 
   // Build shippingOptions from API result if present
   const shippingOptions: ShippingOption[] = useMemo(() => {
@@ -1192,9 +1200,11 @@ export default function CalculationResults({
           window.location.href = actionUrl;
         } else {
           toast.success(
-            paymentMethod === "wallet"
-              ? "Pembayaran wallet berhasil."
-              : "Pembayaran berhasil."
+            isCorporate
+              ? "Order berhasil dibuat. Ongkir ditambahkan ke limit kredit kerja sama Anda."
+              : paymentMethod === "wallet"
+                ? "Pembayaran wallet berhasil."
+                : "Pembayaran berhasil."
           );
           router.push(
             `/dashboard/payment/success?reference_no=${encodeURIComponent(p.reference_no)}`
@@ -1401,8 +1411,83 @@ export default function CalculationResults({
           </Card>
 
 
-          {/* Pilihan metode bayar untuk NON-COD */}
-          {!isCOD && (
+          {/* Akun corporate (kerja sama): tidak ada pilihan metode bayar
+              sama sekali — ongkir otomatis masuk ke limit kredit. */}
+          {!isCOD && isCorporate && (
+            <Card className="overflow-hidden border-indigo-200">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3">
+                <div className="flex items-center gap-2 text-white">
+                  <Handshake className="h-5 w-5" />
+                  <h3 className="text-base font-semibold">
+                    Akun Kerja Sama (Corporate)
+                  </h3>
+                </div>
+              </div>
+              <CardContent className="space-y-4 p-4">
+                <p className="text-sm text-gray-700">
+                  Ongkir pengiriman ini{" "}
+                  <span className="font-semibold text-indigo-600">
+                    otomatis ditambahkan ke limit kredit
+                  </span>{" "}
+                  perusahaan Anda — tidak perlu bayar sekarang. Tagihan akan
+                  dikirim lewat invoice bulanan sesuai kesepakatan.
+                </p>
+
+                {user?.credit && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-indigo-700">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Limit Kredit
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        Rp
+                        {Number(user.credit.credit_limit).toLocaleString(
+                          "id-ID"
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700">
+                        <TrendingUp className="h-3.5 w-3.5" />
+                        Outstanding Saat Ini
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        Rp
+                        {Number(
+                          user.credit.outstanding_balance
+                        ).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-green-100 bg-green-50/60 p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-green-700">
+                        <Wallet className="h-3.5 w-3.5" />
+                        Setelah Order Ini
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        Rp
+                        {(
+                          Number(user.credit.outstanding_balance) +
+                          calculateTotal()
+                        ).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {user?.credit && user.credit.kerja_sama_is_active === false && (
+                  <div className="rounded-md bg-red-50 p-3 text-xs text-red-800">
+                    Akun kerja sama Anda sedang nonaktif — order tidak bisa
+                    diproses lewat limit kredit sampai diaktifkan kembali oleh
+                    admin.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pilihan metode bayar untuk NON-COD (personal / agen) */}
+          {!isCOD && !isCorporate && (
             <Card>
               <CardContent className="p-4 space-y-4">
                 <h3 className="text-lg font-semibold">Metode Pembayaran</h3>
@@ -1612,6 +1697,15 @@ export default function CalculationResults({
                       <span>Rp 0 (Tidak ada pembayaran)</span>
                     </div>
                   </>
+                ) : isCorporate ? (
+                  /* Corporate: tidak ada pembayaran di muka, masuk limit kredit */
+                  <div className="flex items-center justify-between rounded-lg bg-indigo-50 px-3 py-2 text-lg font-bold text-indigo-700">
+                    <span className="flex items-center gap-1.5 text-sm sm:text-base">
+                      <Handshake className="h-4 w-4" />
+                      Ditambahkan ke Limit Kredit
+                    </span>
+                    <span>Rp{calculateTotal().toLocaleString("id-ID")}</span>
+                  </div>
                 ) : (
                   /* Non-COD: Show total payment */
                   <div className="flex justify-between text-lg font-bold text-blue-600">

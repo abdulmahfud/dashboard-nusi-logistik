@@ -113,21 +113,48 @@ export default function KerjaSamaInvoicesPage() {
   const accountInputRef = useRef<HTMLDivElement>(null);
 
   const canGenerate = hasPermission("kerja-sama.invoices.generate");
+  // "Belum Lunas" = gabungan issued + partially_paid + overdue — API tidak
+  // dukung filter multi-status sekaligus, jadi FE panggil 3x lalu digabung.
+  // Lihat docs/be-fe/tracking-invoice-overdue-corporate.md §2.
+  const isUnpaidView = statusFilter === "unpaid";
+  const UNPAID_STATUSES = ["issued", "partially_paid", "overdue"] as const;
+  const UNPAID_FETCH_CAP = 100;
 
   const fetchList = useCallback(
     async (targetPage = 1) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await getKerjaSamaInvoices({
-          page: targetPage,
-          per_page: perPage,
-          status: statusFilter === "all" ? undefined : statusFilter,
-        });
-        setRows(res.data.data);
-        setPage(res.data.current_page);
-        setLastPage(res.data.last_page);
-        setTotal(res.data.total);
+        if (statusFilter === "unpaid") {
+          const responses = await Promise.all(
+            UNPAID_STATUSES.map((status) =>
+              getKerjaSamaInvoices({
+                page: 1,
+                per_page: UNPAID_FETCH_CAP,
+                status,
+              })
+            )
+          );
+          const merged = responses.flatMap((r) => r.data.data);
+          merged.sort(
+            (a, b) =>
+              new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+          );
+          setRows(merged);
+          setPage(1);
+          setLastPage(1);
+          setTotal(responses.reduce((sum, r) => sum + r.data.total, 0));
+        } else {
+          const res = await getKerjaSamaInvoices({
+            page: targetPage,
+            per_page: perPage,
+            status: statusFilter === "all" ? undefined : statusFilter,
+          });
+          setRows(res.data.data);
+          setPage(res.data.current_page);
+          setLastPage(res.data.last_page);
+          setTotal(res.data.total);
+        }
       } catch (err) {
         setError(getErrorMessage(err, "Gagal memuat daftar invoice."));
         setRows([]);
@@ -135,6 +162,7 @@ export default function KerjaSamaInvoicesPage() {
         setLoading(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [statusFilter, perPage]
   );
 
@@ -280,6 +308,9 @@ export default function KerjaSamaInvoicesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="unpaid">
+                      Belum Lunas (Terkirim + Sebagian + Jatuh Tempo)
+                    </SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="issued">Terkirim</SelectItem>
                     <SelectItem value="partially_paid">
@@ -331,11 +362,20 @@ export default function KerjaSamaInvoicesPage() {
                           <TableHead>Status</TableHead>
                           <TableHead>Jatuh Tempo</TableHead>
                           <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Dibayar</TableHead>
+                          <TableHead className="text-right">Sisa</TableHead>
                           <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {rows.map((inv) => (
+                        {rows.map((inv) => {
+                          const grandTotal = Number(inv.grand_total) || 0;
+                          const paidAmount = Number(inv.paid_amount) || 0;
+                          const remaining = Math.max(
+                            grandTotal - paidAmount,
+                            0
+                          );
+                          return (
                           <TableRow key={inv.id}>
                             <TableCell className="font-mono text-sm">
                               {inv.invoice_no}
@@ -353,7 +393,17 @@ export default function KerjaSamaInvoicesPage() {
                               {formatDateIdLong(inv.due_date)}
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-right tabular-nums">
-                              {formatRupiah(inv.grand_total)}
+                              {formatRupiah(grandTotal)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right tabular-nums text-green-700">
+                              {formatRupiah(paidAmount)}
+                            </TableCell>
+                            <TableCell
+                              className={`whitespace-nowrap text-right tabular-nums font-medium ${
+                                remaining > 0 ? "text-red-700" : "text-muted-foreground"
+                              }`}
+                            >
+                              {formatRupiah(remaining)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -372,81 +422,95 @@ export default function KerjaSamaInvoicesPage() {
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
 
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-sm text-muted-foreground">
-                      Total {total} invoice
-                    </span>
-                    <div className="flex items-center space-x-6 lg:space-x-8">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium">Baris per halaman</p>
-                        <Select
-                          value={`${perPage}`}
-                          onValueChange={handlePerPageChange}
-                        >
-                          <SelectTrigger className="h-8 w-[70px]">
-                            <SelectValue placeholder={perPage} />
-                          </SelectTrigger>
-                          <SelectContent side="top">
-                            {[10, 20, 30, 40, 50].map((size) => (
-                              <SelectItem key={size} value={`${size}`}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                        Halaman {page} dari {lastPage}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="hidden h-8 w-8 p-0 lg:flex"
-                          onClick={() => fetchList(1)}
-                          disabled={page <= 1 || loading}
-                        >
-                          <span className="sr-only">Go to first page</span>
-                          <ChevronsLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-8 w-8 p-0"
-                          onClick={() => fetchList(page - 1)}
-                          disabled={page <= 1 || loading}
-                        >
-                          <span className="sr-only">Go to previous page</span>
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-8 w-8 p-0"
-                          onClick={() => fetchList(page + 1)}
-                          disabled={page >= lastPage || loading}
-                        >
-                          <span className="sr-only">Go to next page</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="hidden h-8 w-8 p-0 lg:flex"
-                          onClick={() => fetchList(lastPage)}
-                          disabled={page >= lastPage || loading}
-                        >
-                          <span className="sr-only">Go to last page</span>
-                          <ChevronsRight className="h-4 w-4" />
-                        </Button>
+                  {isUnpaidView ? (
+                    <div className="px-1 text-sm text-muted-foreground">
+                      Total {total} invoice belum lunas — menampilkan hingga{" "}
+                      {UNPAID_FETCH_CAP} invoice per status (Terkirim,
+                      Sebagian Lunas, Jatuh Tempo), diurutkan dari jatuh tempo
+                      terdekat.
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-sm text-muted-foreground">
+                        Total {total} invoice
+                      </span>
+                      <div className="flex items-center space-x-6 lg:space-x-8">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-medium">
+                            Baris per halaman
+                          </p>
+                          <Select
+                            value={`${perPage}`}
+                            onValueChange={handlePerPageChange}
+                          >
+                            <SelectTrigger className="h-8 w-[70px]">
+                              <SelectValue placeholder={perPage} />
+                            </SelectTrigger>
+                            <SelectContent side="top">
+                              {[10, 20, 30, 40, 50].map((size) => (
+                                <SelectItem key={size} value={`${size}`}>
+                                  {size}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                          Halaman {page} dari {lastPage}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            onClick={() => fetchList(1)}
+                            disabled={page <= 1 || loading}
+                          >
+                            <span className="sr-only">Go to first page</span>
+                            <ChevronsLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => fetchList(page - 1)}
+                            disabled={page <= 1 || loading}
+                          >
+                            <span className="sr-only">
+                              Go to previous page
+                            </span>
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 w-8 p-0"
+                            onClick={() => fetchList(page + 1)}
+                            disabled={page >= lastPage || loading}
+                          >
+                            <span className="sr-only">Go to next page</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            onClick={() => fetchList(lastPage)}
+                            disabled={page >= lastPage || loading}
+                          >
+                            <span className="sr-only">Go to last page</span>
+                            <ChevronsRight className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
             </CardContent>
