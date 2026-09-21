@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { sidebarLinkClass } from "@/components/sidebar-nav-styles";
 import { type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -41,15 +42,9 @@ export function NavMain({
                 <Link
                   href={item.url}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-md p-2 text-base font-semibold transition
-                    ${
-                      isActive
-                        ? "bg-blue-100 text-blue-500"
-                        : "text-slate-600 hover:bg-blue-300 hover:text-white"
-                    }
-                  `}
+                  className={sidebarLinkClass(isActive)}
                 >
-                  {item.icon && <item.icon className="h-5 w-5" />}
+                  {item.icon && <item.icon />}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuItem>

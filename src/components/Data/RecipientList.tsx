@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import {
   Table,
   TableBody,
@@ -12,20 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Pencil,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Pencil, Search, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -141,8 +128,8 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
     setCurrentPage(1);
   };
 
@@ -308,29 +295,41 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
   };
 
   return (
-    <Card className="shadow-md">
-      <CardHeader className="p-3">
-        <CardTitle className="text-lg font-semibold">
-          Daftar Penerima Pengiriman
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+      <header className="mb-5 flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Users className="h-5 w-5" aria-hidden />
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold leading-tight text-slate-900">
+            Daftar Penerima Pengiriman
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Kelola dan pilih data penerima yang tersedia
+          </p>
+        </div>
+      </header>
+      <div>
         {/* Search Input */}
-        <div className="mb-4">
+        <div className="relative mb-4">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            aria-hidden
+          />
           <Input
             type="text"
             placeholder="Cari Nama Penerima..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white"
+            className="h-11 w-full rounded-lg border-slate-200 bg-white pl-10"
           />
         </div>
 
         {/* Loading State */}
         {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-sm text-gray-500 mt-2">Memuat data...</p>
+          <div className="py-8 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-sm text-slate-500">Memuat data...</p>
           </div>
         ) : (
           <>
@@ -338,35 +337,38 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[15%]">Nama Penerima</TableHead>
-                    <TableHead className="w-[12%]">Nomor Telepon</TableHead>
-                    <TableHead className="w-[10%]">Email</TableHead>
-                    <TableHead className="w-[10%]">Provinsi</TableHead>
-                    <TableHead className="w-[10%]">Kota/Kabupaten</TableHead>
-                    <TableHead className="w-[10%]">Kecamatan</TableHead>
-                    <TableHead className="w-[8%]">Kode Pos</TableHead>
-                    <TableHead className="w-[20%]">Alamat</TableHead>
-                    <TableHead className="w-[5%] text-center">Aksi</TableHead>
+                  <TableRow className="border-slate-100 hover:bg-transparent">
+                    <TableHead className="w-[15%] text-xs font-semibold text-slate-500">Nama Penerima</TableHead>
+                    <TableHead className="w-[12%] text-xs font-semibold text-slate-500">Nomor Telepon</TableHead>
+                    <TableHead className="w-[10%] text-xs font-semibold text-slate-500">Email</TableHead>
+                    <TableHead className="w-[10%] text-xs font-semibold text-slate-500">Provinsi</TableHead>
+                    <TableHead className="w-[10%] text-xs font-semibold text-slate-500">Kota/Kabupaten</TableHead>
+                    <TableHead className="w-[10%] text-xs font-semibold text-slate-500">Kecamatan</TableHead>
+                    <TableHead className="w-[8%] text-xs font-semibold text-slate-500">Kode Pos</TableHead>
+                    <TableHead className="w-[20%] text-xs font-semibold text-slate-500">Alamat</TableHead>
+                    <TableHead className="w-[5%] text-center text-xs font-semibold text-slate-500">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {receivers.length > 0 ? (
                     receivers.map((receiver) => (
-                      <TableRow key={receiver.id}>
-                        <TableCell className="font-medium">
+                      <TableRow
+                        key={receiver.id}
+                        className="border-slate-100 hover:bg-slate-50/60"
+                      >
+                        <TableCell className="py-4 font-semibold text-slate-900">
                           {receiver.name}
                         </TableCell>
-                        <TableCell>{receiver.phone || "-"}</TableCell>
-                        <TableCell>{receiver.email || "-"}</TableCell>
-                        <TableCell>{receiver.province || "-"}</TableCell>
-                        <TableCell>{receiver.regency || "-"}</TableCell>
-                        <TableCell>{receiver.district || "-"}</TableCell>
-                        <TableCell>{receiver.postal_code || "-"}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.phone || "-"}</TableCell>
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.email || "-"}</TableCell>
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.province || "-"}</TableCell>
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.regency || "-"}</TableCell>
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.district || "-"}</TableCell>
+                        <TableCell className="py-4 text-sm text-slate-700">{receiver.postal_code || "-"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate py-4 text-sm text-slate-700">
                           {receiver.address || "-"}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="py-4 text-center">
                           <div className="flex justify-center space-x-1">
                             <Button
                               size="sm"
@@ -384,7 +386,7 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
                     <TableRow>
                       <TableCell
                         colSpan={9}
-                        className="text-center text-gray-500 py-8"
+                        className="py-8 text-center text-slate-500"
                       >
                         {searchTerm
                           ? "Tidak ada data yang sesuai dengan pencarian."
@@ -398,84 +400,24 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
 
             {/* Pagination */}
             {totalRecords > 0 && (
-              <div className="flex items-center justify-between px-1 mt-4">
-                <span className="text-sm text-muted-foreground">
-                  Total {totalRecords} data
-                </span>
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Baris per halaman</p>
-                    <Select
-                      value={`${perPage}`}
-                      onValueChange={handlePerPageChange}
-                    >
-                      <SelectTrigger className="h-8 w-[70px]">
-                        <SelectValue placeholder={perPage} />
-                      </SelectTrigger>
-                      <SelectContent side="top">
-                        {[10, 20, 30, 40, 50].map((size) => (
-                          <SelectItem key={size} value={`${size}`}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Halaman {currentPage} dari {totalPages}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage <= 1 || loading}
-                    >
-                      <span className="sr-only">Go to first page</span>
-                      <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage <= 1 || loading}
-                    >
-                      <span className="sr-only">Go to previous page</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= totalPages || loading}
-                    >
-                      <span className="sr-only">Go to next page</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={currentPage >= totalPages || loading}
-                    >
-                      <span className="sr-only">Go to last page</span>
-                      <ChevronsRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <NumberedPagination
+                className="mt-4"
+                page={currentPage}
+                lastPage={totalPages}
+                total={totalRecords}
+                perPage={perPage}
+                disabled={loading}
+                onPageChange={handlePageChange}
+                onPerPageChange={handlePerPageChange}
+              />
             )}
           </>
         )}
-      </CardContent>
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Data Penerima</DialogTitle>
             <DialogDescription>
@@ -723,7 +665,7 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
               <Button
                 type="submit"
                 disabled={isUpdating}
-                className="bg-blue-500 hover:bg-blue-700"
+                className="rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {isUpdating ? "Menyimpan..." : "Simpan Perubahan"}
               </Button>
@@ -731,6 +673,6 @@ export default function RecipientList({ refreshTrigger }: RecipientListProps) {
           </form>
         </DialogContent>
       </Dialog>
-    </Card>
+    </section>
   );
 }

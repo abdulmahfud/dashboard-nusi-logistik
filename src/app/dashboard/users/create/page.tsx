@@ -17,8 +17,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Eye, EyeOff } from "lucide-react";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import {
+  ClipboardList,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  MessageCircle,
+  Shield,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { createUser, getAllRoles } from "@/lib/apiClient";
 import { UserCreateRequest } from "@/types/users";
@@ -223,64 +235,64 @@ export default function CreateUserPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard/users")}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Tambah Pengguna Baru</h1>
-              <p className="text-gray-600">
-                Buat akun pengguna baru untuk sistem
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Tambah User" },
+            ]}
+            icon={UserPlus}
+            title="Tambah Pengguna Baru"
+            description="Buat akun pengguna baru untuk sistem"
+            illustration="/images/incorporation.png"
+            illustrationClassName="w-[120px]"
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Form Pengguna Baru
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nama Lengkap *</Label>
+          <SectionCard icon={ClipboardList} title="Form Pengguna Baru">
+            <form onSubmit={handleSubmit} className="space-y-6 border-t border-slate-100 pt-6">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium text-slate-800">
+                    Nama Lengkap <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                     <Input
                       id="name"
                       type="text"
                       value={formData.name}
-                      onChange={(e) =>
-                        handleInputChange("name", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("name", e.target.value)}
                       placeholder="Masukkan nama lengkap"
                       required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        handleInputChange("email", e.target.value)
-                      }
-                      placeholder="contoh@email.com"
-                      required
+                      className="h-11 rounded-lg border-slate-200 bg-white pl-10"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="whatsapp">Nomor WhatsApp *</Label>
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-800">
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      placeholder="contoh@email.com"
+                      required
+                      className="h-11 rounded-lg border-slate-200 bg-white pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp" className="text-sm font-medium text-slate-800">
+                  Nomor WhatsApp <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <MessageCircle className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
                   <Input
                     id="whatsapp"
                     type="text"
@@ -290,88 +302,112 @@ export default function CreateUserPage() {
                     }
                     placeholder="08xxxxxxxxx atau +62xxxxxxxxx"
                     required
+                    className="h-11 rounded-lg border-slate-200 bg-white pl-10"
                   />
-                  <p className="text-xs text-gray-500">
-                    Format: 08xxxxxxxxx, +62xxxxxxxxx, atau 62xxxxxxxxx
-                    (maksimal 15 karakter)
-                  </p>
                 </div>
+                <p className="text-xs text-slate-500">
+                  Format: 08xxxxxxxxx, +62xxxxxxxxx, atau 62xxxxxxxxx (maksimal
+                  15 karakter)
+                </p>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={formData.password}
-                        onChange={(e) =>
-                          handleInputChange("password", e.target.value)
-                        }
-                        placeholder="Minimal 8 karakter"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password_confirmation">
-                      Konfirmasi Password *
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="password_confirmation"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={formData.password_confirmation}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "password_confirmation",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Ulangi password"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-slate-800">
+                    Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
+                      placeholder="Minimal 8 karakter"
+                      required
+                      className="h-11 rounded-lg border-slate-200 bg-white pl-10 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      aria-label={
+                        showPassword
+                          ? "Sembunyikan password"
+                          : "Tampilkan password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
-                {isSuperAdmin ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="password_confirmation" className="text-sm font-medium text-slate-800">
+                    Konfirmasi Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+                    <Input
+                      id="password_confirmation"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={formData.password_confirmation}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "password_confirmation",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Ulangi password"
+                      required
+                      className="h-11 rounded-lg border-slate-200 bg-white pl-10 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      aria-label={
+                        showConfirmPassword
+                          ? "Sembunyikan konfirmasi password"
+                          : "Tampilkan konfirmasi password"
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {isSuperAdmin ? (
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="text-sm font-medium text-slate-800">
+                    Role <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Shield
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10"
+                      aria-hidden
+                    />
                     <Select
                       value={(formData.roles && formData.roles[0]) || "user"}
                       onValueChange={handleRoleChange}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger
+                        id="role"
+                        className="h-11 rounded-lg border-slate-200 bg-white pl-10"
+                      >
                         <SelectValue placeholder="Pilih role pengguna" />
                       </SelectTrigger>
                       <SelectContent>
@@ -382,59 +418,60 @@ export default function CreateUserPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500">
-                      Tentukan level akses pengguna dalam sistem
-                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>Role</Label>
-                    <p className="text-sm text-gray-700">
-                      Pengguna baru otomatis mendapat role{" "}
-                      <span className="font-medium">user</span>.
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Hanya superadmin yang bisa menentukan role staff
-                      (finance/sales/operations/customer-service) saat
-                      membuat pengguna.
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-6">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.push("/dashboard/users")}
-                    disabled={loading}
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Membuat...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4" />
-                        Buat Pengguna
-                      </>
-                    )}
-                  </Button>
+                  <p className="text-xs text-slate-500">
+                    Tentukan level akses pengguna dalam sistem
+                  </p>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-800">Role</Label>
+                  <p className="text-sm text-slate-700">
+                    Pengguna baru otomatis mendapat role{" "}
+                    <span className="font-medium">user</span>.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Hanya superadmin yang bisa menentukan role staff
+                    (finance/sales/operations/customer-service) saat membuat
+                    pengguna.
+                  </p>
+                </div>
+              )}
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">Catatan:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-lg border-slate-200 px-6"
+                  onClick={() => router.push("/dashboard/users")}
+                  disabled={loading}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Membuat...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" aria-hidden />
+                      Buat Pengguna
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </SectionCard>
+
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+            <h3 className="mb-2 font-semibold text-blue-900">Catatan:</h3>
+            <ul className="space-y-1 text-sm text-blue-800">
               <li>• Semua field dengan tanda (*) wajib diisi</li>
               <li>• Nama maksimal 255 karakter</li>
               <li>

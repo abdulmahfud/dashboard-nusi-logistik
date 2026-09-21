@@ -2,6 +2,7 @@
 
 import {
   BellIcon,
+  ChevronDown,
   CreditCardIcon,
   LogOutIcon,
   UserCircleIcon,
@@ -23,7 +24,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { ApiService } from "@/lib/ApiService";
 import { useAuth } from "@/context/AuthContext";
@@ -32,7 +32,6 @@ import Link from "next/link";
 
 export function NavUserTop() {
   const { user, loading } = useAuth();
-  const { isMobile } = useSidebar();
 
   const handleLogout = async () => {
     try {
@@ -46,9 +45,9 @@ export function NavUserTop() {
 
   if (loading) {
     return (
-      <SidebarMenu className="sticky top-0 z-40">
+      <SidebarMenu>
         <SidebarMenuItem>
-          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-10 w-10 rounded-full md:w-48 md:rounded-xl" />
         </SidebarMenuItem>
       </SidebarMenu>
     );
@@ -62,32 +61,36 @@ export function NavUserTop() {
     );
 
   return (
-    <SidebarMenu className="sticky top-0 z-40">
+    <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground px-8"
+              className="h-auto w-auto gap-3 rounded-xl p-1.5 hover:bg-slate-50 data-[state=open]:bg-slate-50 md:px-2"
+              aria-label="Menu akun"
             >
-              <div className="grid flex-1 text-right text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-              <Avatar className="h-8 w-8 rounded-lg">
+              <Avatar className="h-10 w-10 rounded-full">
                 <AvatarImage src="/images/user.png" alt={user.name} />
-                <AvatarFallback className="rounded-lg">
+                <AvatarFallback className="rounded-full bg-blue-100 text-blue-600">
                   {user.name ? user.name[0] : "U"}
                 </AvatarFallback>
               </Avatar>
+              <div className="hidden max-w-[11rem] flex-1 text-left text-sm leading-tight md:grid">
+                <span className="truncate font-semibold text-slate-900">
+                  {user.name}
+                </span>
+                <span className="truncate text-xs text-slate-500">
+                  {user.email}
+                </span>
+              </div>
+              <ChevronDown className="hidden size-4 text-slate-500 md:block" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "bottom"}
-            align="center"
+            className="min-w-56 rounded-xl"
+            side="bottom"
+            align="end"
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">

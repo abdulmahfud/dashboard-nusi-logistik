@@ -11,6 +11,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import {
+  SIDEBAR_LABEL_CLASS,
+  sidebarLinkClass,
+} from "@/components/sidebar-nav-styles";
 
 export function NavSupportTickets({
   items,
@@ -30,7 +34,7 @@ export function NavSupportTickets({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarGroupLabel>Bantuan</SidebarGroupLabel>
+        <SidebarGroupLabel className={SIDEBAR_LABEL_CLASS}>Bantuan</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => {
             const usePrefix = item.matchPrefix === true;
@@ -47,15 +51,9 @@ export function NavSupportTickets({
                 <Link
                   href={item.url}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded-md p-2 text-base font-semibold transition
-                    ${
-                      isActive
-                        ? "bg-blue-100 text-blue-500"
-                        : "text-slate-600 hover:bg-blue-300 hover:text-white"
-                    }
-                  `}
+                  className={sidebarLinkClass(isActive)}
                 >
-                  {item.icon && <item.icon className="h-5 w-5" />}
+                  {item.icon && <item.icon />}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuItem>

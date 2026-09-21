@@ -5,22 +5,49 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { StatCard } from "@/components/redesign/stat-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
+import {
+  DateRangeField,
+  toApiDate,
+} from "@/components/redesign/date-range-field";
+import {
   CreditCard,
-  Package,
+  CheckCircle2,
   Clock,
-  CheckCircle,
+  DollarSign,
+  AlertTriangle,
+  Filter,
   Loader2,
+  ReceiptText,
   RefreshCw,
+  RotateCcw,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getOrders, createPayment, getWalletBalance } from "@/lib/apiClient";
+import {
+  getOrdersPage,
+  createPayment,
+  getWalletBalance,
+} from "@/lib/apiClient";
+import { formatRupiah } from "@/lib/currency";
+import { formatDateTimeId } from "@/lib/date";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import type { DateRange } from "react-day-picker";
 
 interface PendingOrder {
   id: number;
@@ -28,35 +55,17 @@ interface PendingOrder {
   vendor: string;
   service_type_code: string;
   cod_value: number;
-  reguler_value: number;
   item_value: number;
   status: string;
   created_at: string;
-  // Add calculated amount for payment
-  payment_amount?: number;
+  /** Nominal yang ditagih dari BE. `null` = data tidak tersedia (anomali); order tidak bisa dibayar. */
+  payment_amount: number | null;
 }
 
-// Helper function outside component to avoid re-renders
-const calculatePaymentAmount = (order: PendingOrder): number => {
-  // First try to get payment_amount from order if available
-  if (order.payment_amount && order.payment_amount > 0) {
-    return order.payment_amount;
-  }
+const headCls = "h-11 text-xs font-semibold text-slate-500";
 
-  // Fallback calculation if payment_amount not available
-  const itemValue = order.item_value || 0;
-  const baseShippingCost = 100000; // Base shipping cost
-  const codFee =
-    order.service_type_code === "cod" ? Math.round(itemValue * 0.04) : 0;
-
-  if (order.service_type_code === "cod") {
-    // COD: User pays shipping + COD fee (item value collected via COD)
-    return baseShippingCost + codFee;
-  } else {
-    // Non-COD: User pays shipping cost only (item value paid directly to seller)
-    return baseShippingCost;
-  }
-};
+/** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
+type AppliedRange = { start?: string; end?: string };
 
 export default function PembayaranPaketPage() {
   const { user } = useAuth();
@@ -66,11 +75,21 @@ export default function PembayaranPaketPage() {
   const isAgen = user?.account_type === "agen";
 
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
-  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
+  /** Pilihan lintas halaman, disimpan lengkap agar total tetap benar saat ganti halaman. */
+  const [selected, setSelected] = useState<Record<number, PendingOrder>>({});
+  const selectedOrders = Object.values(selected);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
+
+  const [rangeInput, setRangeInput] = useState<DateRange | undefined>();
+  const [appliedRange, setAppliedRange] = useState<AppliedRange>({});
+  const hasFilter = Boolean(appliedRange.start || appliedRange.end);
 
   useEffect(() => {
     if (!isAgen) return;
@@ -84,79 +103,95 @@ export default function PembayaranPaketPage() {
   const fetchPendingOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getOrders();
+      // Filter status dilakukan BE; tanggal hanya dikirim jika dipilih eksplisit.
+      const response = await getOrdersPage({
+        status: "menunggu_pembayaran",
+        start_date: appliedRange.start,
+        end_date: appliedRange.end,
+        page,
+        per_page: perPage,
+      });
 
-      if (response.data) {
-        // Filter only orders with pending payment status and map to PendingOrder type
-        const pending = response.data
-          .filter((order) => order.status === "menunggu_pembayaran")
-          .map((order) => {
-            // Extract payment_amount from request_payload if available
-            const requestPayload = order.request_payload;
-            const storedPaymentAmount = requestPayload?.payment_amount
-              ? Number(requestPayload.payment_amount)
-              : 0;
+      const list = (response.data ?? []).map((order): PendingOrder => {
+        const amount =
+          order.payment_amount == null ? null : Number(order.payment_amount);
+        return {
+          id: order.id,
+          reference_no: order.reference_no || "",
+          vendor: order.vendor || "",
+          service_type_code: order.service_type_code || "",
+          cod_value: Number(order.cod_value) || 0,
+          item_value: Number(order.item_value) || 0,
+          status: order.status || "",
+          created_at: order.created_at || "",
+          payment_amount:
+            amount !== null && Number.isFinite(amount) ? amount : null,
+        };
+      });
 
-            const pendingOrder: PendingOrder = {
-              id: order.id,
-              reference_no: order.reference_no || "",
-              vendor: order.vendor || "",
-              service_type_code: order.service_type_code || "",
-              cod_value: Number(order.cod_value) || 0,
-              reguler_value: Number(order.item_value) || 0, // Use item_value as reguler_value
-              item_value: Number(order.item_value) || 0,
-              status: order.status || "",
-              created_at: order.created_at || "",
-              // Use stored payment amount if available
-              payment_amount: storedPaymentAmount,
-            };
-
-            return {
-              ...pendingOrder,
-              // Calculate payment amount if not stored (fallback)
-              payment_amount:
-                storedPaymentAmount > 0
-                  ? storedPaymentAmount
-                  : calculatePaymentAmount(pendingOrder),
-            };
-          });
-
-        setPendingOrders(pending);
+      // Halaman terakhir bisa kosong setelah order dibayar: mundur satu halaman.
+      if (list.length === 0 && page > 1) {
+        setPage((p) => Math.max(1, p - 1));
+        return;
       }
+
+      setPendingOrders(list);
+      setLastPage(response.meta?.last_page ?? 1);
+      setTotal(response.meta?.total ?? list.length);
     } catch (error) {
       console.error("Failed to fetch pending orders:", error);
       toast.error("Gagal memuat data order");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [appliedRange, page, perPage]);
 
   useEffect(() => {
     fetchPendingOrders();
   }, [fetchPendingOrders]);
 
-  const handleSelectOrder = (orderId: number, checked: boolean) => {
-    if (checked) {
-      setSelectedOrders((prev) => [...prev, orderId]);
-    } else {
-      setSelectedOrders((prev) => prev.filter((id) => id !== orderId));
-    }
+  const applyFilter = () => {
+    const from = rangeInput?.from;
+    const to = rangeInput?.to ?? rangeInput?.from;
+    setAppliedRange({
+      start: from ? toApiDate(from) : undefined,
+      end: to ? toApiDate(to) : undefined,
+    });
+    setPage(1);
   };
 
+  const resetFilter = () => {
+    setRangeInput(undefined);
+    setAppliedRange({});
+    setPage(1);
+  };
+
+  const isPayable = (order: PendingOrder) => order.payment_amount !== null;
+  const payableOnPage = pendingOrders.filter(isPayable);
+
+  const handleSelectOrder = (order: PendingOrder, checked: boolean) => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (checked && isPayable(order)) next[order.id] = order;
+      else delete next[order.id];
+      return next;
+    });
+  };
+
+  /** "Pilih Semua" berlaku untuk order yang bisa dibayar di halaman ini. */
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedOrders(pendingOrders.map((order) => order.id));
-    } else {
-      setSelectedOrders([]);
-    }
+    setSelected((prev) => {
+      const next = { ...prev };
+      for (const order of payableOnPage) {
+        if (checked) next[order.id] = order;
+        else delete next[order.id];
+      }
+      return next;
+    });
   };
 
-  const getTotalAmount = () => {
-    return selectedOrders.reduce((total, orderId) => {
-      const order = pendingOrders.find((o) => o.id === orderId);
-      return total + (order?.payment_amount || 0);
-    }, 0);
-  };
+  const getTotalAmount = () =>
+    selectedOrders.reduce((sum, order) => sum + (order.payment_amount ?? 0), 0);
 
   const handleBulkPayment = async () => {
     if (selectedOrders.length === 0) {
@@ -174,10 +209,7 @@ export default function PembayaranPaketPage() {
     try {
       setPaymentLoading(true);
 
-      // Get selected orders data
-      const selectedOrdersData = pendingOrders.filter((order) =>
-        selectedOrders.includes(order.id)
-      );
+      const selectedOrdersData = selectedOrders;
 
       // For now, create a single payment for all selected orders
       // In the future, you might want to create individual payments or bulk payment
@@ -208,7 +240,7 @@ export default function PembayaranPaketPage() {
         } else if (paymentResponse.data.payment_method === "wallet") {
           // Wallet: langsung lunas, tidak ada invoice eksternal
           toast.success("Pembayaran via saldo wallet berhasil.");
-          setSelectedOrders([]);
+          setSelected({});
           void fetchPendingOrders();
         }
       } else {
@@ -224,22 +256,9 @@ export default function PembayaranPaketPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("id-ID", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const allSelected =
+    payableOnPage.length > 0 &&
+    payableOnPage.every((order) => selected[order.id]);
 
   return (
     <SidebarProvider>
@@ -252,221 +271,336 @@ export default function PembayaranPaketPage() {
           <TopNav />
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Pembayaran Paket
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Kelola pembayaran untuk order yang menunggu pembayaran
-              </p>
-            </div>
-            <Button
-              onClick={fetchPendingOrders}
-              variant="outline"
-              disabled={loading}
-            >
-              <RefreshCw
-                className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-          </div>
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Pembayaran Paket" },
+            ]}
+            title="Pembayaran Paket"
+            description="Kelola pembayaran untuk order yang menunggu pembayaran."
+            action={
+              <Button
+                onClick={fetchPendingOrders}
+                variant="outline"
+                disabled={loading}
+                className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Refresh
+              </Button>
+            }
+          />
 
           {/* Summary Card */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Clock className="w-5 h-5 text-orange-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Total Order Pending</p>
-                    <p className="text-xl font-bold">{pendingOrders.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Order Dipilih</p>
-                    <p className="text-xl font-bold">{selectedOrders.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <CreditCard className="w-5 h-5 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Total Pembayaran</p>
-                    <p className="text-xl font-bold">
-                      {formatCurrency(getTotalAmount())}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <StatCard
+              icon={Clock}
+              tone="orange"
+              title="Total Order Pending"
+              value={String(total)}
+              hint="Order menunggu pembayaran"
+            />
+            <StatCard
+              icon={CheckCircle2}
+              tone="green"
+              title="Order Dipilih"
+              value={String(selectedOrders.length)}
+              hint="Order siap untuk dibayar"
+            />
+            <StatCard
+              icon={CreditCard}
+              tone="blue"
+              title="Total Pembayaran"
+              value={formatRupiah(getTotalAmount())}
+              hint="Total nominal pembayaran"
+            />
           </div>
 
+          {/* Filter tanggal */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilter();
+            }}
+            className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+          >
+            <DateRangeField
+              value={rangeInput}
+              onChange={setRangeInput}
+              placeholder="Pilih rentang tanggal"
+              className="w-full sm:w-[290px]"
+            />
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+            >
+              <Filter className="h-4 w-4" aria-hidden />
+              Terapkan Filter
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetFilter}
+              disabled={loading || (!hasFilter && !rangeInput)}
+              className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              Reset
+            </Button>
+          </form>
+
           {/* Orders List */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Order Menunggu Pembayaran</CardTitle>
-                {pendingOrders.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="select-all"
-                      checked={selectedOrders.length === pendingOrders.length}
-                      onCheckedChange={handleSelectAll}
-                    />
-                    <label htmlFor="select-all" className="text-sm font-medium">
-                      Pilih Semua
-                    </label>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  <span>Memuat data order...</span>
-                </div>
-              ) : pendingOrders.length === 0 ? (
-                <div className="text-center py-8">
-                  <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">
-                    Tidak ada order yang menunggu pembayaran
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {pendingOrders.map((order) => (
-                    <div key={order.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <Checkbox
-                            checked={selectedOrders.includes(order.id)}
-                            onCheckedChange={(checked) =>
-                              handleSelectOrder(order.id, checked as boolean)
-                            }
-                          />
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Badge
-                                variant="outline"
-                                className="text-orange-600 border-orange-600"
-                              >
-                                <Clock className="w-3 h-3 mr-1" />
-                                Menunggu Pembayaran
-                              </Badge>
-                              <Badge variant="secondary">
-                                {order.vendor?.toUpperCase()}
-                              </Badge>
-                              <Badge
-                                variant={
-                                  order.service_type_code === "cod"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                              >
-                                {order.service_type_code?.toUpperCase()}
-                              </Badge>
-                            </div>
-                            <div>
-                              <p className="font-medium">Order #{order.id}</p>
-                              <p className="text-sm text-gray-600">
-                                Ref: {order.reference_no}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                Dibuat: {formatDate(order.created_at)}
-                              </p>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              <p>
-                                Nilai Barang: {formatCurrency(order.item_value)}
-                              </p>
-                              {order.service_type_code === "cod" && (
-                                <p>COD: {formatCurrency(order.cod_value)}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-blue-600">
-                            {formatCurrency(order.payment_amount || 0)}
-                          </p>
-                          <p className="text-sm text-gray-600">Biaya Kirim</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Order Menunggu Pembayaran
+              </h2>
+              {payableOnPage.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all"
+                    className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                    checked={allSelected}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <label
+                    htmlFor="select-all"
+                    className="cursor-pointer text-sm font-medium text-slate-700"
+                  >
+                    Pilih Semua
+                  </label>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16 text-slate-500">
+                <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-600" />
+                <span>Memuat data order...</span>
+              </div>
+            ) : pendingOrders.length === 0 ? (
+              <div className="flex flex-col items-center px-4 py-12 text-center">
+                <div className="relative mb-6">
+                  <span className="flex h-28 w-28 items-center justify-center rounded-full bg-blue-50">
+                    <ReceiptText
+                      className="h-12 w-12 text-blue-300"
+                      aria-hidden
+                    />
+                  </span>
+                  <span className="absolute -bottom-1 -right-1 flex h-10 w-10 items-center justify-center rounded-full bg-blue-200 text-blue-700 ring-4 ring-white">
+                    <DollarSign className="h-5 w-5" aria-hidden />
+                  </span>
+                </div>
+                <p className="text-lg font-semibold text-slate-900">
+                  {hasFilter
+                    ? "Tidak ada order pada rentang tanggal ini"
+                    : "Tidak ada order yang menunggu pembayaran"}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {hasFilter
+                    ? "Coba ubah atau reset filter tanggal."
+                    : "Order yang menunggu pembayaran akan muncul di sini."}
+                </p>
+                {hasFilter ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetFilter}
+                    className="mt-6 gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden />
+                    Reset Filter
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="mt-6 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <Link href="/dashboard">Kembali ke Beranda</Link>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-100 hover:bg-transparent">
+                      <TableHead className={`${headCls} w-10`}>
+                        <span className="sr-only">Pilih</span>
+                      </TableHead>
+                      <TableHead className={headCls}>Order</TableHead>
+                      <TableHead className={headCls}>Ekspedisi</TableHead>
+                      <TableHead className={headCls}>Layanan</TableHead>
+                      <TableHead className={headCls}>Dibuat</TableHead>
+                      <TableHead className={`${headCls} text-right`}>
+                        Nilai Barang
+                      </TableHead>
+                      <TableHead className={`${headCls} text-right`}>
+                        Biaya Kirim
+                      </TableHead>
+                      <TableHead className={headCls}>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingOrders.map((order) => {
+                      const dt = formatDateTimeId(order.created_at);
+                      const isCod = order.service_type_code === "cod";
+                      return (
+                        <TableRow
+                          key={order.id}
+                          className="border-slate-100 hover:bg-slate-50/60"
+                        >
+                          <TableCell className="py-4">
+                            <Checkbox
+                              className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                              aria-label={`Pilih order ${order.id}`}
+                              disabled={!isPayable(order)}
+                              checked={Boolean(selected[order.id])}
+                              onCheckedChange={(checked) =>
+                                handleSelectOrder(order, checked === true)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <p className="text-sm font-semibold text-slate-900">
+                              Order #{order.id}
+                            </p>
+                            <p className="break-all text-xs text-slate-500">
+                              Ref: {order.reference_no || "—"}
+                            </p>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                              {order.vendor?.toUpperCase() || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                                isCod
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {order.service_type_code?.toUpperCase() || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap py-4 text-sm">
+                            {dt ? (
+                              <>
+                                <p className="text-slate-900">{dt.date}</p>
+                                <p className="text-xs tabular-nums text-slate-500">
+                                  {dt.time.slice(0, 5)}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-slate-700">
+                            {formatRupiah(order.item_value)}
+                            {isCod && (
+                              <p className="text-xs text-slate-500">
+                                COD: {formatRupiah(order.cod_value)}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap py-4 text-right text-sm font-bold tabular-nums text-blue-600">
+                            {order.payment_amount === null ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                                <AlertTriangle
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden
+                                />
+                                Nominal tidak tersedia
+                              </span>
+                            ) : (
+                              formatRupiah(order.payment_amount)
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <StatusBadge
+                              status="pending"
+                              label="Menunggu Pembayaran"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <NumberedPagination
+                  className="mt-2"
+                  page={page}
+                  lastPage={lastPage}
+                  total={total}
+                  perPage={perPage}
+                  disabled={loading}
+                  onPageChange={setPage}
+                  onPerPageChange={(n) => {
+                    setPerPage(n);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
+          </section>
 
           {/* Payment Action */}
           {selectedOrders.length > 0 && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      Konfirmasi Pembayaran
-                    </h3>
-                    <p className="text-gray-600">
-                      {selectedOrders.length} order dipilih - Total:{" "}
-                      {formatCurrency(getTotalAmount())}
-                    </p>
-                    {isAgen && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        Saldo wallet:{" "}
-                        {walletLoading
-                          ? "Memuat..."
-                          : formatCurrency(walletBalance)}
-                      </p>
-                    )}
-                  </div>
-                  {isAgen && !walletLoading && walletBalance < getTotalAmount() ? (
-                    <Button
-                      onClick={() => router.push("/dashboard/wallet")}
-                      className="bg-blue-500 text-white hover:bg-blue-600"
-                      size="lg"
-                    >
-                      Topup Saldo
-                    </Button>
+            <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5 md:px-6">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Konfirmasi Pembayaran
+                </h3>
+                <p className="text-sm text-slate-600">
+                  {selectedOrders.length} order dipilih - Total:{" "}
+                  <span className="font-semibold text-slate-900">
+                    {formatRupiah(getTotalAmount())}
+                  </span>
+                </p>
+                {isAgen && (
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
+                    <Wallet className="h-4 w-4 text-slate-400" aria-hidden />
+                    Saldo wallet:{" "}
+                    {walletLoading ? "Memuat..." : formatRupiah(walletBalance)}
+                  </p>
+                )}
+              </div>
+              {isAgen && !walletLoading && walletBalance < getTotalAmount() ? (
+                <Button
+                  onClick={() => router.push("/dashboard/wallet")}
+                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+                >
+                  <Wallet className="h-4 w-4" aria-hidden />
+                  Topup Saldo
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleBulkPayment}
+                  disabled={paymentLoading || walletLoading}
+                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Membuat Invoice...
+                    </>
                   ) : (
-                  <Button
-                    onClick={handleBulkPayment}
-                    disabled={paymentLoading || walletLoading}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600"
-                    size="lg"
-                  >
-                    {paymentLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Membuat Invoice...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Bayar Sekarang
-                      </>
-                    )}
-                  </Button>
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Bayar Sekarang
+                    </>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </SidebarInset>

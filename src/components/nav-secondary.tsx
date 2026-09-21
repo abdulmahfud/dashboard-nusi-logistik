@@ -9,9 +9,9 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { sidebarLinkClass } from "@/components/sidebar-nav-styles";
 
 export function NavSecondary({
   items,
@@ -33,12 +33,14 @@ export function NavSecondary({
             const isActive = pathname === item.url;
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={isActive}>
-                  <Link href={item.url} aria-current={isActive ? "page" : undefined}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
+                <Link
+                  href={item.url}
+                  aria-current={isActive ? "page" : undefined}
+                  className={sidebarLinkClass(isActive)}
+                >
+                  <item.icon />
+                  <span>{item.title}</span>
+                </Link>
               </SidebarMenuItem>
             );
           })}

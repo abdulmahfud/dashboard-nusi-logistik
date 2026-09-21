@@ -35,10 +35,12 @@ function capitalize(s: string): string {
 
 type StatusBadgeProps = {
   status: string | null | undefined;
+  /** Teks yang ditampilkan; default: status dengan huruf awal kapital. */
+  label?: string;
   className?: string;
 };
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, label, className }: StatusBadgeProps) {
   if (!status) return <span className="text-slate-400">—</span>;
   const tone = resolveTone(status);
   const Icon = TONE_ICON[tone];
@@ -51,7 +53,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       )}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden />
-      {capitalize(status)}
+      {label ?? capitalize(status)}
     </span>
   );
 }

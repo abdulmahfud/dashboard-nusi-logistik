@@ -3,9 +3,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import ShippingForm from "@/components/CekOngkir/ShippingForm";
 import ShippingResults from "@/components/CekOngkir/ShippingResults";
+import { PageHeader } from "@/components/redesign/page-header";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
@@ -37,88 +37,81 @@ const CekOngkir = () => {
           <TopNav />
         </div>
 
-        <div className="flex flex-col flex-1 bg-blue-100">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 md:px-6 ">
-              <main className="container flex-1">
-                <div
-                  id="app-container"
-                  className="grid grid-cols-1 gap-6 md:grid-cols-2"
+        <div
+          id="app-container"
+          className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6"
+        >
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Cek Ongkir" },
+            ]}
+            title="Cek Ongkir"
+            description="Bandingkan harga dan layanan pengiriman dari berbagai ekspedisi."
+          />
+
+          <ShippingForm
+            onResult={(result) => {
+              setCalculationResult(result);
+              setIsSearching(false);
+            }}
+            setIsSearching={setIsSearching}
+          />
+
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              Hasil Cek Ongkir
+            </h2>
+            <AnimatePresence mode="wait">
+              {isSearching ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex h-60 flex-col items-center justify-center"
                 >
-                  <div className="flex flex-col">
-                    <ShippingForm
-                      onResult={(result) => {
-                        setCalculationResult(result);
-                        setIsSearching(false);
-                      }}
-                      setIsSearching={setIsSearching}
-                    />
-                  </div>
-
-                  <AnimatePresence mode="wait">
-                    <Card className="w-full h-full border shadow-sm border-muted rounded-xl">
-                      <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="text-lg font-semibold text-gray-800">
-                          Hasil Pencarian
-                        </CardTitle>
-                      </CardHeader>
-
-                      <CardContent className="flex items-center justify-center">
-                        {isSearching ? (
-                          <motion.div
-                            key="loading"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center h-60"
-                          >
-                            <div className="w-12 h-12 border-4 border-blue-300 rounded-full border-t-blue-600 animate-spin"></div>
-                            <p className="mt-4 text-sm text-gray-500">
-                              Mencari layanan pengiriman...
-                            </p>
-                          </motion.div>
-                        ) : calculationResult ? (
-                          <motion.div
-                            key="result"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col w-full"
-                          >
-                            <ShippingResults
-                              isSearching={isSearching}
-                              result={calculationResult}
-                            />
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="empty"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center gap-4 text-center"
-                          >
-                            <Image
-                              src="/images/card.png"
-                              alt="Empty search illustration"
-                              width={240}
-                              height={240}
-                              className="object-contain"
-                            />
-                            <p className="text-sm text-gray-600 forn-semibold">
-                              Input dulu yuk data alamat paketnya..
-                            </p>
-                          </motion.div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </AnimatePresence>
-                </div>
-              </main>
-            </div>
-          </div>
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+                  <p className="mt-4 text-sm text-slate-500">
+                    Mencari layanan pengiriman...
+                  </p>
+                </motion.div>
+              ) : calculationResult ? (
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex w-full flex-col"
+                >
+                  <ShippingResults
+                    isSearching={isSearching}
+                    result={calculationResult}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center gap-4 py-6 text-center"
+                >
+                  <Image
+                    src="/images/card.png"
+                    alt="Empty search illustration"
+                    width={240}
+                    height={240}
+                    className="object-contain"
+                  />
+                  <p className="text-sm text-slate-600">
+                    Input dulu yuk data alamat paketnya..
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
         </div>
-        
       </SidebarInset>
     </SidebarProvider>
   );

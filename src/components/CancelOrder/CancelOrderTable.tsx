@@ -1,17 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  ColumnDef,
-  FilterFn,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useEffect, useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -22,24 +13,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  RefreshCw,
-  Search,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  PackageX,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
-import { getOrders } from "@/lib/apiClient";
+import { getOrdersPage } from "@/lib/apiClient";
 import { Order } from "@/types/laporanPengiriman";
+import {
+  DateRangeField,
+  toApiDate,
+} from "@/components/redesign/date-range-field";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import CancelOrderDialog from "./CancelOrderDialog";
 
 interface CancelOrderData {
@@ -54,37 +48,43 @@ interface CancelOrderData {
   shipment_type: string;
   shipper_name: string;
   receiver_name: string;
+  created_at: string;
 }
 
-const referenceOrAwbFilter: FilterFn<CancelOrderData> = (
-  row,
-  _columnId,
-  filterValue
-) => {
-  const query = String(filterValue ?? "")
-    .trim()
-    .toLowerCase();
-  if (!query) return true;
+/** Vendor yang didukung pembatalan (sesuai dokumentasi API). */
+const SUPPORTED_VENDORS = [
+  "anteraja",
+  "jntexpress",
+  "paxel",
+  "posindonesia",
+  "jne",
+  "ninjaexpress",
+  "idexpress",
+  "jntcargo",
+  "gosend",
+  "lion",
+  "sap",
+];
 
-  const referenceNo = String(row.original.reference_no ?? "").toLowerCase();
-  const awbNo = String(row.original.awb_no ?? "").toLowerCase();
-  return referenceNo.includes(query) || awbNo.includes(query);
-};
+/** Batas aman saat mengambil semua order berstatus proses_pengiriman. */
+const FETCH_PAGE_SIZE = 100;
+const FETCH_MAX_PAGES = 30;
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  belum_proses: "bg-orange-100 text-orange-800",
-  belum_di_expedisi: "bg-yellow-100 text-yellow-800",
-  proses_pengiriman: "bg-blue-100 text-blue-800",
-  sampai_tujuan: "bg-green-100 text-green-800",
-  dibatalkan: "bg-red-100 text-red-800",
-  retur: "bg-gray-100 text-gray-800",
-};
+const headCls = "h-11 text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+
+const formatRp = (value: string) =>
+  `Rp${parseFloat(value).toLocaleString("id-ID")}`;
 
 export default function CancelOrderTable() {
   const [data, setData] = useState<CancelOrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [vendorFilter, setVendorFilter] = useState("all");
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState<CancelOrderData | null>(
     null
   );
@@ -93,21 +93,31 @@ export default function CancelOrderTable() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await getOrders();
 
-      // Transform orders to cancel order format
-      // Filter: hanya order dengan status yang bisa dibatalkan dan memiliki AWB number
-      const transformedData: CancelOrderData[] = response.data
-        .filter((order: Order) => {
-          // Hanya tampilkan order dengan status proses_pengiriman
-          // Order dengan status dibatalkan atau sampai_tujuan tidak dapat dibatalkan (sesuai dokumentasi)
-          const canBeCancelled = ["proses_pengiriman"].includes(order.status);
-          
-          // Order harus memiliki AWB number untuk dapat dibatalkan (sesuai dokumentasi)
-          const hasAwbNo = order.awb_no && order.awb_no.trim() !== "";
-          
-          return canBeCancelled && hasAwbNo;
-        })
+      // Filter status dilakukan BE; semua halaman diambil supaya tidak ada
+      // order yang terlewat (endpoint ini berpaginasi).
+      const orders: Order[] = [];
+      let current = 1;
+      let last = 1;
+      do {
+        const res = await getOrdersPage({
+          status: "proses_pengiriman",
+          page: current,
+          per_page: FETCH_PAGE_SIZE,
+        });
+        orders.push(...(res.data ?? []));
+        last = res.meta?.last_page ?? 1;
+        current += 1;
+      } while (current <= last && current <= FETCH_MAX_PAGES);
+
+      // Hanya order proses_pengiriman yang punya AWB number yang bisa dibatalkan.
+      const transformedData: CancelOrderData[] = orders
+        .filter(
+          (order: Order) =>
+            order.status === "proses_pengiriman" &&
+            order.awb_no &&
+            order.awb_no.trim() !== ""
+        )
         .map((order: Order) => ({
           id: order.id,
           vendor: order.vendor,
@@ -120,6 +130,7 @@ export default function CancelOrderTable() {
           shipment_type: order.shipment_type,
           shipper_name: order.shipper.name,
           receiver_name: order.receiver.name,
+          created_at: order.created_at,
         }));
 
       setData(transformedData);
@@ -135,6 +146,60 @@ export default function CancelOrderTable() {
     fetchOrders();
   }, []);
 
+  const vendorOptions = useMemo(
+    () => Array.from(new Set(data.map((d) => d.vendor))).sort(),
+    [data]
+  );
+  const serviceOptions = useMemo(
+    () => Array.from(new Set(data.map((d) => d.service_type_code))).sort(),
+    [data]
+  );
+
+  const hasFilter =
+    globalFilter.trim() !== "" ||
+    vendorFilter !== "all" ||
+    serviceFilter !== "all" ||
+    Boolean(range?.from);
+
+  const filtered = useMemo(() => {
+    const q = globalFilter.trim().toLowerCase();
+    const from = range?.from ? toApiDate(range.from) : null;
+    const to = range?.from ? toApiDate(range.to ?? range.from) : null;
+    return data.filter((row) => {
+      if (
+        q &&
+        !(
+          String(row.reference_no ?? "").toLowerCase().includes(q) ||
+          String(row.awb_no ?? "").toLowerCase().includes(q)
+        )
+      ) {
+        return false;
+      }
+      if (vendorFilter !== "all" && row.vendor !== vendorFilter) return false;
+      if (serviceFilter !== "all" && row.service_type_code !== serviceFilter)
+        return false;
+      if (from && to) {
+        const created = row.created_at
+          ? toApiDate(new Date(row.created_at))
+          : "";
+        if (created && (created < from || created > to)) return false;
+      }
+      return true;
+    });
+  }, [data, globalFilter, vendorFilter, serviceFilter, range]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * perPage, safePage * perPage);
+
+  const resetFilters = () => {
+    setGlobalFilter("");
+    setVendorFilter("all");
+    setServiceFilter("all");
+    setRange(undefined);
+    setPage(1);
+  };
+
   const handleCancelClick = (order: CancelOrderData) => {
     setSelectedOrder(order);
     setShowCancelDialog(true);
@@ -147,235 +212,233 @@ export default function CancelOrderTable() {
     toast.success("Pesanan berhasil dibatalkan");
   };
 
-  const columns: ColumnDef<CancelOrderData>[] = [
-    {
-      accessorKey: "vendor",
-      header: "VENDOR",
-      cell: ({ row }) => <Badge variant="outline">{row.original.vendor}</Badge>,
-    },
-    {
-      accessorKey: "reference_no",
-      header: "REFERENCE NO",
-      cell: ({ row }) => (
-        <div className="font-mono text-sm">{row.original.reference_no}</div>
-      ),
-    },
-    {
-      accessorKey: "awb_no",
-      header: "AWB NO",
-      cell: ({ row }) => (
-        <div className="font-mono text-sm">{row.original.awb_no || "-"}</div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "STATUS",
-      cell: ({ row }) => {
-        const status = row.original.status;
-        const colorClass =
-          STATUS_COLORS[status] ||
-          "bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900";
-        return (
-          <Badge className={colorClass}>
-            {status.replace("_", " ").toUpperCase()}
-          </Badge>
-        );
-      },
-    },
-    {
-      accessorKey: "service_type_code",
-      header: "SERVICE TYPE",
-      cell: ({ row }) => (
-        <Badge variant="secondary">{row.original.service_type_code}</Badge>
-      ),
-    },
-    {
-      accessorKey: "cod_value",
-      header: "COD VALUE",
-      cell: ({ row }) => (
-        <div className="text-right">
-          Rp{parseFloat(row.original.cod_value).toLocaleString("id-ID")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "item_value",
-      header: "ITEM VALUE",
-      cell: ({ row }) => (
-        <div className="text-right">
-          Rp{parseFloat(row.original.item_value).toLocaleString("id-ID")}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "shipment_type",
-      header: "SHIPMENT TYPE",
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.original.shipment_type === "DROPOFF" ? "default" : "secondary"
-          }
-        >
-          {row.original.shipment_type}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "shipper_name",
-      header: "SHIPPER",
-    },
-    {
-      accessorKey: "receiver_name",
-      header: "RECEIVER",
-    },
-    {
-      id: "actions",
-      header: "ACTION",
-      cell: ({ row }) => {
-        const vendorLower = row.original.vendor.toLowerCase();
-        
-        // Supported vendors sesuai dokumentasi API
-        const supportedVendors = [
-          "anteraja",
-          "jntexpress",
-          "paxel",
-          "posindonesia",
-          "jne",
-          "ninjaexpress",
-          "idexpress",
-          "jntcargo",
-          "gosend",
-          "lion",
-          "sap",
-        ];
-        
-        const isCancelableVendor = supportedVendors.includes(vendorLower);
-        const hasAwbNo = row.original.awb_no && row.original.awb_no.trim() !== "";
-        
-        return (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => handleCancelClick(row.original)}
-            disabled={!isCancelableVendor || !hasAwbNo}
-            className="gap-2"
-            title={
-              !hasAwbNo
-                ? "AWB number tidak tersedia"
-                : !isCancelableVendor
-                ? `Vendor ${row.original.vendor} tidak didukung`
-                : "Batalkan pesanan"
-            }
-          >
-            <Trash2 className="h-4 w-4" />
-            Cancel
-          </Button>
-        );
-      },
-    },
-  ];
-
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: referenceOrAwbFilter,
-    state: {
-      globalFilter,
-    },
-    onGlobalFilterChange: setGlobalFilter,
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-  });
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-        Loading orders...
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari REFERENCE NO atau AWB NO..."
-              value={globalFilter}
-              onChange={(e) => {
-                setGlobalFilter(e.target.value);
-                table.setPageIndex(0);
-              }}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <div className="text-sm text-gray-600">
-              {table.getFilteredRowModel().rows.length} dari {data.length}{" "}
-              orders dapat dibatalkan
+        {/* Pencarian & filter */}
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-md">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                aria-hidden
+              />
+              <Input
+                placeholder="Cari REFERENCE NO atau AWB NO..."
+                value={globalFilter}
+                onChange={(e) => {
+                  setGlobalFilter(e.target.value);
+                  setPage(1);
+                }}
+                className={`${fieldCls} pl-9`}
+              />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchOrders}
-              className="gap-2 shrink-0"
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <span className="text-sm text-slate-600">
+                {filtered.length} dari {data.length} orders dapat dibatalkan
+              </span>
+              {hasFilter && (
+                <Button
+                  variant="ghost"
+                  onClick={resetFilters}
+                  className="h-11 shrink-0 gap-2 rounded-lg text-slate-600"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  Reset
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={fetchOrders}
+                disabled={loading}
+                className="h-11 shrink-0 gap-2 rounded-lg border-slate-200"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <DateRangeField
+              value={range}
+              onChange={(r) => {
+                setRange(r);
+                setPage(1);
+              }}
+              placeholder="Pilih rentang tanggal"
+            />
+            <Select
+              value={vendorFilter}
+              onValueChange={(v) => {
+                setVendorFilter(v);
+                setPage(1);
+              }}
             >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
+              <SelectTrigger className={fieldCls} aria-label="Filter vendor">
+                <SelectValue placeholder="Semua Vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Vendor</SelectItem>
+                {vendorOptions.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={serviceFilter}
+              onValueChange={(v) => {
+                setServiceFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                className={fieldCls}
+                aria-label="Filter service type"
+              >
+                <SelectValue placeholder="Semua Service Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Service Type</SelectItem>
+                {serviceOptions.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <div className="rounded-md border">
+        {/* Tabel */}
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
           <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
+            <TableHeader className="bg-slate-50/60">
+              <TableRow className="border-slate-100 hover:bg-transparent">
+                <TableHead className={headCls}>Vendor</TableHead>
+                <TableHead className={headCls}>Reference No</TableHead>
+                <TableHead className={headCls}>AWB No</TableHead>
+                <TableHead className={headCls}>Status</TableHead>
+                <TableHead className={headCls}>Service Type</TableHead>
+                <TableHead className={headCls}>COD Value</TableHead>
+                <TableHead className={headCls}>Item Value</TableHead>
+                <TableHead className={headCls}>Shipment Type</TableHead>
+                <TableHead className={headCls}>Shipper</TableHead>
+                <TableHead className={headCls}>Receiver</TableHead>
+                <TableHead className={headCls}>Action</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="h-32 text-center">
+                    <span className="inline-flex items-center gap-2 text-slate-500">
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      Loading orders...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ) : pageRows.length ? (
+                pageRows.map((row) => {
+                  const vendorLower = row.vendor.toLowerCase();
+                  const isCancelableVendor =
+                    SUPPORTED_VENDORS.includes(vendorLower);
+                  const hasAwbNo = row.awb_no && row.awb_no.trim() !== "";
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className="border-slate-100 hover:bg-slate-50/60"
+                    >
+                      <TableCell className="py-4">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          {row.vendor}
+                        </span>
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+                      <TableCell className="py-4 font-mono text-xs text-slate-800">
+                        {row.reference_no}
+                      </TableCell>
+                      <TableCell className="py-4 font-mono text-xs text-slate-800">
+                        {row.awb_no || "-"}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <span className="whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                          {row.status.replace("_", " ").toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                          {row.service_type_code}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-slate-700">
+                        {formatRp(row.cod_value)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-slate-700">
+                        {formatRp(row.item_value)}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                            row.shipment_type === "DROPOFF"
+                              ? "bg-blue-50 text-blue-700"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {row.shipment_type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-4 text-sm text-slate-700">
+                        {row.shipper_name}
+                      </TableCell>
+                      <TableCell className="py-4 text-sm text-slate-700">
+                        {row.receiver_name}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancelClick(row)}
+                          disabled={!isCancelableVendor || !hasAwbNo}
+                          className="h-9 gap-2 rounded-lg"
+                          title={
+                            !hasAwbNo
+                              ? "AWB number tidak tersedia"
+                              : !isCancelableVendor
+                              ? `Vendor ${row.vendor} tidak didukung`
+                              : "Batalkan pesanan"
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden />
+                          Cancel
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    {globalFilter.trim()
-                      ? "Tidak ada pesanan yang cocok dengan REFERENCE NO / AWB NO."
-                      : "Tidak ada data pesanan yang dapat dibatalkan."}
+                  <TableCell colSpan={11} className="py-12 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-rose-50">
+                        <PackageX
+                          className="h-9 w-9 text-rose-300"
+                          aria-hidden
+                        />
+                      </span>
+                      <p className="font-semibold text-slate-900">
+                        {hasFilter
+                          ? "Tidak ada pesanan yang cocok dengan filter."
+                          : "Tidak ada data pesanan yang dapat dibatalkan."}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Coba ubah filter pencarian atau rentang tanggal.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -384,82 +447,19 @@ export default function CancelOrderTable() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value));
-              }}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue
-                  placeholder={table.getState().pagination.pageSize}
-                />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to first page</span>
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to previous page</span>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to next page</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to last page</span>
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <p className="text-sm text-muted-foreground">
-              {table.getFilteredSelectedRowModel().rows.length} of{" "}
-              {table.getFilteredRowModel().rows.length} row(s) selected.
-            </p>
-          </div>
-        </div>
+        {!loading && filtered.length > 0 && (
+          <NumberedPagination
+            page={safePage}
+            lastPage={totalPages}
+            total={filtered.length}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
+          />
+        )}
       </div>
 
       {selectedOrder && (

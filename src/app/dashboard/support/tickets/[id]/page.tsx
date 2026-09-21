@@ -205,7 +205,7 @@ export default function SupportTicketDetailPage() {
       router.back();
       return;
     }
-    router.push("/dashboard/support/tickets/new");
+    router.push("/dashboard/support/tiket-bantuan");
   }, [router]);
 
   const load = useCallback(async () => {

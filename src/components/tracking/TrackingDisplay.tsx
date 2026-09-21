@@ -121,25 +121,27 @@ export const TrackingDisplay: React.FC<TrackingDisplayProps> = ({ result }) => {
 
   return (
     <div className="space-y-6">
-      <OrderInfoCard orderInfo={safeOrderInfo} />
-
-      {/* Current Status */}
+      {/* Status terkini (ringkasan utama) */}
       <CurrentStatusCard currentStatus={safeCurrentStatus} />
 
-      {/* Shipment Info */}
-      <ShipmentInfoCard shipment={safeShipment} />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+        {/* Kolom utama: alamat, perjalanan, pengantaran, driver */}
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <AddressesCard sender={safeSender} receiver={safeReceiver} />
 
-      {/* Sender & Receiver */}
-      <AddressesCard sender={safeSender} receiver={safeReceiver} />
+          {safeHistory.length > 0 && <TrackingHistoryCard data={safeHistory} />}
 
-      {/* Tracking History */}
-      {safeHistory.length > 0 && <TrackingHistoryCard data={safeHistory} />}
+          <DeliveryInfoCard delivery={safeDelivery} />
 
-      {/* Delivery Info */}
-      <DeliveryInfoCard delivery={safeDelivery} />
+          <DriverInfoCard driverInfo={safeDriverInfo} />
+        </div>
 
-      {/* Driver Info */}
-      <DriverInfoCard driverInfo={safeDriverInfo} />
+        {/* Kolom samping: order & pengiriman */}
+        <div className="min-w-0 space-y-6">
+          <OrderInfoCard orderInfo={safeOrderInfo} />
+          <ShipmentInfoCard shipment={safeShipment} />
+        </div>
+      </div>
     </div>
   );
 };

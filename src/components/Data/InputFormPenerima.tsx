@@ -1,13 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +15,7 @@ import {
 import type { Province, Regency, District } from "@/types/dataRegulerForm";
 import type { ReceiverFormData } from "@/types/dataPenerima";
 import { useAuth } from "@/context/AuthContext";
+import { User } from "lucide-react";
 
 interface InputFormPenerimaProps {
   onReceiverAdded?: () => void;
@@ -242,15 +236,23 @@ export default function InputFormPenerima({
 
   return (
     <form onSubmit={handleSubmit} className="animate-slide-down">
-      <Card className="shadow-sm">
-        <CardHeader className="p-3 mt-3 ml-3">
-          <CardTitle className="text-lg font-semibold">
-            Tambah Alamat Penerima
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+        <header className="mb-5 flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+            <User className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold leading-tight text-slate-900">
+              Tambah Alamat Penerima
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Lengkapi data penerima dengan benar
+            </p>
+          </div>
+        </header>
+        <div className="space-y-5">
           <div className="space-y-1.5">
-            <Label htmlFor="name" className="text-shipping-label">
+            <Label htmlFor="name" className="text-sm font-medium text-slate-800">
               Nama Penerima<span className="text-red-500">*</span>
             </Label>
             <Input
@@ -259,7 +261,7 @@ export default function InputFormPenerima({
               placeholder="Nama lengkap penerima"
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              className={`bg-white ${errors.name ? "border-red-500 focus:border-red-500" : ""}`}
+              className={`h-11 rounded-lg border-slate-200 bg-white ${errors.name ? "border-red-500 focus:border-red-500" : ""}`}
             />
             {errors.name && (
               <p className="text-sm text-red-500">{errors.name}</p>
@@ -268,7 +270,7 @@ export default function InputFormPenerima({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-shipping-label">
+              <Label htmlFor="phone" className="text-sm font-medium text-slate-800">
                 Nomor Telepon<span className="text-red-500">*</span>
               </Label>
               <Input
@@ -278,14 +280,14 @@ export default function InputFormPenerima({
                 maxLength={15}
                 value={formData.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
-                className={`bg-white ${errors.phone ? "border-red-500 focus:border-red-500" : ""}`}
+                className={`h-11 rounded-lg border-slate-200 bg-white ${errors.phone ? "border-red-500 focus:border-red-500" : ""}`}
               />
               {errors.phone && (
                 <p className="text-sm text-red-500">{errors.phone}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-shipping-label">
+              <Label htmlFor="email" className="text-sm font-medium text-slate-800">
                 Email
               </Label>
               <Input
@@ -294,7 +296,7 @@ export default function InputFormPenerima({
                 placeholder="email@example.com"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                className={`bg-white ${errors.email ? "border-red-500 focus:border-red-500" : ""}`}
+                className={`h-11 rounded-lg border-slate-200 bg-white ${errors.email ? "border-red-500 focus:border-red-500" : ""}`}
               />
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email}</p>
@@ -306,7 +308,7 @@ export default function InputFormPenerima({
           <div className="space-y-4">
             {/* Province Dropdown */}
             <div className="relative">
-              <Label htmlFor="province" className="text-shipping-label">
+              <Label htmlFor="province" className="text-sm font-medium text-slate-800">
                 Provinsi<span className="text-red-500">*</span>
               </Label>
               <Input
@@ -325,20 +327,20 @@ export default function InputFormPenerima({
                   setDistrictSearch("");
                 }}
                 autoComplete="off"
-                className={`bg-white ${errors.province ? "border-red-500 focus:border-red-500" : ""}`}
+                className={`h-11 rounded-lg border-slate-200 bg-white ${errors.province ? "border-red-500 focus:border-red-500" : ""}`}
               />
               {errors.province && (
                 <p className="text-sm text-red-500">{errors.province}</p>
               )}
               {provinceSearch.length >= 3 && !formData.province && (
-                <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
+                <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {loadingProvince ? (
                     <div className="p-2 text-sm text-gray-500">Loading...</div>
                   ) : provinceOptions.length > 0 ? (
                     provinceOptions.map((prov) => (
                       <div
                         key={prov.id}
-                        className="p-2 hover:bg-blue-100 cursor-pointer"
+                        className="cursor-pointer px-3 py-2 text-sm hover:bg-blue-50"
                         onClick={() => {
                           handleChange("province", String(prov.id));
                           setProvinceSearch(prov.name);
@@ -361,7 +363,7 @@ export default function InputFormPenerima({
 
             {/* Regency Dropdown */}
             <div className="relative">
-              <Label htmlFor="regency" className="text-shipping-label">
+              <Label htmlFor="regency" className="text-sm font-medium text-slate-800">
                 Kota/Kabupaten<span className="text-red-500">*</span>
               </Label>
               <Input
@@ -378,7 +380,7 @@ export default function InputFormPenerima({
                 }}
                 disabled={!formData.province}
                 autoComplete="off"
-                className={`bg-white ${errors.regency ? "border-red-500 focus:border-red-500" : ""}`}
+                className={`h-11 rounded-lg border-slate-200 bg-white ${errors.regency ? "border-red-500 focus:border-red-500" : ""}`}
               />
               {errors.regency && (
                 <p className="text-sm text-red-500">{errors.regency}</p>
@@ -386,7 +388,7 @@ export default function InputFormPenerima({
               {formData.province &&
                 regencySearch.length >= 3 &&
                 !formData.regency && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
+                  <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                     {loadingRegency ? (
                       <div className="p-2 text-sm text-gray-500">
                         Loading...
@@ -395,7 +397,7 @@ export default function InputFormPenerima({
                       regencyOptions.map((reg) => (
                         <div
                           key={reg.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
+                          className="cursor-pointer px-3 py-2 text-sm hover:bg-blue-50"
                           onClick={() => {
                             handleChange("regency", String(reg.id));
                             setRegencySearch(reg.name);
@@ -417,7 +419,7 @@ export default function InputFormPenerima({
 
             {/* District Dropdown */}
             <div className="relative">
-              <Label htmlFor="district" className="text-shipping-label">
+              <Label htmlFor="district" className="text-sm font-medium text-slate-800">
                 Kecamatan<span className="text-red-500">*</span>
               </Label>
               <Input
@@ -431,7 +433,7 @@ export default function InputFormPenerima({
                 }}
                 disabled={!formData.regency}
                 autoComplete="off"
-                className={`bg-white ${errors.district ? "border-red-500 focus:border-red-500" : ""}`}
+                className={`h-11 rounded-lg border-slate-200 bg-white ${errors.district ? "border-red-500 focus:border-red-500" : ""}`}
               />
               {errors.district && (
                 <p className="text-sm text-red-500">{errors.district}</p>
@@ -439,7 +441,7 @@ export default function InputFormPenerima({
               {formData.regency &&
                 districtSearch.length >= 3 &&
                 !formData.district && (
-                  <div className="border rounded bg-white max-h-40 overflow-y-auto absolute z-20 w-full">
+                  <div className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                     {loadingDistrict ? (
                       <div className="p-2 text-sm text-gray-500">
                         Loading...
@@ -448,7 +450,7 @@ export default function InputFormPenerima({
                       districtOptions.map((dist) => (
                         <div
                           key={dist.id}
-                          className="p-2 hover:bg-blue-100 cursor-pointer"
+                          className="cursor-pointer px-3 py-2 text-sm hover:bg-blue-50"
                           onClick={() => {
                             handleChange("district", String(dist.id));
                             setDistrictSearch(dist.name);
@@ -469,7 +471,7 @@ export default function InputFormPenerima({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="postal_code" className="text-shipping-label">
+            <Label htmlFor="postal_code" className="text-sm font-medium text-slate-800">
               Kode Pos
             </Label>
             <Input
@@ -478,7 +480,7 @@ export default function InputFormPenerima({
               placeholder="12345"
               value={formData.postal_code}
               onChange={(e) => handleChange("postal_code", e.target.value)}
-              className={`bg-white ${errors.postal_code ? "border-red-500 focus:border-red-500" : ""}`}
+              className={`h-11 rounded-lg border-slate-200 bg-white ${errors.postal_code ? "border-red-500 focus:border-red-500" : ""}`}
             />
             {errors.postal_code && (
               <p className="text-sm text-red-500">{errors.postal_code}</p>
@@ -486,7 +488,7 @@ export default function InputFormPenerima({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="address" className="text-shipping-label">
+            <Label htmlFor="address" className="text-sm font-medium text-slate-800">
               Alamat Lengkap
             </Label>
             <Textarea
@@ -494,23 +496,23 @@ export default function InputFormPenerima({
               placeholder="Alamat lengkap seperti Jl. atau RT/RW"
               value={formData.address}
               onChange={(e) => handleChange("address", e.target.value)}
-              className={`bg-white placeholder:text-shipping-placeholder ${errors.address ? "border-red-500 focus:border-red-500" : ""}`}
+              className={`min-h-[100px] rounded-lg border-slate-200 bg-white placeholder:text-shipping-placeholder ${errors.address ? "border-red-500 focus:border-red-500" : ""}`}
             />
             {errors.address && (
               <p className="text-sm text-red-500">{errors.address}</p>
             )}
           </div>
-        </CardContent>
-        <CardFooter>
+        </div>
+        <div className="mt-6">
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-500 hover:bg-blue-700 text-white transition-all duration-300"
+            className="h-11 w-full rounded-lg bg-blue-600 text-white transition-all duration-300 hover:bg-blue-700"
           >
             {isSubmitting ? "Menyimpan..." : "Simpan Data Penerima"}
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </section>
     </form>
   );
 }

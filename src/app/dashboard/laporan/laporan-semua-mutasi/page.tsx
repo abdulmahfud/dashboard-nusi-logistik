@@ -6,8 +6,12 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -21,15 +25,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/context/AuthContext";
 import { getAllPayments, normalizeAllPayments } from "@/lib/apiClient";
 import type { PaymentAllItem } from "@/types/payment";
-import { formatDateIdLong } from "@/lib/date";
+import { formatDateTimeId } from "@/lib/date";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
+  Calendar,
   ClipboardListIcon,
+  Filter,
   Loader2,
   RefreshCw,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
 } from "lucide-react";
 
 type FilterState = {
@@ -53,6 +58,10 @@ const initialFilters: FilterState = {
   amount_max: "",
   reference_no: "",
 };
+
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-700";
+const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 function formatAmount(value: number | string | undefined): string {
   const n =
@@ -107,7 +116,10 @@ export default function LaporanSemuaMutasiPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canViewAll = hasPermission("payments.view_all");
 
+  /** Isi field yang sedang diketik; baru dikirim saat "Terapkan Filter". */
   const [filters, setFilters] = useState<FilterState>(initialFilters);
+  /** Filter yang benar-benar dipakai untuk request. */
+  const [applied, setApplied] = useState<FilterState>(initialFilters);
   const [rows, setRows] = useState<PaymentAllItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,54 +128,42 @@ export default function LaporanSemuaMutasiPage() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const loadData = useCallback(
-    async (targetPage = page, activeFilters: FilterState = filters) => {
-      if (!canViewAll) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await getAllPayments({
-          user_id: activeFilters.user_id
-            ? Number(activeFilters.user_id)
-            : undefined,
-          status: activeFilters.status === "all" ? undefined : activeFilters.status,
-          payment_method:
-            activeFilters.payment_method === "all"
-              ? undefined
-              : activeFilters.payment_method,
-          date_from: activeFilters.date_from || undefined,
-          date_to: activeFilters.date_to || undefined,
-          amount_min: activeFilters.amount_min
-            ? Number(activeFilters.amount_min)
-            : undefined,
-          amount_max: activeFilters.amount_max
-            ? Number(activeFilters.amount_max)
-            : undefined,
-          reference_no: activeFilters.reference_no || undefined,
-          page: targetPage,
-          per_page: perPage,
-        });
-        setRows(normalizeAllPayments(res) as PaymentAllItem[]);
-        const pg = extractPagination(res);
-        setPage(pg.currentPage);
-        setLastPage(pg.lastPage);
-        setTotal(pg.total);
-      } catch (e) {
-        if (e instanceof AxiosError) {
-          const msg = (e.response?.data as { message?: string })?.message;
-          setError(msg || "Gagal memuat laporan semua mutasi.");
-        } else {
-          setError("Gagal memuat laporan semua mutasi.");
-        }
-        setRows([]);
-        setLastPage(1);
-        setTotal(0);
-      } finally {
-        setLoading(false);
+  const loadData = useCallback(async () => {
+    if (!canViewAll) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getAllPayments({
+        user_id: applied.user_id ? Number(applied.user_id) : undefined,
+        status: applied.status === "all" ? undefined : applied.status,
+        payment_method:
+          applied.payment_method === "all" ? undefined : applied.payment_method,
+        date_from: applied.date_from || undefined,
+        date_to: applied.date_to || undefined,
+        amount_min: applied.amount_min ? Number(applied.amount_min) : undefined,
+        amount_max: applied.amount_max ? Number(applied.amount_max) : undefined,
+        reference_no: applied.reference_no || undefined,
+        page,
+        per_page: perPage,
+      });
+      setRows(normalizeAllPayments(res) as PaymentAllItem[]);
+      const pg = extractPagination(res);
+      setLastPage(pg.lastPage);
+      setTotal(pg.total);
+    } catch (e) {
+      if (e instanceof AxiosError) {
+        const msg = (e.response?.data as { message?: string })?.message;
+        setError(msg || "Gagal memuat laporan semua mutasi.");
+      } else {
+        setError("Gagal memuat laporan semua mutasi.");
       }
-    },
-    [canViewAll, filters, page, perPage]
-  );
+      setRows([]);
+      setLastPage(1);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [canViewAll, applied, page, perPage]);
 
   useEffect(() => {
     if (!authLoading && canViewAll) {
@@ -171,8 +171,19 @@ export default function LaporanSemuaMutasiPage() {
     }
   }, [authLoading, canViewAll, loadData]);
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
+    setPage(1);
+  };
+
+  const applyFilters = () => {
+    setApplied({ ...filters });
+    setPage(1);
+  };
+
+  const resetFilters = () => {
+    setFilters(initialFilters);
+    setApplied(initialFilters);
     setPage(1);
   };
 
@@ -204,280 +215,338 @@ export default function LaporanSemuaMutasiPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-2">
-            <ClipboardListIcon className="h-7 w-7 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Laporan Semua Mutasi
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Riwayat semua pembayaran dengan filter admin.
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Semua Mutasi" },
+            ]}
+            icon={ClipboardListIcon}
+            title="Laporan Semua Mutasi"
+            description="Riwayat semua pembayaran dengan filter admin."
+            illustration="/images/report.png"
+            illustrationClassName="w-[120px]"
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-                <Input
-                  placeholder="User ID"
-                  value={filters.user_id}
-                  onChange={(e) =>
-                    setFilters((p) => ({
-                      ...p,
-                      user_id: e.target.value.replace(/[^\d]/g, ""),
-                    }))
-                  }
-                />
-                <Select
-                  value={filters.status}
-                  onValueChange={(v) => setFilters((p) => ({ ...p, status: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={filters.payment_method}
-                  onValueChange={(v) =>
-                    setFilters((p) => ({ ...p, payment_method: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Metode bayar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua metode</SelectItem>
-                    <SelectItem value="xendit">Xendit</SelectItem>
-                    <SelectItem value="wallet">Wallet</SelectItem>
-                    <SelectItem value="cod">COD</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Reference no"
-                  value={filters.reference_no}
-                  onChange={(e) =>
-                    setFilters((p) => ({ ...p, reference_no: e.target.value }))
-                  }
-                />
-                <Input
-                  type="date"
-                  value={filters.date_from}
-                  onChange={(e) =>
-                    setFilters((p) => ({ ...p, date_from: e.target.value }))
-                  }
-                />
-                <Input
-                  type="date"
-                  value={filters.date_to}
-                  onChange={(e) =>
-                    setFilters((p) => ({ ...p, date_to: e.target.value }))
-                  }
-                />
-                <Input
-                  placeholder="Amount min"
-                  value={filters.amount_min}
-                  onChange={(e) =>
-                    setFilters((p) => ({
-                      ...p,
-                      amount_min: e.target.value.replace(/[^\d]/g, ""),
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Amount max"
-                  value={filters.amount_max}
-                  onChange={(e) =>
-                    setFilters((p) => ({
-                      ...p,
-                      amount_max: e.target.value.replace(/[^\d]/g, ""),
-                    }))
-                  }
-                />
+          <SectionCard
+            icon={SlidersHorizontal}
+            title="Filter Transaksi"
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                applyFilters();
+              }}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="f-user" className={labelCls}>
+                    User ID
+                  </Label>
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
+                    <Input
+                      id="f-user"
+                      placeholder="Masukkan User ID"
+                      value={filters.user_id}
+                      onChange={(e) =>
+                        setFilters((p) => ({
+                          ...p,
+                          user_id: e.target.value.replace(/[^\d]/g, ""),
+                        }))
+                      }
+                      className={`${fieldCls} pl-9`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-status" className={labelCls}>
+                    Status
+                  </Label>
+                  <Select
+                    value={filters.status}
+                    onValueChange={(v) =>
+                      setFilters((p) => ({ ...p, status: v }))
+                    }
+                  >
+                    <SelectTrigger id="f-status" className={fieldCls}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-method" className={labelCls}>
+                    Metode
+                  </Label>
+                  <Select
+                    value={filters.payment_method}
+                    onValueChange={(v) =>
+                      setFilters((p) => ({ ...p, payment_method: v }))
+                    }
+                  >
+                    <SelectTrigger id="f-method" className={fieldCls}>
+                      <SelectValue placeholder="Metode bayar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Metode</SelectItem>
+                      <SelectItem value="xendit">Xendit</SelectItem>
+                      <SelectItem value="wallet">Wallet</SelectItem>
+                      <SelectItem value="cod">COD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-ref" className={labelCls}>
+                    Reference No
+                  </Label>
+                  <Input
+                    id="f-ref"
+                    placeholder="Masukkan Reference No"
+                    value={filters.reference_no}
+                    onChange={(e) =>
+                      setFilters((p) => ({ ...p, reference_no: e.target.value }))
+                    }
+                    className={fieldCls}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-from" className={labelCls}>
+                    Tanggal Dari
+                  </Label>
+                  <div className="relative">
+                    <Calendar
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
+                    <Input
+                      id="f-from"
+                      type="date"
+                      value={filters.date_from}
+                      onChange={(e) =>
+                        setFilters((p) => ({ ...p, date_from: e.target.value }))
+                      }
+                      className={`${fieldCls} pl-9`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-to" className={labelCls}>
+                    Tanggal Sampai
+                  </Label>
+                  <div className="relative">
+                    <Calendar
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
+                    <Input
+                      id="f-to"
+                      type="date"
+                      value={filters.date_to}
+                      onChange={(e) =>
+                        setFilters((p) => ({ ...p, date_to: e.target.value }))
+                      }
+                      className={`${fieldCls} pl-9`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-amin" className={labelCls}>
+                    Amount Min
+                  </Label>
+                  <Input
+                    id="f-amin"
+                    placeholder="Min. Amount"
+                    value={filters.amount_min}
+                    onChange={(e) =>
+                      setFilters((p) => ({
+                        ...p,
+                        amount_min: e.target.value.replace(/[^\d]/g, ""),
+                      }))
+                    }
+                    className={fieldCls}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-amax" className={labelCls}>
+                    Amount Max
+                  </Label>
+                  <Input
+                    id="f-amax"
+                    placeholder="Max. Amount"
+                    value={filters.amount_max}
+                    onChange={(e) =>
+                      setFilters((p) => ({
+                        ...p,
+                        amount_max: e.target.value.replace(/[^\d]/g, ""),
+                      }))
+                    }
+                    className={fieldCls}
+                  />
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Button
-                  type="button"
-                  variant="blueGradient"
-                  onClick={() => void loadData(1)}
+                  type="submit"
                   disabled={loading}
+                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Memuat...
                     </>
                   ) : (
-                    "Terapkan Filter"
+                    <>
+                      <Filter className="h-4 w-4" aria-hidden />
+                      Terapkan Filter
+                    </>
                   )}
                 </Button>
                 <Button
                   type="button"
-                  variant="blueGradientOutline"
-                  onClick={() => {
-                    const nextFilters = { ...initialFilters };
-                    setFilters(nextFilters);
-                    void loadData(1, nextFilters);
-                  }}
+                  variant="outline"
+                  onClick={resetFilters}
                   disabled={loading}
+                  className="h-10 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
                   Reset
                 </Button>
                 <Button
                   type="button"
-                  variant="blueGradientOutline"
-                  onClick={() => void loadData(page)}
+                  variant="outline"
+                  onClick={() => void loadData()}
                   disabled={loading}
+                  className="h-10 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                    aria-hidden
+                  />
                   Refresh
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </form>
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Mutasi ({total})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {error ? (
-                <p className="text-sm text-red-600">{error}</p>
-              ) : loading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                </div>
-              ) : rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Belum ada data untuk filter ini.
-                </p>
-              ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Ref</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Metode</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Tanggal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((row, i) => (
-                        <TableRow key={`${row.id ?? row.reference_no ?? i}`}>
-                          <TableCell className="font-mono text-xs">
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
+              Data Mutasi ({total})
+            </h2>
+
+            {error ? (
+              <p className="text-sm text-red-600">{error}</p>
+            ) : loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              </div>
+            ) : rows.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">
+                Belum ada data untuk filter ini.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-100 hover:bg-transparent">
+                      <TableHead className={`${headCls} w-14`}>No</TableHead>
+                      <TableHead className={headCls}>Reference No</TableHead>
+                      <TableHead className={headCls}>User</TableHead>
+                      <TableHead className={headCls}>Metode</TableHead>
+                      <TableHead className={headCls}>Status</TableHead>
+                      <TableHead className={`${headCls} text-right`}>
+                        Amount
+                      </TableHead>
+                      <TableHead className={headCls}>Tanggal</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, i) => {
+                      const dt = formatDateTimeId(row.created_at);
+                      return (
+                        <TableRow
+                          key={`${row.id ?? row.reference_no ?? i}`}
+                          className="border-slate-100 hover:bg-slate-50/60"
+                        >
+                          <TableCell className="py-4 text-sm text-slate-700">
+                            {(page - 1) * perPage + i + 1}
+                          </TableCell>
+                          <TableCell className="py-4 font-mono text-xs text-slate-700">
                             {row.reference_no || "-"}
                           </TableCell>
-                          <TableCell>
-                            {row.user?.name || "-"}
-                            {row.user?.email ? (
-                              <div className="text-xs text-muted-foreground">
-                                {row.user.email}
+                          <TableCell className="py-4">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-600">
+                                {row.user?.name?.[0]?.toUpperCase() ?? "?"}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-900">
+                                  {row.user?.name || "-"}
+                                </p>
+                                {row.user?.email ? (
+                                  <p className="truncate text-xs text-slate-500">
+                                    {row.user.email}
+                                  </p>
+                                ) : null}
                               </div>
-                            ) : null}
+                            </div>
                           </TableCell>
-                          <TableCell>{row.payment_method || "-"}</TableCell>
-                          <TableCell>{row.status || "-"}</TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell className="py-4">
+                            {row.payment_method ? (
+                              <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold uppercase text-blue-700">
+                                {row.payment_method}
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <StatusBadge status={row.status} />
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap py-4 text-right text-sm font-semibold tabular-nums text-slate-900">
                             {formatAmount(row.amount)}
                           </TableCell>
-                          <TableCell>
-                            {formatDateIdLong(row.created_at)}
+                          <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
+                            {dt ? `${dt.date}, ${dt.time.slice(0, 5)}` : "-"}
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-              <div className="mt-4 flex items-center justify-between px-1">
-                <span className="text-sm text-muted-foreground">
-                  Total {total} mutasi
-                </span>
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Baris per halaman</p>
-                    <Select
-                      value={`${perPage}`}
-                      onValueChange={handlePerPageChange}
-                    >
-                      <SelectTrigger className="h-8 w-[70px]">
-                        <SelectValue placeholder={perPage} />
-                      </SelectTrigger>
-                      <SelectContent side="top">
-                        {[10, 20, 30, 40, 50].map((size) => (
-                          <SelectItem key={size} value={`${size}`}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Halaman {page} dari {lastPage}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => void loadData(1)}
-                      disabled={loading || page <= 1}
-                    >
-                      <span className="sr-only">Go to first page</span>
-                      <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => void loadData(page - 1)}
-                      disabled={loading || page <= 1}
-                    >
-                      <span className="sr-only">Go to previous page</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => void loadData(page + 1)}
-                      disabled={loading || page >= lastPage}
-                    >
-                      <span className="sr-only">Go to next page</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => void loadData(lastPage)}
-                      disabled={loading || page >= lastPage}
-                    >
-                      <span className="sr-only">Go to last page</span>
-                      <ChevronsRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <NumberedPagination
+                  className="mt-2"
+                  page={page}
+                  lastPage={lastPage}
+                  total={total}
+                  perPage={perPage}
+                  disabled={loading}
+                  onPageChange={setPage}
+                  onPerPageChange={handlePerPageChange}
+                />
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </section>
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-

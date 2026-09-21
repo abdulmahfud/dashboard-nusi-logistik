@@ -1,7 +1,24 @@
 import { useMemo, useState, useEffect } from "react";
-import { ShippingCard } from "./../ui/shipping-card";
-
-import { Card, CardContent } from "@/components/ui/card";
+import Image from "next/image";
+import { Check, Clock, ThumbsUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DiscountBadge } from "@/components/ui/discount-badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 import { ShippingOption } from "@/lib/shipping-data";
 import { DiscountCalculation } from "@/types/discount";
@@ -355,6 +372,8 @@ export default function ShippingResults({
   result,
 }: ShippingResultsProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"cheapest" | "expensive">("cheapest");
+  const [showAll, setShowAll] = useState(false);
 
   // Discount states
   const [discountInfo, setDiscountInfo] = useState<
@@ -950,25 +969,222 @@ export default function ShippingResults({
     return null;
   }
 
+  const formatRp = (amount: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+
+  /** Harga akhir untuk pengurutan: harga setelah diskon bila ada. */
+  const finalPrice = (option: ShippingOption): number => {
+    const disc = discountInfo[option.id];
+    if (disc?.has_discount) return disc.discounted_price;
+    const n = parseInt(option.price.replace(/[^\d]/g, ""), 10);
+    return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+  };
+
+  const sortedOptions = [...shippingOptions].sort((a, b) => {
+    const ua = a.available === false;
+    const ub = b.available === false;
+    if (ua !== ub) return ua ? 1 : -1; // tidak tersedia selalu di bawah
+    const diff = finalPrice(a) - finalPrice(b);
+    if (!Number.isFinite(diff)) return 0;
+    return sortBy === "cheapest" ? diff : -diff;
+  });
+  const PREVIEW_COUNT = 6;
+  const visibleOptions = showAll
+    ? sortedOptions
+    : sortedOptions.slice(0, PREVIEW_COUNT);
+
+  const headCls = "h-11 text-xs font-semibold text-slate-500";
+
   return (
-    <div className="animate-slide-up">
-      {/* Display all shipping options */}
-      {shippingOptions.map((option) => (
-        <Card
-          key={option.id}
-          className="mb-4 border-gray-100 bg-white overflow-hidden hover:shadow-md transition-shadow"
-        >
-          <CardContent className="relative pt-3">
-            <ShippingCard
-              option={option}
-              isSelected={selectedOption === option.id}
-              onClick={() => setSelectedOption(option.id)}
-              discount={discountInfo[option.id]}
-              isLoadingDiscount={isLoadingDiscounts[option.id] || false}
-            />
-          </CardContent>
-        </Card>
-      ))}
+    <div className="animate-slide-up space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
+          {shippingOptions.length} hasil ditemukan
+        </span>
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span>Urutkan</span>
+          <Select
+            value={sortBy}
+            onValueChange={(v) => setSortBy(v as "cheapest" | "expensive")}
+          >
+            <SelectTrigger className="h-10 w-[150px] rounded-lg border-slate-200 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cheapest">Termurah</SelectItem>
+              <SelectItem value="expensive">Termahal</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-100">
+        <Table>
+          <TableHeader className="bg-slate-50/60">
+            <TableRow className="border-slate-100 hover:bg-transparent">
+              <TableHead className={headCls}>Ekspedisi / Layanan</TableHead>
+              <TableHead className={headCls}>Estimasi</TableHead>
+              <TableHead className={headCls}>Ongkir</TableHead>
+              <TableHead className={`${headCls} text-right`}>Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleOptions.map((option) => {
+              const unavailable = option.available === false;
+              const disc = discountInfo[option.id];
+              const loadingDisc = isLoadingDiscounts[option.id] || false;
+              const selected = selectedOption === option.id;
+              return (
+                <TableRow
+                  key={option.id}
+                  className={cn(
+                    "border-slate-100 hover:bg-slate-50/60",
+                    selected && "bg-blue-50/50",
+                    unavailable && "opacity-60"
+                  )}
+                >
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <Image
+                          src={option.logo}
+                          alt={option.name}
+                          width={100}
+                          height={100}
+                          className="max-h-full max-w-full object-contain p-1"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-900">
+                            {option.name}
+                          </span>
+                          {option.recommended && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                              <ThumbsUp className="h-3 w-3" aria-hidden />
+                              Rekomendasi
+                            </span>
+                          )}
+                        </div>
+                        {option.tags && option.tags.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {option.tags.map((tag, i) => (
+                              <span
+                                key={i}
+                                className={cn(
+                                  "rounded px-2 py-0.5 text-xs",
+                                  tag.type === "warning"
+                                    ? "bg-amber-50 text-amber-700"
+                                    : tag.type === "info"
+                                      ? "bg-blue-50 text-blue-700"
+                                      : "bg-slate-100 text-slate-700"
+                                )}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-slate-400" aria-hidden />
+                      {option.duration}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    {loadingDisc ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
+                        <span className="text-xs text-slate-500">
+                          Mengecek diskon...
+                        </span>
+                      </div>
+                    ) : disc?.has_discount ? (
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-blue-600">
+                            {formatRp(disc.discounted_price)}
+                          </span>
+                          <span className="text-xs text-slate-400 line-through">
+                            {formatRp(disc.original_price)}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <DiscountBadge
+                            discountType={disc.discount_type}
+                            discountValue={disc.discount_value}
+                            discountAmount={disc.discount_amount}
+                            showAmount={false}
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "text-sm font-bold",
+                            unavailable ? "text-slate-400" : "text-blue-600"
+                          )}
+                        >
+                          {option.price}
+                        </span>
+                        {option.originalPrice && (
+                          <span className="text-xs text-slate-400 line-through">
+                            {option.originalPrice}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {unavailable && (
+                      <span className="mt-1 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                        Tidak tersedia
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-4 text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={unavailable}
+                      onClick={() => setSelectedOption(option.id)}
+                      className={cn(
+                        "h-9 gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700",
+                        selected &&
+                          "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                      )}
+                    >
+                      {selected && <Check className="h-4 w-4" aria-hidden />}
+                      {selected ? "Dipilih" : "Pilih"}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {sortedOptions.length > PREVIEW_COUNT && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowAll((v) => !v)}
+            className="rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+          >
+            {showAll ? "Tampilkan lebih sedikit" : "Tampilkan lebih banyak"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

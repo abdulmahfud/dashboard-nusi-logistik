@@ -39,7 +39,7 @@ function DashboardContent() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <div className="flex items-center justify-between w-full px-4">
+        <div className="flex items-center justify-between w-full">
           <SiteHeader />
           <TopNav />
         </div>

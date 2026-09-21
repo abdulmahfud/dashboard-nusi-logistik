@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, Loader2 } from "lucide-react";
@@ -114,83 +113,94 @@ export default function CancelOrderDialog({
     onClose();
   };
 
+  const rp = (v: string) => `Rp${parseFloat(v).toLocaleString("id-ID")}`;
+
+  const details: { label: string; value: React.ReactNode }[] = [
+    {
+      label: "Vendor",
+      value: <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{order.vendor}</span>,
+    },
+    {
+      label: "Reference No",
+      value: <span className="font-mono text-xs">{order.reference_no}</span>,
+    },
+    {
+      label: "AWB No",
+      value: <span className="font-mono text-xs">{order.awb_no}</span>,
+    },
+    {
+      label: "Status",
+      value: (
+        <span className="whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+          {order.status.replace("_", " ").toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      label: "Service Type",
+      value: <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{order.service_type_code}</span>,
+    },
+    { label: "COD Value", value: rp(order.cod_value) },
+    { label: "Item Value", value: rp(order.item_value) },
+    {
+      label: "Shipment Type",
+      value: (
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+            order.shipment_type === "DROPOFF"
+              ? "bg-blue-50 text-blue-700"
+              : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {order.shipment_type}
+        </span>
+      ),
+    },
+    { label: "Shipper", value: order.shipper_name },
+    { label: "Receiver", value: order.receiver_name },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            <DialogTitle>Cancel {order.vendor} Order</DialogTitle>
+      <DialogContent className="rounded-2xl border-slate-100 sm:max-w-lg">
+        <DialogHeader className="text-left">
+          <div className="flex items-center gap-3 pr-6">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+              <AlertTriangle className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <DialogTitle className="text-lg font-semibold leading-tight text-slate-900">
+                Cancel {order.vendor} Order
+              </DialogTitle>
+              <DialogDescription className="mt-0.5 text-sm text-slate-500">
+                Batalkan pesanan {order.vendor} berikut?
+              </DialogDescription>
+            </div>
           </div>
-          <DialogDescription>
-            Batalkan pesanan {order.vendor} berikut?
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Order Details */}
-          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-gray-600">Vendor:</span>
-                <div>
-                  <Badge variant="outline">{order.vendor}</Badge>
-                </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4 text-sm">
+            {details.map((d) => (
+              <div key={d.label} className="min-w-0">
+                <dt className="text-xs text-slate-500">{d.label}</dt>
+                <dd className="mt-1 break-words font-medium text-slate-900">
+                  {d.value}
+                </dd>
               </div>
-              <div>
-                <span className="font-medium text-gray-600">Reference No:</span>
-                <div className="font-mono">{order.reference_no}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">AWB No:</span>
-                <div className="font-mono">{order.awb_no}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Status:</span>
-                <div>
-                  <Badge variant="secondary">{order.status}</Badge>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Service Type:</span>
-                <div>
-                  <Badge variant="secondary">{order.service_type_code}</Badge>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">COD Value:</span>
-                <div>
-                  Rp{parseFloat(order.cod_value).toLocaleString("id-ID")}
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Item Value:</span>
-                <div>
-                  Rp{parseFloat(order.item_value).toLocaleString("id-ID")}
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">
-                  Shipment Type:
-                </span>
-                <div>
-                  <Badge>{order.shipment_type}</Badge>
-                </div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Shipper:</span>
-                <div>{order.shipper_name}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-600">Receiver:</span>
-                <div>{order.receiver_name}</div>
-              </div>
-            </div>
-          </div>
+            ))}
+          </dl>
 
           {/* Remark Input */}
           <div className="space-y-2">
-            <Label htmlFor="remark">Remark (Opsional)</Label>
+            <Label
+              htmlFor="remark"
+              className="text-sm font-medium text-slate-800"
+            >
+              Remark{" "}
+              <span className="font-normal text-slate-400">(Opsional)</span>
+            </Label>
             <Textarea
               id="remark"
               placeholder="Customer requested cancellation"
@@ -199,8 +209,9 @@ export default function CancelOrderDialog({
               disabled={isLoading}
               rows={2}
               maxLength={255}
+              className="rounded-lg border-slate-200 bg-white"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-slate-500">
               {remark.length}/255 karakter
             </p>
           </div>
@@ -212,6 +223,7 @@ export default function CancelOrderDialog({
             variant="outline"
             onClick={handleClose}
             disabled={isLoading}
+            className="h-10 rounded-lg border-slate-200"
           >
             Batal
           </Button>
@@ -220,7 +232,7 @@ export default function CancelOrderDialog({
             variant="destructive"
             onClick={handleCancel}
             disabled={isLoading}
-            className="gap-2"
+            className="h-10 gap-2 rounded-lg"
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             Ya, Cancel Order

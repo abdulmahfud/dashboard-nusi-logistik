@@ -9,6 +9,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/redesign/page-header";
+import { Send } from "lucide-react";
 
 const DataPengirim = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -39,29 +41,33 @@ const DataPengirim = () => {
           </div>
           <TopNav />
         </div>
-        <div className="flex flex-1 flex-col bg-blue-100">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 md:px-6">
-              <main className="flex-1 container">
-                <div
-                  id="app-container"
-                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
-                >
-                  <div className="flex flex-col">
-                    <InputFormPengirim
-                      onShipperCreated={handleShipperCreated}
-                      editingShipper={editingShipper}
-                      onCancelEdit={handleCancelEdit}
-                    />
-                  </div>
-                  <div className="flex flex-col col-span-2">
-                    <ListSender 
-                      refreshTrigger={refreshTrigger}
-                      onEditShipper={handleEditShipper}
-                    />
-                  </div>
-                </div>
-              </main>
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Data Pengirim" },
+            ]}
+            icon={Send}
+            title="Data Pengirim"
+            description="Kelola alamat asal pengiriman Anda."
+          />
+
+          <div
+            id="app-container"
+            className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3"
+          >
+            <div className="flex min-w-0 flex-col">
+              <InputFormPengirim
+                onShipperCreated={handleShipperCreated}
+                editingShipper={editingShipper}
+                onCancelEdit={handleCancelEdit}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col lg:col-span-2">
+              <ListSender
+                refreshTrigger={refreshTrigger}
+                onEditShipper={handleEditShipper}
+              />
             </div>
           </div>
         </div>

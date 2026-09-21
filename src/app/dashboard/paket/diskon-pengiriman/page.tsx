@@ -5,6 +5,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import TopNav from "@/components/top-nav";
 import { DiscountManagement } from "@/components/DiskonPengiriman/DiscountManagement";
+import { PageHeader } from "@/components/redesign/page-header";
+import { BadgePercent } from "lucide-react";
 
 export default function DiskonPengirimanPage() {
   return (
@@ -19,18 +21,19 @@ export default function DiskonPengirimanPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Diskon Pengiriman
-              </h1>
-              <p className="text-muted-foreground">
-                Kelola diskon ekspedisi untuk berbagai vendor dan layanan.
-              </p>
-            </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Diskon Pengiriman" },
+            ]}
+            icon={BadgePercent}
+            title="Diskon Pengiriman"
+            description="Kelola diskon ekspedisi untuk berbagai vendor dan layanan."
+            illustration="/images/calculator.png"
+            illustrationClassName="w-[120px]"
+          />
 
-            <DiscountManagement />
-          </div>
+          <DiscountManagement />
         </div>
       </SidebarInset>
     </SidebarProvider>

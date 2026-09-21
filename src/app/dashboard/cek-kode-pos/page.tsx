@@ -2,14 +2,15 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AnimatePresence, motion } from "framer-motion";
 import { TextSearch } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 
 import ZipCodeForm from "@/components/CekKodePos/ZipCodeForm";
 import ZipResults from "@/components/CekKodePos/ZipResults";
+import { PageHeader } from "@/components/redesign/page-header";
 import TopNav from "@/components/top-nav";
 
 type ZipCode = {
@@ -46,68 +47,74 @@ export default function CekKodePos() {
         </div>
 
         {/* Konten Utama */}
-        <div className="flex flex-1 flex-col bg-blue-100">
-          <div className="flex flex-col gap-4">
-            <main className="container">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* Form Pencarian */}
-                <div className="flex flex-col mx-2 h-80">
-                  <ZipCodeForm onSelectZip={handleSelectZip} />
-                </div>
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Cek Kode Pos" },
+            ]}
+            icon={TextSearch}
+            title="Cek Kode Pos"
+            description="Cari dan temukan kode pos dengan mudah dan cepat."
+          />
 
-                {/* Hasil Pencarian */}
-                <AnimatePresence mode="wait">
-                  <Card className="border border-muted rounded-xl shadow-sm mx-2 h-80">
-                    <CardContent className="h-full flex items-center justify-center">
-                      {isLoading ? (
-                        <motion.div
-                          key="loading"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex flex-col items-center justify-center h-80"
-                        >
-                          <div className="w-12 h-12 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
-                          <p className="mt-4 text-gray-500 text-sm">
-                            Mencari kode pos...
-                          </p>
-                        </motion.div>
-                      ) : selectedZip ? (
-                        <motion.div
-                          key="result"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex flex-col w-full"
-                        >
-                          <ZipResults selectedZip={selectedZip} />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="empty"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="flex flex-col items-center justify-center text-center gap-4"
-                        >
-                          <TextSearch
-                            size={70}
-                            className="text-blue-500 bg-blue-200 rounded-full px-2 py-2"
-                          />
-                          <h2 className="text-2xl font-semibold">
-                            Temukan Kode Pos
-                          </h2>
-                          <p className="text-sm text-gray-600 font-semibold">
-                            Yuk isikan form di samping untuk mendapatkan kode
-                            pos alamat tujuan kamu.
-                          </p>
-                        </motion.div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </AnimatePresence>
-              </div>
-            </main>
+          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+            {/* Form Pencarian */}
+            <ZipCodeForm onSelectZip={handleSelectZip} />
+
+            {/* Hasil Pencarian */}
+            <section className="flex min-h-[22rem] items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 shadow-sm md:p-8">
+              <AnimatePresence mode="wait">
+                {isLoading ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center"
+                  >
+                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+                    <p className="mt-4 text-sm text-slate-500">
+                      Mencari kode pos...
+                    </p>
+                  </motion.div>
+                ) : selectedZip ? (
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex w-full flex-col"
+                  >
+                    <ZipResults selectedZip={selectedZip} />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center gap-3 text-center"
+                  >
+                    <Image
+                      src="/images/kode-pos.png"
+                      alt="Ilustrasi pencarian kode pos di peta"
+                      width={350}
+                      height={233}
+                      priority
+                      className="h-auto w-[280px] select-none"
+                    />
+                    <h2 className="text-2xl font-semibold text-slate-900">
+                      Temukan Kode Pos
+                    </h2>
+                    <p className="max-w-xs text-sm text-slate-600">
+                      Yuk isi form di samping untuk mendapatkan kode pos alamat
+                      tujuan kamu.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
           </div>
         </div>
       </SidebarInset>

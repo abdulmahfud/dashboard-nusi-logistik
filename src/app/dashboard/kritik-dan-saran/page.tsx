@@ -5,29 +5,24 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   HelpCircle,
   Loader2,
   MessageCircle,
+  MessagesSquare,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
+  Star,
 } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import TopNav from "@/components/top-nav";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +54,6 @@ import { useAuth } from "@/context/AuthContext";
 import { createFeedback, getFeedbacks } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { normalizeFeedbacksList } from "@/lib/feedbacks";
-import { formatDateIdLong } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import type { FeedbackRating, FeedbackRecord } from "@/types/feedback";
 
@@ -82,6 +76,56 @@ const COMMENT_MAX = 500;
 function ratingLabel(n: number | undefined): string {
   const o = RATING_OPTIONS.find((r) => r.value === n);
   return o ? `${o.emoji} ${o.label}` : "—";
+}
+
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-800";
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+
+function RatingStars({ value }: { value: number | undefined }) {
+  const n = typeof value === "number" ? value : 0;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5"
+      role="img"
+      aria-label={`Rating ${n} dari 5`}
+    >
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={cn(
+            "h-4 w-4",
+            i <= n
+              ? "fill-amber-400 text-amber-400"
+              : "fill-transparent text-slate-300"
+          )}
+          aria-hidden
+        />
+      ))}
+    </span>
+  );
+}
+
+/** "17 Apr 2026, 14:22" */
+function DateCell({ value }: { value: string | undefined | null }) {
+  const d = value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const date = d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <span className="text-slate-900">
+      {date}, {time.replace(".", ":")}
+    </span>
+  );
 }
 
 /** Jangan menampilkan SQL mentah ke pengguna */
@@ -191,8 +235,8 @@ export default function KritikDanSaranPage() {
     void loadList({ targetPage: 1 });
   };
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
     setPage(1);
   };
 
@@ -277,19 +321,19 @@ export default function KritikDanSaranPage() {
             </div>
             <TopNav />
           </div>
-          <div className="p-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Akses ditolak</CardTitle>
-                <CardDescription>
-                  Anda tidak memiliki izin untuk halaman ini (
-                  <span className="font-mono text-xs">
-                    feedbacks.create / feedbacks.index
-                  </span>
-                  ).
-                </CardDescription>
-              </CardHeader>
-            </Card>
+          <div className="bg-blue-50/80 p-6">
+            <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Akses ditolak
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Anda tidak memiliki izin untuk halaman ini (
+                <span className="font-mono text-xs">
+                  feedbacks.create / feedbacks.index
+                </span>
+                ).
+              </p>
+            </section>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -308,169 +352,162 @@ export default function KritikDanSaranPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-12 md:p-6">
-          <div className="flex items-start gap-3">
-            <MessageCircle className="mt-0.5 h-8 w-8 shrink-0 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-                Kritik & Saran
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Beri penilaian dan komentar untuk membantu kami meningkatkan
-                layanan.
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Kritik & Saran" },
+            ]}
+            icon={MessageCircle}
+            title="Kritik & Saran"
+            description="Beri penilaian dan komentar untuk membantu kami meningkatkan layanan."
+            illustration="/images/rating.png"
+            illustrationClassName="w-[120px]"
+          />
 
           {canCreate ? (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <HelpCircle className="h-5 w-5" aria-hidden />
-                  Kirim kritik & saran
-                </CardTitle>
-                <CardDescription>
-                  Pilih penilaian 1–5, lalu isi komentar minimal {COMMENT_MIN}{" "}
-                  karakter (maks. {COMMENT_MAX}). Yang dikirim ke server adalah
-                  teks setelah spasi di ujung dibuang.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <fieldset className="space-y-2">
-                    <legend className="text-sm font-medium text-slate-900">
-                      Penilaian
-                    </legend>
-                    <div
-                      className="flex flex-wrap gap-2"
-                      role="radiogroup"
-                      aria-label="Penilaian 1 sampai 5"
-                    >
-                      {RATING_OPTIONS.map((opt) => {
-                        const selected = rating === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            className={cn(
-                              "rounded-lg border px-3 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-                              selected
-                                ? "border-blue-600 bg-blue-600 text-white"
-                                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                            )}
-                            onClick={() => setRating(opt.value)}
-                          >
-                            <span aria-hidden>{opt.emoji}</span>{" "}
-                            <span className="font-medium">{opt.label}</span>
-                            <span className="text-muted-foreground ml-1 text-xs">
-                              ({opt.value})
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="feedback-comment">Komentar</Label>
-                      <span
-                        className={cn(
-                          "text-xs tabular-nums",
-                          commentTrimLen > COMMENT_MAX
-                            ? "font-medium text-destructive"
-                            : commentTrimLen > 0 && commentTrimLen < COMMENT_MIN
-                              ? "font-medium text-amber-600 dark:text-amber-500"
-                              : "text-muted-foreground"
-                        )}
-                      >
-                        {comment.length}/{COMMENT_MAX}
-                        {commentTrimLen < COMMENT_MIN ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            (min {COMMENT_MIN} setelah trim: {commentTrimLen})
-                          </span>
-                        ) : null}
-                      </span>
-                    </div>
-                    <Textarea
-                      id="feedback-comment"
-                      value={comment}
-                      onChange={(e) =>
-                        setComment(
-                          e.target.value.slice(0, COMMENT_MAX)
-                        )
-                      }
-                      placeholder="Ceritakan pengalaman atau saran Anda…"
-                      rows={5}
-                      className="min-h-[120px] resize-y"
-                      maxLength={COMMENT_MAX}
-                      aria-invalid={
-                        (commentTrimLen > 0 && commentTrimLen < COMMENT_MIN) ||
-                        comment.length > COMMENT_MAX
-                      }
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant="blueGradient"
-                    className="gap-2"
-                    disabled={
-                      submitting ||
-                      rating == null ||
-                      commentTrimLen < COMMENT_MIN ||
-                      commentTrimLen > COMMENT_MAX
-                    }
+            <SectionCard
+              icon={HelpCircle}
+              title="Kirim kritik & saran"
+              description={`Pilih penilaian 1–5, lalu isi komentar minimal ${COMMENT_MIN} karakter (maks. ${COMMENT_MAX}). Yang dikirim ke server adalah teks setelah spasi di ujung dibuang.`}
+            >
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <fieldset className="space-y-2">
+                  <legend className="text-sm font-medium text-slate-900">
+                    Penilaian
+                  </legend>
+                  <div
+                    className="flex flex-wrap gap-2"
+                    role="radiogroup"
+                    aria-label="Penilaian 1 sampai 5"
                   >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Mengirim…
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Kirim
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                    {RATING_OPTIONS.map((opt) => {
+                      const selected = rating === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          className={cn(
+                            "rounded-xl border px-4 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                            selected
+                              ? "border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600"
+                              : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                          )}
+                          onClick={() => setRating(opt.value)}
+                        >
+                          <span aria-hidden>{opt.emoji}</span>{" "}
+                          <span className="font-medium">{opt.label}</span>
+                          <span className="ml-1 text-xs text-slate-500">
+                            ({opt.value})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="feedback-comment" className={labelCls}>
+                      Komentar
+                    </Label>
+                    <span
+                      className={cn(
+                        "text-xs tabular-nums",
+                        commentTrimLen > COMMENT_MAX
+                          ? "font-medium text-destructive"
+                          : commentTrimLen > 0 && commentTrimLen < COMMENT_MIN
+                            ? "font-medium text-amber-600"
+                            : "text-slate-500"
+                      )}
+                    >
+                      {comment.length}/{COMMENT_MAX}
+                      {commentTrimLen < COMMENT_MIN ? (
+                        <span className="text-slate-500">
+                          {" "}
+                          (min {COMMENT_MIN} setelah trim: {commentTrimLen})
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <Textarea
+                    id="feedback-comment"
+                    value={comment}
+                    onChange={(e) =>
+                      setComment(e.target.value.slice(0, COMMENT_MAX))
+                    }
+                    placeholder="Ceritakan pengalaman atau saran Anda…"
+                    rows={5}
+                    className="min-h-[120px] resize-y rounded-lg border-slate-200 bg-white"
+                    maxLength={COMMENT_MAX}
+                    aria-invalid={
+                      (commentTrimLen > 0 && commentTrimLen < COMMENT_MIN) ||
+                      comment.length > COMMENT_MAX
+                    }
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+                  disabled={
+                    submitting ||
+                    rating == null ||
+                    commentTrimLen < COMMENT_MIN ||
+                    commentTrimLen > COMMENT_MAX
+                  }
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Mengirim…
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Kirim
+                    </>
+                  )}
+                </Button>
+              </form>
+            </SectionCard>
           ) : null}
 
           {canIndex ? (
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 space-y-0">
-                <div>
-                  <CardTitle className="text-lg">Masukan pengguna</CardTitle>
-                  <CardDescription>
-                    {total > 0
-                      ? `${total} entri`
-                      : listLoading
-                        ? "Memuat…"
-                        : "Belum ada data"}
-                  </CardDescription>
-                </div>
+            <SectionCard
+              icon={MessagesSquare}
+              title="Masukan pengguna"
+              description={
+                total > 0
+                  ? `${total} entri`
+                  : listLoading
+                    ? "Memuat…"
+                    : "Belum ada data"
+              }
+              action={
                 <Button
                   type="button"
-                  variant="blueGradientOutline"
+                  variant="outline"
                   size="sm"
+                  className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                   onClick={() => void loadList()}
                   disabled={listLoading}
                 >
                   <RefreshCw
-                    className={`mr-2 h-4 w-4 ${listLoading ? "animate-spin" : ""}`}
+                    className={`h-4 w-4 ${listLoading ? "animate-spin" : ""}`}
+                    aria-hidden
                   />
                   Muat ulang
                 </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              }
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="fb-comment-search">Cari dalam komentar</Label>
+                    <Label htmlFor="fb-comment-search" className={labelCls}>
+                      Cari dalam komentar
+                    </Label>
                     <Input
                       id="fb-comment-search"
                       placeholder="Kata dalam isi komentar…"
@@ -483,10 +520,13 @@ export default function KritikDanSaranPage() {
                         }
                       }}
                       aria-describedby="fb-filter-hint"
+                      className={fieldCls}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fb-user-search">Cari pengguna</Label>
+                    <Label htmlFor="fb-user-search" className={labelCls}>
+                      Cari pengguna
+                    </Label>
                     <Input
                       id="fb-user-search"
                       placeholder="Nama, email, atau WhatsApp…"
@@ -499,24 +539,25 @@ export default function KritikDanSaranPage() {
                         }
                       }}
                       aria-describedby="fb-filter-hint"
+                      className={fieldCls}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Rating</Label>
+                    <Label className={labelCls}>Rating</Label>
                     <Select
                       value={filterRating}
                       onValueChange={setFilterRating}
                     >
-                      <SelectTrigger aria-label="Filter rating">
+                      <SelectTrigger
+                        aria-label="Filter rating"
+                        className={fieldCls}
+                      >
                         <SelectValue placeholder="Semua" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Semua rating</SelectItem>
                         {RATING_OPTIONS.map((o) => (
-                          <SelectItem
-                            key={o.value}
-                            value={String(o.value)}
-                          >
+                          <SelectItem key={o.value} value={String(o.value)}>
                             {o.emoji} {o.label} ({o.value})
                           </SelectItem>
                         ))}
@@ -524,10 +565,7 @@ export default function KritikDanSaranPage() {
                     </Select>
                   </div>
                 </div>
-                <p
-                  id="fb-filter-hint"
-                  className="text-muted-foreground text-xs"
-                >
+                <p id="fb-filter-hint" className="text-xs text-slate-500">
                   <span className="font-medium">Cari dalam komentar</span>{" "}
                   menyaring teks di isi masukan.{" "}
                   <span className="font-medium">Cari pengguna</span> menyaring
@@ -536,17 +574,19 @@ export default function KritikDanSaranPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
-                    variant="blueGradient"
+                    className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
                     onClick={applyAdminFilters}
                   >
-                    <Search className="mr-2 h-4 w-4" />
+                    <Search className="h-4 w-4" aria-hidden />
                     Terapkan filter
                   </Button>
                   <Button
                     type="button"
-                    variant="blueGradientOutline"
+                    variant="outline"
+                    className="h-10 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     onClick={resetAdminFilters}
                   >
+                    <RotateCcw className="h-4 w-4" aria-hidden />
                     Reset
                   </Button>
                 </div>
@@ -560,48 +600,53 @@ export default function KritikDanSaranPage() {
                     <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                   </div>
                 ) : items.length === 0 ? (
-                  <div className="text-muted-foreground py-12 text-center text-sm">
+                  <div className="py-12 text-center text-sm text-slate-500">
                     Belum ada kritik & saran.
                   </div>
                 ) : (
                   <>
-                    <div className="hidden overflow-x-auto rounded-md border md:block">
+                    <div className="hidden overflow-x-auto md:block">
                       <Table>
                         <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[72px]">ID</TableHead>
-                            <TableHead>Pengguna</TableHead>
-                            <TableHead>Rating</TableHead>
-                            <TableHead>Komentar</TableHead>
-                            <TableHead className="whitespace-nowrap">
-                              Tanggal
+                          <TableRow className="border-slate-100 hover:bg-transparent">
+                            <TableHead className={`${headCls} w-14`}>
+                              No
                             </TableHead>
+                            <TableHead className={headCls}>Komentar</TableHead>
+                            <TableHead className={headCls}>Pengguna</TableHead>
+                            <TableHead className={headCls}>Rating</TableHead>
+                            <TableHead className={headCls}>Tanggal</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {items.map((row) => (
-                            <TableRow key={row.id ?? `${row.user_id}-${row.created_at}`}>
-                              <TableCell className="font-mono text-sm">
-                                {row.id ?? "—"}
+                          {items.map((row, index) => (
+                            <TableRow
+                              key={row.id ?? `${row.user_id}-${row.created_at}`}
+                              className="border-slate-100 hover:bg-slate-50/60"
+                            >
+                              <TableCell className="py-4 text-sm text-slate-700">
+                                {(page - 1) * perPage + index + 1}
                               </TableCell>
-                              <TableCell className="max-w-[160px] text-sm">
-                                {row.user?.name ?? "—"}
-                                {row.user?.email ? (
-                                  <div className="text-muted-foreground truncate text-xs">
-                                    {row.user.email}
-                                  </div>
-                                ) : null}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap text-sm">
-                                {ratingLabel(row.rating)}
-                              </TableCell>
-                              <TableCell className="max-w-md text-sm">
+                              <TableCell className="max-w-md py-4 text-sm text-slate-900">
                                 <p className="whitespace-pre-wrap break-words">
                                   {row.comment ?? "—"}
                                 </p>
                               </TableCell>
-                              <TableCell className="text-muted-foreground whitespace-nowrap text-sm">
-                                {formatDateIdLong(row.created_at)}
+                              <TableCell className="max-w-[200px] py-4 text-sm">
+                                <p className="font-medium text-slate-900">
+                                  {row.user?.name ?? "—"}
+                                </p>
+                                {row.user?.email ? (
+                                  <p className="truncate text-xs text-slate-500">
+                                    {row.user.email}
+                                  </p>
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap py-4">
+                                <RatingStars value={row.rating} />
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap py-4 text-sm">
+                                <DateCell value={row.created_at} />
                               </TableCell>
                             </TableRow>
                           ))}
@@ -613,15 +658,13 @@ export default function KritikDanSaranPage() {
                       {items.map((row) => (
                         <li
                           key={row.id ?? `${row.user_id}-${row.created_at}`}
-                          className="rounded-lg border bg-white p-4 shadow-sm"
+                          className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">
+                            <span className="text-xs text-slate-500">
                               #{row.id ?? "—"}
                             </span>
-                            <span className="text-sm">
-                              {ratingLabel(row.rating)}
-                            </span>
+                            <RatingStars value={row.rating} />
                           </div>
                           {row.user?.name ? (
                             <p className="mt-1 text-sm font-medium text-slate-900">
@@ -629,102 +672,33 @@ export default function KritikDanSaranPage() {
                             </p>
                           ) : null}
                           {row.user?.email ? (
-                            <p className="text-muted-foreground text-xs">
+                            <p className="text-xs text-slate-500">
                               {row.user.email}
                             </p>
                           ) : null}
                           <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
                             {row.comment ?? "—"}
                           </p>
-                          <p className="text-muted-foreground mt-2 text-xs">
-                            {formatDateIdLong(row.created_at)}
-                          </p>
+                          <div className="mt-2 text-xs">
+                            <DateCell value={row.created_at} />
+                          </div>
                         </li>
                       ))}
                     </ul>
 
-                    <div className="flex items-center justify-between px-1 pt-2">
-                      <span className="text-sm text-muted-foreground">
-                        Total {total} entri
-                      </span>
-                      <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium">
-                            Baris per halaman
-                          </p>
-                          <Select
-                            value={`${perPage}`}
-                            onValueChange={handlePerPageChange}
-                          >
-                            <SelectTrigger className="h-8 w-[70px]">
-                              <SelectValue placeholder={perPage} />
-                            </SelectTrigger>
-                            <SelectContent side="top">
-                              {[10, 20, 30, 40, 50].map((size) => (
-                                <SelectItem key={size} value={`${size}`}>
-                                  {size}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                          Halaman {page} dari {lastPage}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            disabled={page <= 1 || listLoading}
-                            onClick={() => setPage(1)}
-                          >
-                            <span className="sr-only">Go to first page</span>
-                            <ChevronsLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            disabled={page <= 1 || listLoading}
-                            onClick={() =>
-                              setPage((p) => Math.max(1, p - 1))
-                            }
-                          >
-                            <span className="sr-only">
-                              Go to previous page
-                            </span>
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            disabled={page >= lastPage || listLoading}
-                            onClick={() =>
-                              setPage((p) => Math.min(lastPage, p + 1))
-                            }
-                          >
-                            <span className="sr-only">Go to next page</span>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            disabled={page >= lastPage || listLoading}
-                            onClick={() => setPage(lastPage)}
-                          >
-                            <span className="sr-only">Go to last page</span>
-                            <ChevronsRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                    <NumberedPagination
+                      page={page}
+                      lastPage={lastPage}
+                      total={total}
+                      perPage={perPage}
+                      disabled={listLoading}
+                      onPageChange={setPage}
+                      onPerPageChange={handlePerPageChange}
+                    />
                   </>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </SectionCard>
           ) : null}
         </div>
 
@@ -735,20 +709,20 @@ export default function KritikDanSaranPage() {
             if (!open) setSentSummary(null);
           }}
         >
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          <DialogContent className="max-h-[85vh] overflow-y-auto rounded-2xl sm:max-w-md">
             <DialogHeader>
-              <div className="flex flex-col items-center gap-2 sm:items-start">
+              <div className="flex flex-col items-center gap-2">
                 <span
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                  className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"
                   aria-hidden
                 >
-                  <CheckCircle2 className="h-7 w-7" strokeWidth={2} />
+                  <CheckCircle2 className="h-8 w-8" strokeWidth={2} />
                 </span>
-                <DialogTitle className="text-center sm:text-left">
+                <DialogTitle className="text-center">
                   Kritik & saran terkirim
                 </DialogTitle>
               </div>
-              <DialogDescription className="text-center sm:text-left">
+              <DialogDescription className="text-center">
                 Terima kasih atas masukan Anda. Tim kami akan mempertimbangkan
                 untuk peningkatan layanan.
               </DialogDescription>
@@ -756,7 +730,7 @@ export default function KritikDanSaranPage() {
 
             {sentSummary ? (
               <div
-                className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/40"
+                className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm"
                 role="region"
                 aria-label="Ringkasan yang dikirim"
               >
@@ -784,8 +758,7 @@ export default function KritikDanSaranPage() {
             <DialogFooter>
               <Button
                 type="button"
-                variant="blueGradient"
-                className="w-full sm:w-auto"
+                className="h-10 w-full rounded-lg bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
                 onClick={() => setSuccessDialogOpen(false)}
               >
                 Tutup

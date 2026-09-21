@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { StatCard } from "@/components/redesign/stat-card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -12,13 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
+  Building2,
   Plus,
+  PowerOff,
   RefreshCw,
+  RotateCcw,
   Search,
+  Tag,
+  TicketPercent,
 } from "lucide-react";
 import { DiscountForm } from "./DiscountForm";
 import { DiscountList } from "./DiscountList";
@@ -95,13 +97,14 @@ export function DiscountManagement() {
   }, []);
 
   const loadDiscounts = useCallback(
-    async (targetPage = 1) => {
+    async (targetPage = 1, overrides?: { search?: string }) => {
       try {
         setIsLoading(true);
+        const searchValue = overrides?.search ?? search;
         const response = await getExpeditionDiscounts({
           page: targetPage,
           per_page: perPage,
-          search: search || undefined,
+          search: searchValue || undefined,
           vendor: vendorFilter === "all" ? undefined : vendorFilter,
           is_active:
             isActiveFilter === "all" ? undefined : isActiveFilter === "1" ? 1 : 0,
@@ -131,8 +134,16 @@ export function DiscountManagement() {
     [search, vendorFilter, isActiveFilter, userTypeFilter, perPage]
   );
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
+  };
+
+  const resetFilters = () => {
+    setSearch("");
+    setVendorFilter("all");
+    setIsActiveFilter("all");
+    setUserTypeFilter("all");
+    void loadDiscounts(1, { search: "" });
   };
 
   useEffect(() => {
@@ -245,206 +256,181 @@ export function DiscountManagement() {
     );
   }
 
+  const filterActive = (value: string) => isActiveFilter === value;
+
   return (
     <div className="space-y-6">
       {stats && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground">Total Diskon</p>
-              <p className="text-2xl font-semibold">{stats.total_discounts}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground">Aktif</p>
-              <p className="text-2xl font-semibold text-green-600">
-                {stats.active_discounts}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground">Tidak Aktif</p>
-              <p className="text-2xl font-semibold text-muted-foreground">
-                {stats.inactive_discounts}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-xs text-muted-foreground">Total Pemakaian</p>
-              <p className="text-2xl font-semibold">{stats.total_usage}</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            icon={Tag}
+            tone="violet"
+            title="Total Diskon Aktif"
+            value={String(stats.active_discounts)}
+            hint="Diskon yang sedang aktif"
+            active={filterActive("1")}
+            onClick={() => setIsActiveFilter("1")}
+          />
+          <StatCard
+            icon={PowerOff}
+            tone="slate"
+            title="Total Diskon Nonaktif"
+            value={String(stats.inactive_discounts)}
+            hint="Diskon yang dinonaktifkan"
+            active={filterActive("0")}
+            onClick={() => setIsActiveFilter("0")}
+          />
+          <StatCard
+            icon={Building2}
+            tone="orange"
+            title="Total Vendor"
+            value={String(Object.keys(stats.vendors ?? {}).length)}
+            hint="Vendor dengan diskon"
+          />
+          <StatCard
+            icon={TicketPercent}
+            tone="blue"
+            title="Total Pemakaian"
+            value={String(stats.total_usage)}
+            hint="Pemakaian seluruh diskon"
+          />
         </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-xl font-semibold">
-            Daftar Diskon Ekspedisi
-          </CardTitle>
+      {/* Filter */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm lg:flex-row lg:items-center">
+        <div className="flex flex-1 gap-2 lg:max-w-md">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <Input
+              placeholder="Cari deskripsi diskon…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadDiscounts(1)}
+              className="h-11 rounded-lg border-slate-200 bg-white pl-9"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => loadDiscounts(1)}
+            disabled={isLoading}
+            className="h-11 gap-2 rounded-lg border-slate-200"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+            Cari
+          </Button>
+        </div>
+        <Select value={vendorFilter} onValueChange={setVendorFilter}>
+          <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white w-full lg:w-[170px]">
+            <SelectValue placeholder="Vendor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Vendor</SelectItem>
+            {vendorOptions.map((vendor) => (
+              <SelectItem key={vendor.value} value={vendor.value}>
+                {vendor.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
+          <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white w-full lg:w-[170px]">
+            <SelectValue placeholder="Tipe Akun" />
+          </SelectTrigger>
+          <SelectContent>
+            {USER_TYPE_FILTERS.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={isActiveFilter} onValueChange={setIsActiveFilter}>
+          <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white w-full lg:w-[160px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Status</SelectItem>
+            <SelectItem value="1">Aktif</SelectItem>
+            <SelectItem value="0">Nonaktif</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex flex-wrap gap-2 lg:ml-auto">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 gap-2 rounded-lg border-slate-200"
+            onClick={resetFilters}
+            disabled={isLoading}
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden />
+            Reset
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 gap-2 rounded-lg border-slate-200"
+            onClick={() => {
+              loadDiscounts(page);
+              loadStats();
+            }}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              aria-hidden
+            />
+            Refresh
+          </Button>
           <Button
             onClick={handleCreateDiscount}
-            className="h-11 px-6 py-4 font-semibold bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out"
+            className="h-11 gap-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden />
             Tambah Diskon
           </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex flex-1 gap-2">
-              <Input
-                placeholder="Cari deskripsi diskon…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && loadDiscounts(1)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => loadDiscounts(1)}
-                disabled={isLoading}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
-            <Select value={vendorFilter} onValueChange={setVendorFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Vendor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Vendor</SelectItem>
-                {vendorOptions.map((vendor) => (
-                  <SelectItem key={vendor.value} value={vendor.value}>
-                    {vendor.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Tipe Akun" />
-              </SelectTrigger>
-              <SelectContent>
-                {USER_TYPE_FILTERS.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={isActiveFilter} onValueChange={setIsActiveFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="1">Aktif</SelectItem>
-                <SelectItem value="0">Nonaktif</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                loadDiscounts(page);
-                loadStats();
-              }}
-              disabled={isLoading}
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
-          </div>
+        </div>
+      </div>
 
-          <DiscountList
-            discounts={discounts}
-            isLoading={isLoading}
-            onEdit={handleEditDiscount}
-            onDelete={handleDeleteDiscount}
-            onToggleStatus={handleToggleStatus}
-          />
-
-          {!isLoading && discounts.length > 0 && (
-            <div className="flex items-center justify-between px-1">
-              <span className="text-sm text-muted-foreground">
-                Total {total} diskon
-              </span>
-              <div className="flex items-center space-x-6 lg:space-x-8">
-                <div className="flex items-center space-x-2">
-                  <p className="text-sm font-medium">Baris per halaman</p>
-                  <Select
-                    value={`${perPage}`}
-                    onValueChange={handlePerPageChange}
-                  >
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue placeholder={perPage} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[10, 20, 30, 40, 50].map((size) => (
-                        <SelectItem key={size} value={`${size}`}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                  Halaman {page} dari {lastPage}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="hidden h-8 w-8 p-0 lg:flex"
-                    onClick={() => loadDiscounts(1)}
-                    disabled={page <= 1 || isLoading}
-                  >
-                    <span className="sr-only">Go to first page</span>
-                    <ChevronsLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => loadDiscounts(page - 1)}
-                    disabled={page <= 1 || isLoading}
-                  >
-                    <span className="sr-only">Go to previous page</span>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => loadDiscounts(page + 1)}
-                    disabled={page >= lastPage || isLoading}
-                  >
-                    <span className="sr-only">Go to next page</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="hidden h-8 w-8 p-0 lg:flex"
-                    onClick={() => loadDiscounts(lastPage)}
-                    disabled={page >= lastPage || isLoading}
-                  >
-                    <span className="sr-only">Go to last page</span>
-                    <ChevronsRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+      {/* Daftar */}
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Daftar Diskon Ekspedisi
+          </h2>
+          {total > 0 && (
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">
+              {total} diskon
+            </span>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        <DiscountList
+          discounts={discounts}
+          isLoading={isLoading}
+          onEdit={handleEditDiscount}
+          onDelete={handleDeleteDiscount}
+          onToggleStatus={handleToggleStatus}
+          onCreate={handleCreateDiscount}
+        />
+
+        {!isLoading && discounts.length > 0 && (
+          <NumberedPagination
+            className="mt-2"
+            page={page}
+            lastPage={lastPage}
+            total={total}
+            perPage={perPage}
+            disabled={isLoading}
+            onPageChange={(p) => loadDiscounts(p)}
+            onPerPageChange={handlePerPageChange}
+          />
+        )}
+      </section>
     </div>
   );
 }

@@ -13,6 +13,26 @@ export interface WalletTopupResponse {
   data: WalletTopupData;
 }
 
+/** GET /admin/wallet/summary — ringkasan bulanan (semua total_* dari transaksi berstatus success, positif). */
+export interface WalletSummaryData {
+  period: { month: string; from: string; to: string };
+  /** Saldo saat ini (real-time), bukan saldo akhir bulan. */
+  balance: number | string;
+  total_topup: number | string;
+  total_usage: number | string;
+  total_withdraw: number | string;
+  total_cod_income: number | string;
+  transactions_count: number;
+  /** Transaksi paling baru secara keseluruhan, tidak dibatasi bulan. */
+  last_transaction_at: string | null;
+}
+
+export interface WalletSummaryResponse {
+  success?: boolean;
+  message?: string;
+  data?: WalletSummaryData;
+}
+
 export interface WalletBalanceResponse {
   success?: boolean;
   message?: string;
@@ -26,13 +46,19 @@ export interface WalletTransactionItem {
   id?: number;
   type?: string;
   amount?: number | string;
-  balance_before?: number | string;
-  balance_after?: number | string;
+  /** Hanya terisi untuk transaksi baru yang mengubah saldo; selain itu `null`. */
+  balance_before?: number | string | null;
+  balance_after?: number | string | null;
   status?: string;
   description?: string;
   reference_no?: string;
   created_at?: string;
   updated_at?: string;
+  /** Detail sumber transaksi (nomor referensi dkk). */
+  source?: {
+    reference_no?: string;
+    [key: string]: unknown;
+  } | null;
   payment?: {
     id?: number;
     reference_no?: string;
@@ -79,6 +105,20 @@ export type WalletAllTransactionsQuery = {
   amount_min?: number;
   amount_max?: number;
   date_from?: string;
+  date_to?: string;
+  type?: "topup" | "withdraw" | "cod_income" | "payment";
+  status?: "pending" | "success" | "failed";
+  page?: number;
+  per_page?: number;
+};
+
+/** Query GET /admin/wallet/transactions (riwayat pribadi). Semua opsional, boleh digabung. */
+export type WalletMyTransactionsQuery = {
+  /** Cari di keterangan dan nomor referensi (topup/pembayaran). */
+  search?: string;
+  /** YYYY-MM-DD, inklusif (00:00:00 zona Asia/Jakarta). */
+  date_from?: string;
+  /** YYYY-MM-DD, inklusif (sampai 23:59:59). BE membalas 422 bila lebih awal dari date_from. */
   date_to?: string;
   type?: "topup" | "withdraw" | "cod_income" | "payment";
   status?: "pending" | "success" | "failed";

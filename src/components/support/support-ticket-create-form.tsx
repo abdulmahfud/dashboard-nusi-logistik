@@ -195,7 +195,9 @@ export function SupportTicketCreateForm({
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="stf-title">Judul</Label>
+            <Label htmlFor="stf-title" className="text-sm font-medium text-slate-800">
+              Judul
+            </Label>
             <span
               className={cn(
                 "text-xs tabular-nums",
@@ -217,13 +219,16 @@ export function SupportTicketCreateForm({
             required
             autoComplete="off"
             aria-invalid={titleLen > SUPPORT_TICKET_TITLE_MAX}
+            className="h-11 rounded-lg border-slate-200 bg-white"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="stf-dept">Departemen</Label>
+          <Label htmlFor="stf-dept" className="text-sm font-medium text-slate-800">
+            Departemen
+          </Label>
           <Select value={department} onValueChange={setDepartment}>
-            <SelectTrigger id="stf-dept">
+            <SelectTrigger id="stf-dept" className="h-11 rounded-lg border-slate-200 bg-white">
               <SelectValue placeholder="Pilih departemen" />
             </SelectTrigger>
             <SelectContent>
@@ -238,7 +243,9 @@ export function SupportTicketCreateForm({
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="stf-msg">Pesan</Label>
+            <Label htmlFor="stf-msg" className="text-sm font-medium text-slate-800">
+              Pesan
+            </Label>
             <span
               className={cn(
                 "text-xs tabular-nums",
@@ -259,17 +266,20 @@ export function SupportTicketCreateForm({
             }
             placeholder="Ceritakan detail masalah, nomor order jika ada…"
             rows={5}
-            className="min-h-[100px] resize-y"
+            className="min-h-[100px] resize-y rounded-lg border-slate-200 bg-white"
             maxLength={SUPPORT_TICKET_MESSAGE_MAX}
             aria-invalid={messageLen > SUPPORT_TICKET_MESSAGE_MAX}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="stf-files">Lampiran gambar (opsional)</Label>
+          <Label htmlFor="stf-files" className="text-sm font-medium text-slate-800">
+            Lampiran gambar{" "}
+            <span className="font-normal text-slate-400">(opsional)</span>
+          </Label>
           <div
             className={cn(
-              "rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 p-4 transition-colors",
+              "rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 p-4 transition-colors",
               "hover:border-blue-300 hover:bg-blue-50/40 focus-within:border-blue-400"
             )}
             onDragOver={(e) => {
@@ -311,9 +321,9 @@ export function SupportTicketCreateForm({
               />
               <Button
                 type="button"
-                variant="blueGradientOutline"
+                variant="outline"
                 size="sm"
-                className="shrink-0"
+                className="shrink-0 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => document.getElementById("stf-files")?.click()}
               >
                 Pilih gambar
@@ -366,9 +376,8 @@ export function SupportTicketCreateForm({
 
         <Button
           type="submit"
-          variant="blueGradient"
           disabled={submitting}
-          className="w-full gap-2 sm:w-auto"
+          className="h-11 w-full gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700 sm:w-auto"
         >
           {submitting ? (
             <>
@@ -378,7 +387,7 @@ export function SupportTicketCreateForm({
           ) : (
             <>
               <Send className="h-4 w-4" />
-              Kirim tiket
+              Kirim Tiket
             </>
           )}
         </Button>

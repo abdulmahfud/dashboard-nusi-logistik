@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import {
   Table,
   TableBody,
@@ -12,21 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Pencil,
-  Loader2,
-} from "lucide-react";
+import { Pencil, Loader2, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   getShippersData,
@@ -107,8 +93,8 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
     }
   };
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
     setCurrentPage(1);
   };
 
@@ -135,177 +121,138 @@ export default function ListSender({ refreshTrigger, onEditShipper }: ListSender
 
 
   return (
-    <Card className="shadow-md">
-      <CardHeader className="p-3">
-        <CardTitle className="text-lg font-semibold">
-          Daftar Alamat Pengiriman
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Search Input */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Cari Nama Pengirim..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white"
-          />
+    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+      <header className="mb-5 flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Users className="h-5 w-5" aria-hidden />
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold leading-tight text-slate-900">
+            Daftar Alamat Pengiriman
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Kelola dan pilih data pengirim yang tersedia
+          </p>
         </div>
+      </header>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Memuat data...</span>
-          </div>
-        )}
+      {/* Search Input */}
+      <div className="relative mb-4">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden
+        />
+        <Input
+          type="text"
+          placeholder="Cari Nama Pengirim..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-11 w-full rounded-lg border-slate-200 bg-white pl-10"
+        />
+      </div>
 
-        {/* Table */}
-        {!loading && (
-          <>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama Pengirim</TableHead>
-                <TableHead>Nomor Telepon</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Alamat</TableHead>
-                    <TableHead>Lokasi</TableHead>
-                <TableHead className="text-center">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                  {data.length > 0 ? (
-                    data.map((shipper) => (
-                      <TableRow key={shipper.id}>
-                        <TableCell className="font-medium">
-                          {shipper.name}
-                        </TableCell>
-                        <TableCell>{shipper.phone || "-"}</TableCell>
-                        <TableCell>{shipper.email || "-"}</TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {shipper.address || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>
-                              {shipper.district}, {shipper.regency}
-                            </div>
-                            <div className="text-gray-500">
-                              {shipper.province} {shipper.postal_code}
-                            </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-8 text-slate-500">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="ml-2">Memuat data...</span>
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && (
+        <>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-100 hover:bg-transparent">
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500">Nama Pengirim</TableHead>
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500">Nomor Telepon</TableHead>
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500">Email</TableHead>
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500">Alamat</TableHead>
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500">Lokasi</TableHead>
+                  <TableHead className="h-11 text-xs font-semibold text-slate-500 text-center">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length > 0 ? (
+                  data.map((shipper) => (
+                    <TableRow
+                      key={shipper.id}
+                      className="border-slate-100 hover:bg-slate-50/60"
+                    >
+                      <TableCell className="py-4 font-semibold text-slate-900">
+                        {shipper.name}
+                      </TableCell>
+                      <TableCell className="py-4 text-sm text-slate-700">
+                        {shipper.phone || "-"}
+                      </TableCell>
+                      <TableCell className="py-4 text-sm text-slate-700">
+                        {shipper.email || "-"}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate py-4 text-sm text-slate-700">
+                        {shipper.address || "-"}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="text-sm">
+                          <div className="text-slate-900">
+                            {shipper.district}, {shipper.regency}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                      <Button
-                        size="icon"
-                            variant="outline"
-                            onClick={() => handleEditClick(shipper)}
-                            disabled={editLoading}
-                      >
-                            {editLoading ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Pencil className="w-4 h-4" />
-                            )}
-                      </Button>
+                          <div className="text-slate-500">
+                            {shipper.province} {shipper.postal_code}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4 text-center">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => handleEditClick(shipper)}
+                          disabled={editLoading}
+                          title="Edit pengirim"
+                          aria-label={`Edit pengirim ${shipper.name}`}
+                          className="h-9 w-9 rounded-lg border-blue-200 bg-blue-50 text-blue-600 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-600 hover:text-white hover:shadow-md"
+                        >
+                          {editLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Pencil className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="py-8 text-center text-slate-500"
+                    >
+                      {searchTerm
+                        ? "Tidak ada data yang sesuai dengan pencarian."
+                        : "Belum ada data pengirim."}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-gray-500 py-8"
-                      >
-                        {searchTerm
-                          ? "Tidak ada data yang sesuai dengan pencarian."
-                          : "Belum ada data pengirim."}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-            {/* Pagination */}
-            {data.length > 0 && (
-              <div className="flex items-center justify-between px-1 mt-4">
-                <span className="text-sm text-muted-foreground">
-                  Total {totalItems} data
-                </span>
-                <div className="flex items-center space-x-6 lg:space-x-8">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Baris per halaman</p>
-                    <Select
-                      value={`${perPage}`}
-                      onValueChange={handlePerPageChange}
-                    >
-                      <SelectTrigger className="h-8 w-[70px]">
-                        <SelectValue placeholder={perPage} />
-                      </SelectTrigger>
-                      <SelectContent side="top">
-                        {[10, 20, 30, 40, 50].map((size) => (
-                          <SelectItem key={size} value={`${size}`}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Halaman {currentPage} dari {totalPages}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage <= 1 || loading}
-                    >
-                      <span className="sr-only">Go to first page</span>
-                      <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage <= 1 || loading}
-                    >
-                      <span className="sr-only">Go to previous page</span>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= totalPages || loading}
-                    >
-                      <span className="sr-only">Go to next page</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="hidden h-8 w-8 p-0 lg:flex"
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={currentPage >= totalPages || loading}
-                    >
-                      <span className="sr-only">Go to last page</span>
-                      <ChevronsRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+          {/* Pagination */}
+          {data.length > 0 && (
+            <NumberedPagination
+              className="mt-4"
+              page={currentPage}
+              lastPage={totalPages}
+              total={totalItems}
+              perPage={perPage}
+              disabled={loading}
+              onPageChange={handlePageChange}
+              onPerPageChange={handlePerPageChange}
+            />
+          )}
+        </>
+      )}
+    </section>
   );
 }

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,10 +36,13 @@ import {
   PowerOff,
   Percent,
   DollarSign,
+  Plus,
 } from "lucide-react";
 import { ExpeditionDiscount } from "@/types/discount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getVendorBadgeClass } from "@/lib/pricingVendors";
+
+const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 interface DiscountListProps {
   discounts: ExpeditionDiscount[];
@@ -46,6 +50,8 @@ interface DiscountListProps {
   onEdit: (discount: ExpeditionDiscount) => void;
   onDelete: (id: number) => Promise<void>;
   onToggleStatus: (id: number) => Promise<void>;
+  /** Dipakai tombol "Tambah Diskon" pada tampilan kosong. */
+  onCreate?: () => void;
 }
 
 export function DiscountList({
@@ -54,6 +60,7 @@ export function DiscountList({
   onEdit,
   onDelete,
   onToggleStatus,
+  onCreate,
 }: DiscountListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedDiscount, setSelectedDiscount] =
@@ -137,37 +144,51 @@ export function DiscountList({
 
   if (discounts.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-muted-foreground">
-          <Percent className="h-12 w-12 mx-auto mb-4 opacity-20" />
-          <h3 className="text-lg font-medium mb-2">Belum ada diskon</h3>
-          <p className="text-sm">
-            Mulai dengan menambahkan diskon pertama untuk ekspedisi Anda.
-          </p>
-        </div>
+      <div className="flex flex-col items-center px-4 py-12 text-center">
+        <span className="mb-5 flex h-24 w-24 items-center justify-center rounded-3xl bg-blue-50">
+          <Percent className="h-10 w-10 text-blue-300" aria-hidden />
+        </span>
+        <h3 className="text-lg font-semibold text-slate-900">
+          Belum ada diskon
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Mulai dengan menambahkan diskon pertama untuk ekspedisi Anda.
+        </p>
+        {onCreate && (
+          <Button
+            onClick={onCreate}
+            className="mt-6 h-10 gap-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Tambah Diskon
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Diskon</TableHead>
-              <TableHead>Min. Order</TableHead>
-              <TableHead>Max. Potongan</TableHead>
-              <TableHead>Tipe Akun</TableHead>
-              <TableHead>Berlaku Sampai</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="border-slate-100 hover:bg-transparent">
+              <TableHead className={headCls}>Vendor</TableHead>
+              <TableHead className={headCls}>Diskon</TableHead>
+              <TableHead className={headCls}>Min. Order</TableHead>
+              <TableHead className={headCls}>Max. Potongan</TableHead>
+              <TableHead className={headCls}>Tipe Akun</TableHead>
+              <TableHead className={headCls}>Berlaku Sampai</TableHead>
+              <TableHead className={headCls}>Status</TableHead>
+              <TableHead className={`${headCls} text-right`}>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {discounts.map((discount) => (
-              <TableRow key={discount.id}>
+              <TableRow
+                key={discount.id}
+                className="border-slate-100 hover:bg-slate-50/60"
+              >
                 <TableCell>
                   <Badge className={getVendorBadgeClass(discount.vendor)}>
                     {discount.vendor}
@@ -207,16 +228,13 @@ export function DiscountList({
                 </TableCell>
                 <TableCell>{formatDate(discount.valid_until)}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant={discount.is_active ? "default" : "secondary"}
-                    className={
-                      discount.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }
-                  >
-                    {discount.is_active ? "Aktif" : "Tidak Aktif"}
-                  </Badge>
+                  {discount.is_active ? (
+                    <StatusBadge status="success" label="Aktif" />
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                      Tidak Aktif
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -300,7 +318,7 @@ export function DiscountList({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Diskon</AlertDialogTitle>
             <AlertDialogDescription>

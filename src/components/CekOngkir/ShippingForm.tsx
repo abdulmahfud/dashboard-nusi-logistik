@@ -1,15 +1,8 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, MapPin, X, Box, Info } from "lucide-react";
 import {
   getExpeditionVendorSettings,
   getJntExpressShipmentCost,
@@ -344,20 +337,20 @@ export default function ShippingForm({
 
   return (
     <form onSubmit={handleSubmit} className="animate-slide-down">
-      <Card className="shadow-sm">
-        <CardHeader className="p-3 mt-3 ml-3">
-          <CardTitle className="text-lg font-semibold">
-            Tentukan Alamat
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1fr_220px]">
+
           {/* Area Asal */}
-          <div className="space-y-3">
-            <Label className="text-shipping-label">
-              Area Asal<span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-800">
+              Area Asal<span className="text-red-500"> *</span>
             </Label>
             <div className="relative" ref={originInputRef}>
               <div className="relative">
+                <MapPin
+                  className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                  aria-hidden
+                />
                 <Input
                   placeholder="Cari alamat asal (minimal 3 huruf)..."
                   value={originQuery}
@@ -366,39 +359,51 @@ export default function ShippingForm({
                     setSelectedOrigin(null);
                   }}
                   autoComplete="off"
-                  className="bg-white pr-10"
+                  className="h-12 rounded-lg border-slate-200 bg-white pl-10 pr-10"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   {loadingOrigin ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  ) : originQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOriginQuery("");
+                        setSelectedOrigin(null);
+                      }}
+                      className="rounded-full p-0.5 text-slate-400 hover:text-slate-600"
+                      aria-label="Hapus area asal"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   ) : (
-                    <Search className="w-4 h-4 text-gray-400" />
+                    <Search className="h-4 w-4 text-slate-400" />
                   )}
                 </div>
               </div>
               {showOriginResults && originQuery.length >= 3 && (
-                <div className="border rounded-md bg-white max-h-60 overflow-y-auto absolute z-20 w-full mt-1 shadow-lg">
+                <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {loadingOrigin ? (
-                    <div className="p-3 text-sm text-gray-500 text-center">
+                    <div className="p-3 text-center text-sm text-slate-500">
                       Mencari...
                     </div>
                   ) : originResults.length > 0 ? (
                     originResults.map((result) => (
                       <div
                         key={`${result.type}-${result.id}`}
-                        className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                        className="cursor-pointer border-b border-slate-100 p-3 last:border-b-0 hover:bg-blue-50"
                         onClick={() => handleSelectOrigin(result)}
                       >
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-slate-900">
                           {result.full_address}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-slate-500">
                           {result.province} → {result.regency} → {result.district}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-sm text-gray-500 text-center">
+                    <div className="p-3 text-center text-sm text-slate-500">
                       Tidak ada hasil
                     </div>
                   )}
@@ -408,12 +413,16 @@ export default function ShippingForm({
           </div>
 
           {/* Area Tujuan */}
-          <div className="space-y-3">
-            <Label className="text-shipping-label">
-              Area Tujuan<span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-800">
+              Area Tujuan<span className="text-red-500"> *</span>
             </Label>
             <div className="relative" ref={destInputRef}>
               <div className="relative">
+                <MapPin
+                  className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                  aria-hidden
+                />
                 <Input
                   placeholder="Cari alamat tujuan (minimal 3 huruf)..."
                   value={destQuery}
@@ -422,39 +431,51 @@ export default function ShippingForm({
                     setSelectedDest(null);
                   }}
                   autoComplete="off"
-                  className="bg-white pr-10"
+                  className="h-12 rounded-lg border-slate-200 bg-white pl-10 pr-10"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   {loadingDest ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  ) : destQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDestQuery("");
+                        setSelectedDest(null);
+                      }}
+                      className="rounded-full p-0.5 text-slate-400 hover:text-slate-600"
+                      aria-label="Hapus area tujuan"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   ) : (
-                    <Search className="w-4 h-4 text-gray-400" />
+                    <Search className="h-4 w-4 text-slate-400" />
                   )}
                 </div>
               </div>
               {showDestResults && destQuery.length >= 3 && (
-                <div className="border rounded-md bg-white max-h-60 overflow-y-auto absolute z-20 w-full mt-1 shadow-lg">
+                <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
                   {loadingDest ? (
-                    <div className="p-3 text-sm text-gray-500 text-center">
+                    <div className="p-3 text-center text-sm text-slate-500">
                       Mencari...
                     </div>
                   ) : destResults.length > 0 ? (
                     destResults.map((result) => (
                       <div
                         key={`${result.type}-${result.id}`}
-                        className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
+                        className="cursor-pointer border-b border-slate-100 p-3 last:border-b-0 hover:bg-blue-50"
                         onClick={() => handleSelectDest(result)}
                       >
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-slate-900">
                           {result.full_address}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        <div className="mt-1 text-xs text-slate-500">
                           {result.province} → {result.regency} → {result.district}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-sm text-gray-500 text-center">
+                    <div className="p-3 text-center text-sm text-slate-500">
                       Tidak ada hasil
                     </div>
                   )}
@@ -463,33 +484,38 @@ export default function ShippingForm({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="weight" className="text-shipping-label">
-              Berat (gram)<span className="text-red-500">*</span>
+          <div className="space-y-2">
+            <Label htmlFor="weight" className="text-sm font-medium text-slate-800">
+              Berat (gram)<span className="text-red-500"> *</span>
             </Label>
             <div className="relative">
+              <Box
+                className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                aria-hidden
+              />
               <Input
                 id="weight"
                 type="text"
                 placeholder="Cth : 1.000"
                 value={formData.weight}
                 onChange={(e) => handleChange("weight", e.target.value)}
-                className="bg-white pr-16"
+                className="h-12 rounded-lg border-slate-200 bg-white pl-10 pr-16"
                 inputMode="numeric"
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-shipping-label">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
                 gram
               </div>
             </div>
           </div>
+        </div>
 
+        <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-lg font-semibold">
-              Data dimensi (opsional)
-            </CardTitle>
-            <div className="grid grid-cols-3 gap-3">
+            <p className="text-sm font-medium text-slate-800">Data dimensi (opsional)</p>
+            <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
+
               <div className="space-y-1.5">
-                <Label htmlFor="length" className="text-xs text-shipping-label">
+                <Label htmlFor="length" className="text-xs font-medium text-slate-600">
                   Panjang
                 </Label>
                 <div className="relative">
@@ -499,15 +525,16 @@ export default function ShippingForm({
                     placeholder="Cth : 10"
                     value={formData.length}
                     onChange={(e) => handleChange("length", e.target.value)}
-                    className="bg-white pr-12 text-sm"
+                    className="h-12 rounded-lg border-slate-200 bg-white pr-12 text-sm"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-shipping-label">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
                     cm
                   </div>
                 </div>
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="width" className="text-xs text-shipping-label">
+                <Label htmlFor="width" className="text-xs font-medium text-slate-600">
                   Lebar
                 </Label>
                 <div className="relative">
@@ -517,15 +544,16 @@ export default function ShippingForm({
                     placeholder="Cth : 10"
                     value={formData.width}
                     onChange={(e) => handleChange("width", e.target.value)}
-                    className="bg-white pr-12 text-sm"
+                    className="h-12 rounded-lg border-slate-200 bg-white pr-12 text-sm"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-shipping-label">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
                     cm
                   </div>
                 </div>
               </div>
+
               <div className="space-y-1.5">
-                <Label htmlFor="height" className="text-xs text-shipping-label">
+                <Label htmlFor="height" className="text-xs font-medium text-slate-600">
                   Tinggi
                 </Label>
                 <div className="relative">
@@ -535,9 +563,9 @@ export default function ShippingForm({
                     placeholder="Cth : 10"
                     value={formData.height}
                     onChange={(e) => handleChange("height", e.target.value)}
-                    className="bg-white pr-12 text-sm"
+                    className="h-12 rounded-lg border-slate-200 bg-white pr-12 text-sm"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-shipping-label">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
                     cm
                   </div>
                 </div>
@@ -545,27 +573,30 @@ export default function ShippingForm({
             </div>
           </div>
 
-        </CardContent>
-        <CardFooter>
           <Button
             type="submit"
-            className="w-full bg-blue-500 hover:bg-blue-700 text-white transition-all duration-300"
+            className="h-12 gap-2 rounded-lg bg-blue-600 px-8 text-white transition-all duration-300 hover:bg-blue-700 lg:min-w-[220px]"
           >
-            Cek Ongkos Kirim
+            <Search className="h-4 w-4" aria-hidden />
+            Cek Ongkir
           </Button>
-        </CardFooter>
-        <div className="mt-5 rounded-lg bg-yellow-300 border border-shipping-noteBorder bg-shipping-note p-4 animate-fade-in">
-          <h4 className="font-medium mb-2">Catatan</h4>
-          <ul className="list-disc list-inside text-sm space-y-1.5">
-            <li>
-              Cek ongkos kirim di halaman ini hanya untuk pengiriman reguler,{" "}
-              <span className="font-medium">
-                tidak termasuk layanan instant delivery.
-              </span>
-            </li>
-          </ul>
         </div>
-      </Card>
+
+        <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 animate-fade-in">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+          <div>
+            <h4 className="mb-1 font-medium text-amber-900">Catatan</h4>
+            <ul className="list-inside list-disc space-y-1.5 text-sm text-amber-800">
+              <li>
+                Cek ongkos kirim di halaman ini hanya untuk pengiriman reguler,{" "}
+                <span className="font-medium">
+                  tidak termasuk layanan instant delivery.
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </form>
   );
 }

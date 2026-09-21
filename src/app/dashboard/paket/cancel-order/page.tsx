@@ -4,14 +4,22 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, AlertTriangle } from "lucide-react";
 import CancelOrderTable from "@/components/CancelOrder/CancelOrderTable";
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function CancelOrderPage() {
   const { hasPermission, loading: authLoading } = useAuth();
@@ -38,45 +46,58 @@ export default function CancelOrderPage() {
         </div>
 
         {/* Konten Utama */}
-        <div className="flex flex-1 flex-col bg-blue-100">
-          <div className="flex flex-col gap-4">
-            {/* Header Section */}
-            <div className="p-6 bg-gradient-to-r from-red-600 to-red-700 text-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <AlertTriangle className="h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold">Cancel Order</h1>
-                  <p className="text-red-100">
-                    Batalkan pesanan dengan status proses pengiriman yang memiliki AWB number
-                  </p>
-                </div>
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/dashboard">Beranda</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium text-slate-900">
+                  Cancel Order
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+
+          {/* Header Section */}
+          <div className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 p-5 text-white shadow-sm md:px-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/20">
+                <AlertTriangle className="h-7 w-7" aria-hidden />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  Cancel Order
+                </h1>
+                <p className="text-sm text-red-100">
+                  Batalkan pesanan dengan status proses pengiriman yang memiliki
+                  AWB number.
+                </p>
               </div>
             </div>
-
-            {/* Main Content */}
-            <div className="flex-1 p-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-red-600" />
-                      <CardTitle>Daftar Order yang Dapat Dibatalkan</CardTitle>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p className="text-xs">
-                        Hanya menampilkan order dengan status <span className="font-semibold">proses_pengiriman</span> dan memiliki AWB number
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CancelOrderTable />
-                </CardContent>
-              </Card>
-            </div>
           </div>
+
+          {/* Main Content */}
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-red-600" aria-hidden />
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Daftar Order yang Dapat Dibatalkan
+                </h2>
+              </div>
+              <p className="text-xs text-slate-600">
+                Hanya menampilkan order dengan status{" "}
+                <span className="font-semibold">proses_pengiriman</span> dan
+                memiliki AWB number
+              </p>
+            </div>
+            <CancelOrderTable />
+          </section>
         </div>
       </SidebarInset>
     </SidebarProvider>

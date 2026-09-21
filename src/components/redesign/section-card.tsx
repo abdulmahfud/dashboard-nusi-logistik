@@ -9,6 +9,8 @@ type SectionCardProps = {
   description?: string;
   /** Slot aksi di kanan header (mis. tombol). */
   action?: React.ReactNode;
+  /** Kelas tile ikon; default biru muda. */
+  iconClassName?: string;
   className?: string;
   children: React.ReactNode;
 };
@@ -18,6 +20,7 @@ export function SectionCard({
   title,
   description,
   action,
+  iconClassName,
   className,
   children,
 }: SectionCardProps) {
@@ -30,7 +33,12 @@ export function SectionCard({
     >
       <header className="flex flex-wrap items-start justify-between gap-3 p-5 pb-4 md:p-6 md:pb-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600",
+              iconClassName
+            )}
+          >
             <Icon className="h-5 w-5" aria-hidden />
           </span>
           <div>

@@ -1,117 +1,78 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, MapPin } from "lucide-react";
+import { MapPin, Phone, User, UserCheck } from "lucide-react";
 import type { AddressInfo, ReceiverInfo } from "@/types/tracking";
+import { Field, TrackCard } from "./tracking-ui";
 
 interface AddressesCardProps {
   sender: AddressInfo;
   receiver: ReceiverInfo;
 }
 
-export const AddressesCard: React.FC<AddressesCardProps> = ({ sender, receiver }) => {
+function AddressBody({ info }: { info: AddressInfo }) {
+  const postcode = info.postcode || info.zipcode;
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Pengirim
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p className="font-semibold">{sender.name || "N/A"}</p>
-            {sender.address && (
-              <p className="text-sm text-gray-600 flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                {sender.address}
-              </p>
-            )}
-            {sender.city && (
-              <p className="text-sm">
-                <strong>Kota:</strong> {sender.city}
-              </p>
-            )}
-            {sender.province && (
-              <p className="text-sm">
-                <strong>Provinsi:</strong> {sender.province}
-              </p>
-            )}
-            {sender.district && (
-              <p className="text-sm">
-                <strong>Kecamatan:</strong> {sender.district}
-              </p>
-            )}
-            {(sender.postcode || sender.zipcode) && (
-              <p className="text-sm">
-                <strong>Kode Pos:</strong> {sender.postcode || sender.zipcode}
-              </p>
-            )}
-            {sender.phone && (
-              <p className="text-sm">
-                <strong>Telepon:</strong> {sender.phone}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      <p className="text-base font-semibold text-slate-900">
+        {info.name || "N/A"}
+      </p>
+      {info.address && (
+        <p className="flex items-start gap-2 text-sm text-slate-600">
+          <MapPin
+            className="mt-0.5 h-4 w-4 shrink-0 text-slate-400"
+            aria-hidden
+          />
+          {info.address}
+        </p>
+      )}
+      {info.phone && (
+        <p className="flex items-center gap-2 text-sm text-slate-600">
+          <Phone className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+          {info.phone}
+        </p>
+      )}
+      {(info.city || info.province || info.district || postcode) && (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-100 pt-3">
+          {info.city && <Field label="Kota">{info.city}</Field>}
+          {info.province && <Field label="Provinsi">{info.province}</Field>}
+          {info.district && <Field label="Kecamatan">{info.district}</Field>}
+          {postcode && <Field label="Kode Pos">{postcode}</Field>}
+        </dl>
+      )}
+    </div>
+  );
+}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Penerima
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <p className="font-semibold">{receiver.name || "N/A"}</p>
-            {receiver.address && (
-              <p className="text-sm text-gray-600 flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                {receiver.address}
+export const AddressesCard: React.FC<AddressesCardProps> = ({
+  sender,
+  receiver,
+}) => {
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <TrackCard icon={User} title="Pengirim">
+        <AddressBody info={sender} />
+      </TrackCard>
+
+      <TrackCard
+        icon={UserCheck}
+        title="Penerima"
+        tone="bg-emerald-50 text-emerald-600"
+      >
+        <AddressBody info={receiver} />
+        {receiver.actual_receiver && (
+          <div className="mt-3 rounded-xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Penerima Aktual</p>
+            <p className="mt-0.5 text-sm font-semibold text-slate-900">
+              {receiver.actual_receiver.name}
+            </p>
+            {receiver.actual_receiver.relationship && (
+              <p className="text-xs text-slate-600">
+                Hubungan: {receiver.actual_receiver.relationship}
               </p>
-            )}
-            {receiver.city && (
-              <p className="text-sm">
-                <strong>Kota:</strong> {receiver.city}
-              </p>
-            )}
-            {receiver.province && (
-              <p className="text-sm">
-                <strong>Provinsi:</strong> {receiver.province}
-              </p>
-            )}
-            {receiver.district && (
-              <p className="text-sm">
-                <strong>Kecamatan:</strong> {receiver.district}
-              </p>
-            )}
-            {(receiver.postcode || receiver.zipcode) && (
-              <p className="text-sm">
-                <strong>Kode Pos:</strong> {receiver.postcode || receiver.zipcode}
-              </p>
-            )}
-            {receiver.phone && (
-              <p className="text-sm">
-                <strong>Telepon:</strong> {receiver.phone}
-              </p>
-            )}
-            {receiver.actual_receiver && (
-              <div className="mt-3 pt-3 border-t">
-                <p className="text-sm font-medium text-gray-700">Penerima Aktual:</p>
-                <p className="text-sm text-gray-900">{receiver.actual_receiver.name}</p>
-                {receiver.actual_receiver.relationship && (
-                  <p className="text-xs text-gray-600">
-                    Hubungan: {receiver.actual_receiver.relationship}
-                  </p>
-                )}
-              </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </TrackCard>
     </div>
   );
 };

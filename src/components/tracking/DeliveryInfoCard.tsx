@@ -1,132 +1,122 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Image, FileText } from "lucide-react";
+import { CheckCircle2, FileText, ImageIcon } from "lucide-react";
 import type { DeliveryInfo } from "@/types/tracking";
+import { Field, TrackCard, chipCls, formatDateTimeLong } from "./tracking-ui";
 
 interface DeliveryInfoCardProps {
   delivery: DeliveryInfo;
 }
 
-export const DeliveryInfoCard: React.FC<DeliveryInfoCardProps> = ({ delivery }) => {
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleString("id-ID", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+const proofLink =
+  "inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50";
 
-  if (!delivery.delivered_at && !delivery.delivered_to && !delivery.proof_of_delivery.signature_url && !delivery.proof_of_delivery.photo_url) {
+export const DeliveryInfoCard: React.FC<DeliveryInfoCardProps> = ({
+  delivery,
+}) => {
+  if (
+    !delivery.delivered_at &&
+    !delivery.delivered_to &&
+    !delivery.proof_of_delivery.signature_url &&
+    !delivery.proof_of_delivery.photo_url
+  ) {
     return null;
   }
 
+  const pod = delivery.proof_of_delivery;
+  const hasProof =
+    pod.signature_url ||
+    pod.photo_url ||
+    pod.signature_pod.length > 0 ||
+    pod.photo_pod.length > 0;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          Informasi Pengiriman
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <TrackCard
+      icon={CheckCircle2}
+      title="Informasi Pengiriman"
+      tone="bg-emerald-50 text-emerald-600"
+    >
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
         {delivery.delivered_at && (
-          <div>
-            <label className="text-sm font-medium text-gray-600">
-              Dikirim Pada
-            </label>
-            <p className="font-semibold mt-1">{formatDate(delivery.delivered_at)}</p>
-          </div>
+          <Field label="Dikirim Pada">
+            {formatDateTimeLong(delivery.delivered_at)}
+          </Field>
         )}
         {delivery.delivered_to && (
-          <div>
-            <label className="text-sm font-medium text-gray-600">
-              Diterima Oleh
-            </label>
-            <p className="font-semibold mt-1">{delivery.delivered_to}</p>
+          <Field label="Diterima Oleh">
+            {delivery.delivered_to}
             {delivery.delivery_relationship && (
-              <p className="text-sm text-gray-600 mt-1">
+              <span className="mt-0.5 block text-xs font-normal text-slate-600">
                 Hubungan: {delivery.delivery_relationship}
-              </p>
+              </span>
             )}
-          </div>
-        )}
-        {(delivery.proof_of_delivery.signature_url || delivery.proof_of_delivery.photo_url || 
-          delivery.proof_of_delivery.signature_pod.length > 0 || delivery.proof_of_delivery.photo_pod.length > 0) && (
-          <div>
-            <label className="text-sm font-medium text-gray-600 mb-2 block">
-              Bukti Pengiriman
-            </label>
-            <div className="flex flex-wrap gap-4">
-              {delivery.proof_of_delivery.signature_url && (
-                <a
-                  href={delivery.proof_of_delivery.signature_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center gap-1"
-                >
-                  <FileText className="h-4 w-4" />
-                  Tanda Tangan
-                </a>
-              )}
-              {delivery.proof_of_delivery.photo_url && (
-                <a
-                  href={delivery.proof_of_delivery.photo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center gap-1"
-                >
-                  <Image className="h-4 w-4" />
-                  Foto Pengiriman
-                </a>
-              )}
-              {delivery.proof_of_delivery.signature_pod.map((url, idx) => (
-                <a
-                  key={idx}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center gap-1"
-                >
-                  <FileText className="h-4 w-4" />
-                  Tanda Tangan {idx + 1}
-                </a>
-              ))}
-              {delivery.proof_of_delivery.photo_pod.map((url, idx) => (
-                <a
-                  key={idx}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm underline flex items-center gap-1"
-                >
-                  <Image className="h-4 w-4" />
-                  Foto {idx + 1}
-                </a>
-              ))}
-            </div>
-          </div>
+          </Field>
         )}
         {delivery.pod_status_code && (
-          <div>
-            <label className="text-sm font-medium text-gray-600">
-              POD Status Code
-            </label>
-            <p className="text-sm text-gray-900 font-mono mt-1">{delivery.pod_status_code}</p>
-          </div>
+          <Field label="POD Status Code">
+            <span className={`${chipCls} font-mono`}>
+              {delivery.pod_status_code}
+            </span>
+          </Field>
         )}
         {delivery.pod_status_name && (
-          <div>
-            <label className="text-sm font-medium text-gray-600">
-              POD Status
-            </label>
-            <p className="text-sm text-gray-900 mt-1">{delivery.pod_status_name}</p>
-          </div>
+          <Field label="POD Status">{delivery.pod_status_name}</Field>
         )}
-      </CardContent>
-    </Card>
+      </dl>
+
+      {hasProof && (
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <p className="mb-2 text-xs text-slate-500">Bukti Pengiriman</p>
+          <div className="flex flex-wrap gap-2">
+            {pod.signature_url && (
+              <a
+                href={pod.signature_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={proofLink}
+              >
+                <FileText className="h-4 w-4" aria-hidden />
+                Tanda Tangan
+              </a>
+            )}
+            {pod.photo_url && (
+              <a
+                href={pod.photo_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={proofLink}
+              >
+                <ImageIcon className="h-4 w-4" aria-hidden />
+                Foto Pengiriman
+              </a>
+            )}
+            {pod.signature_pod.map((url, idx) => (
+              <a
+                key={idx}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={proofLink}
+              >
+                <FileText className="h-4 w-4" aria-hidden />
+                Tanda Tangan {idx + 1}
+              </a>
+            ))}
+            {pod.photo_pod.map((url, idx) => (
+              <a
+                key={idx}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={proofLink}
+              >
+                <ImageIcon className="h-4 w-4" aria-hidden />
+                Foto {idx + 1}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </TrackCard>
   );
 };

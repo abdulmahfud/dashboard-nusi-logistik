@@ -46,6 +46,35 @@ export interface PaymentStatusResponse {
   data?: PaymentStatus;
 }
 
+/** Query GET /admin/payments/history. Semua opsional, boleh digabung. */
+export interface PaymentHistoryQuery {
+  /** Cari di reference_no, external_id, invoice_id, payment_method, payment_channel. */
+  search?: string;
+  /** YYYY-MM-DD, inklusif (Asia/Jakarta). date_to < date_from → 422. */
+  date_from?: string;
+  date_to?: string;
+  status?: "pending" | "paid" | "expired" | "failed";
+  page?: number;
+  per_page?: number;
+}
+
+export interface PaymentSummaryBucket {
+  count: number;
+  total_amount: number;
+}
+
+/**
+ * Ringkasan pada response history. Dihitung dari search/date_from/date_to yang
+ * aktif tetapi MENGABAIKAN filter `status` (breakdown semua status selalu lengkap).
+ */
+export interface PaymentHistorySummary {
+  total: number;
+  total_amount: number;
+  by_status: Record<"pending" | "paid" | "expired" | "failed", PaymentSummaryBucket>;
+  /** Hanya pembayaran berstatus paid, mis. WALLET, COD, BANK_TRANSFER, EWALLET, UNKNOWN. */
+  by_payment_method?: Record<string, PaymentSummaryBucket>;
+}
+
 export interface PaymentHistoryResponse {
   success: boolean;
   message?: string;
@@ -56,6 +85,7 @@ export interface PaymentHistoryResponse {
     per_page: number;
     total: number;
   };
+  summary?: PaymentHistorySummary;
 }
 
 export interface PaymentCancelResponse {

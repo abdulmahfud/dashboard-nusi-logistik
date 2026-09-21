@@ -54,7 +54,10 @@ export function WalletTransactionTable({
             const typeLabel =
               typeof row.type === "string" && row.type ? row.type : null;
             const reference =
-              row.reference_no || row.payment?.reference_no || null;
+              row.source?.reference_no ||
+              row.reference_no ||
+              row.payment?.reference_no ||
+              null;
 
             return (
               <TableRow

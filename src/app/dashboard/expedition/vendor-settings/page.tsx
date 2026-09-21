@@ -4,19 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Truck } from "lucide-react";
+import { Loader2, RefreshCw, Save, Settings, Truck } from "lucide-react";
+import Image from "next/image";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -36,6 +33,51 @@ import {
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import type { ExpeditionVendorSetting } from "@/types/expeditionVendorSettings";
 import { formatDateIdLong } from "@/lib/date";
+import { cn } from "@/lib/utils";
+
+/** Logo per vendor (kunci = `vendor` lowercase). Vendor tanpa logo memakai ikon truk. */
+const VENDOR_LOGO: Record<string, string> = {
+  anteraja: "/images/anteraja.png",
+  idexpress: "/images/idx.png",
+  jne: "/images/jne.png",
+  jntcargo: "/images/jnt-cargo.png",
+  jntexpress: "/images/jnt.png",
+  lion: "/images/lion.png",
+  ncs: "/images/ncs.png",
+  ninja: "/images/ninja.png",
+  ninjaexpress: "/images/ninja.png",
+  paxel: "/images/paxel.png",
+  posindonesia: "/images/pos-indonesia.png",
+  sap: "/images/sap-new.png",
+  sicepat: "/images/sicepat.png",
+  tiki: "/images/tiki.png",
+};
+
+function VendorCell({ vendor }: { vendor: string }) {
+  const logo = VENDOR_LOGO[vendor.trim().toLowerCase()];
+  return (
+    <div className="flex items-center gap-3">
+      {logo ? (
+        <Image
+          src={logo}
+          alt=""
+          width={72}
+          height={28}
+          className="h-7 w-[72px] object-contain object-left"
+        />
+      ) : (
+        <span className="flex h-7 w-[72px] items-center">
+          <Truck className="h-5 w-5 text-slate-400" aria-hidden />
+        </span>
+      )}
+      <span className="text-sm font-medium text-slate-900">{vendor}</span>
+    </div>
+  );
+}
+
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+const switchCls =
+  "data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-200";
 
 type DraftRow = {
   is_active: boolean;
@@ -70,6 +112,8 @@ export default function ExpeditionVendorSettingsPage() {
   const [drafts, setDrafts] = useState<Record<number, DraftRow>>({});
   const [savingId, setSavingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
 
   const load = useCallback(async () => {
     if (!canUpdate) return;
@@ -205,154 +249,190 @@ export default function ExpeditionVendorSettingsPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-2">
-            <Truck className="h-7 w-7 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Pengaturan ekspedisi
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Nonaktifkan layanan vendor atau hanya COD. Order non‑COD tetap
-                boleh jika COD dimatikan.
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Pengaturan Ekspedisi" },
+            ]}
+            icon={Settings}
+            title="Pengaturan Ekspedisi"
+            description="Nonaktifkan layanan vendor atau hanya COD. Order non‑COD tetap boleh jika COD dimatikan."
+            illustration="/images/parcel.png"
+            illustrationClassName="w-[120px]"
+          />
 
-          <Card>
-            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-              <div>
-                <CardTitle className="text-lg">Vendor</CardTitle>
-                <CardDescription>
-                  {canUpdate
-                    ? "Ubah toggle atau catatan, lalu simpan per baris."
-                    : "Anda hanya dapat melihat pengaturan."}
-                </CardDescription>
-              </div>
+          <SectionCard
+            icon={Truck}
+            title="Daftar Vendor Ekspedisi"
+            description={
+              canUpdate
+                ? "Ubah toggle atau catatan, lalu simpan per baris."
+                : "Anda hanya dapat melihat pengaturan."
+            }
+            action={
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => void load()}
                 disabled={loading}
               >
                 <RefreshCw
-                  className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
                 />
-                Muat ulang
+                Muat Ulang
               </Button>
-            </CardHeader>
-            <CardContent>
-              {error ? (
-                <p className="text-sm text-red-600">{error}</p>
-              ) : loading ? (
-                <div className="flex justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                </div>
-              ) : rows.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  Belum ada data pengaturan vendor.
-                </p>
-              ) : (
-                <div className="max-h-[min(640px,75vh)] overflow-auto rounded-md border">
+            }
+          >
+            {error ? (
+              <p className="text-sm text-red-600">{error}</p>
+            ) : loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : rows.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">
+                Belum ada data pengaturan vendor.
+              </p>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-xl border border-slate-100">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead className="whitespace-nowrap">
+                    <TableHeader className="bg-slate-50/60">
+                      <TableRow className="border-slate-100 hover:bg-transparent">
+                        <TableHead className={headCls}>Vendor</TableHead>
+                        <TableHead className={`${headCls} whitespace-nowrap`}>
                           Aktif
                         </TableHead>
-                        <TableHead className="whitespace-nowrap">
-                          COD aktif
+                        <TableHead className={`${headCls} whitespace-nowrap`}>
+                          COD Aktif
                         </TableHead>
-                        <TableHead className="min-w-[200px]">Catatan</TableHead>
-                        <TableHead className="whitespace-nowrap">
+                        <TableHead className={`${headCls} min-w-[220px]`}>
+                          Catatan
+                        </TableHead>
+                        <TableHead className={`${headCls} whitespace-nowrap`}>
                           Diperbarui
                         </TableHead>
                         {canUpdate && (
-                          <TableHead className="text-right">Aksi</TableHead>
+                          <TableHead className={`${headCls} text-right`}>
+                            Aksi
+                          </TableHead>
                         )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {rows.map((row) => {
-                        const draft = drafts[row.id];
-                        const dirty = draft != null && draftDirty(row, draft);
-                        const disabled = !canUpdate || savingId === row.id;
+                      {rows
+                        .slice((page - 1) * perPage, page * perPage)
+                        .map((row) => {
+                          const draft = drafts[row.id];
+                          const dirty = draft != null && draftDirty(row, draft);
+                          const disabled = !canUpdate || savingId === row.id;
 
-                        return (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-mono text-sm font-medium">
-                              {row.vendor}
-                            </TableCell>
-                            <TableCell>
-                              <Switch
-                                checked={draft?.is_active ?? row.is_active}
-                                onCheckedChange={(v) =>
-                                  updateDraft(row.id, { is_active: v })
-                                }
-                                disabled={disabled}
-                                aria-label="Vendor aktif"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Switch
-                                checked={
-                                  draft?.is_cod_active ?? row.is_cod_active
-                                }
-                                onCheckedChange={(v) =>
-                                  updateDraft(row.id, { is_cod_active: v })
-                                }
-                                disabled={disabled}
-                                aria-label="COD aktif"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Textarea
-                                value={draft?.note ?? ""}
-                                onChange={(e) =>
-                                  updateDraft(row.id, { note: e.target.value })
-                                }
-                                disabled={disabled}
-                                rows={2}
-                                className="min-h-[60px] resize-y text-sm"
-                              />
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                              {formatDateIdLong(row.updated_at)}
-                            </TableCell>
-                            {canUpdate && (
-                              <TableCell className="text-right">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => void handleSave(row)}
-                                  disabled={
-                                    savingId === row.id || !dirty || !draft
-                                  }
-                                >
-                                  {savingId === row.id ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Menyimpan
-                                    </>
-                                  ) : (
-                                    "Simpan"
-                                  )}
-                                </Button>
+                          return (
+                            <TableRow
+                              key={row.id}
+                              className="border-slate-100 hover:bg-slate-50/60"
+                            >
+                              <TableCell className="py-4">
+                                <VendorCell vendor={row.vendor} />
                               </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
+                              <TableCell className="py-4">
+                                <Switch
+                                  checked={draft?.is_active ?? row.is_active}
+                                  onCheckedChange={(v) =>
+                                    updateDraft(row.id, { is_active: v })
+                                  }
+                                  disabled={disabled}
+                                  aria-label="Vendor aktif"
+                                  className={switchCls}
+                                />
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <Switch
+                                  checked={
+                                    draft?.is_cod_active ?? row.is_cod_active
+                                  }
+                                  onCheckedChange={(v) =>
+                                    updateDraft(row.id, { is_cod_active: v })
+                                  }
+                                  disabled={disabled}
+                                  aria-label="COD aktif"
+                                  className={switchCls}
+                                />
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <Textarea
+                                  value={draft?.note ?? ""}
+                                  onChange={(e) =>
+                                    updateDraft(row.id, {
+                                      note: e.target.value,
+                                    })
+                                  }
+                                  disabled={disabled}
+                                  rows={1}
+                                  placeholder="Tambahkan catatan (opsional)..."
+                                  className="min-h-[44px] resize-y rounded-lg border-slate-200 bg-white text-sm"
+                                />
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
+                                {formatDateIdLong(row.updated_at)}
+                              </TableCell>
+                              {canUpdate && (
+                                <TableCell className="py-4 text-right">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void handleSave(row)}
+                                    disabled={
+                                      savingId === row.id || !dirty || !draft
+                                    }
+                                    className={cn(
+                                      "h-9 gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700",
+                                      dirty &&
+                                        "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                                    )}
+                                  >
+                                    {savingId === row.id ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Menyimpan
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Save className="h-4 w-4" aria-hidden />
+                                        Simpan
+                                      </>
+                                    )}
+                                  </Button>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })}
                     </TableBody>
                   </Table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <NumberedPagination
+                  className="mt-2"
+                  page={page}
+                  lastPage={Math.max(1, Math.ceil(rows.length / perPage))}
+                  total={rows.length}
+                  perPage={perPage}
+                  onPageChange={setPage}
+                  onPerPageChange={(n) => {
+                    setPerPage(n);
+                    setPage(1);
+                  }}
+                />
+              </>
+            )}
+          </SectionCard>
 
           {!canUpdate && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-slate-500">
               Izin <span className="font-mono">expedition.settings.update</span>{" "}
               diperlukan untuk mengubah pengaturan.
             </p>

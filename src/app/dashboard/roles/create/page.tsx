@@ -7,12 +7,20 @@ import TopNav from "@/components/top-nav";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Shield, Users } from "lucide-react";
+import {
+  ChevronUp,
+  Loader2,
+  Lock,
+  Save,
+  Shield,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { createRole, getAllPermissions } from "@/lib/apiClient";
 import { RoleCreateRequest, Permission, PermissionGroup } from "@/types/roles";
@@ -22,6 +30,8 @@ import { useAuth } from "@/context/AuthContext";
 export default function CreateRolePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  /** Kategori permission yang sedang dilipat (default: semua terbuka). */
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const { hasPermission, loading: authLoading } = useAuth();
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>(
     []
@@ -142,14 +152,6 @@ export default function CreateRolePage() {
     return groupIds.every((id) => formData.permissions?.includes(id));
   };
 
-  const isGroupPartiallySelected = (groupPermissions: Permission[]) => {
-    const groupIds = groupPermissions.map((p) => p.id);
-    const selectedCount = groupIds.filter((id) =>
-      formData.permissions?.includes(id)
-    ).length;
-    return selectedCount > 0 && selectedCount < groupIds.length;
-  };
-
   const validateForm = () => {
     if (!formData.name.trim()) {
       toast.error("Nama role harus diisi");
@@ -220,48 +222,57 @@ export default function CreateRolePage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard/roles")}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Tambah Role Baru</h1>
-              <p className="text-gray-600">Buat role baru dengan permissions</p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Tambah Role" },
+            ]}
+            back={{ href: "/dashboard/roles", label: "Kembali ke daftar role" }}
+            title="Tambah Role Baru"
+            description="Buat role baru dengan permissions"
+            illustration="/images/roles.png"
+            illustrationClassName="w-[120px]"
+          />
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Role Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Informasi Role
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nama Role *</Label>
+            <SectionCard icon={Shield} title="Informasi Role">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-medium text-slate-800"
+                  >
+                    Nama Role <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Shield
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
                     <Input
                       id="name"
                       type="text"
                       value={formData.name}
-                      onChange={(e) =>
-                        handleInputChange("name", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("name", e.target.value)}
                       placeholder="Masukkan nama role"
                       required
+                      className="h-11 rounded-lg border-slate-200 bg-white pl-9"
                     />
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="guard_name">Guard Name</Label>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="guard_name"
+                    className="text-sm font-medium text-slate-800"
+                  >
+                    Guard Name
+                  </Label>
+                  <div className="relative">
+                    <Lock
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
                     <Input
                       id="guard_name"
                       type="text"
@@ -271,118 +282,130 @@ export default function CreateRolePage() {
                       }
                       placeholder="api"
                       disabled
+                      className="h-11 rounded-lg border-slate-200 bg-slate-50 pl-9"
                     />
-                    <p className="text-xs text-gray-500">
-                      Guard name biasanya &quot;api&quot; untuk API
-                      authentication
-                    </p>
                   </div>
+                  <p className="text-xs text-slate-500">
+                    Guard name biasanya &quot;api&quot; untuk API authentication
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </SectionCard>
 
-            {/* Permissions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Permissions
-                </CardTitle>
-                <p className="text-sm text-gray-600">
-                  Pilih permissions yang akan diberikan pada role ini
-                </p>
-              </CardHeader>
-              <CardContent>
-                {permissionGroups.length > 0 ? (
-                  <div className="space-y-6">
-                    {permissionGroups.map((group) => (
+            <SectionCard
+              icon={Users}
+              title="Permissions"
+              description="Pilih permissions yang akan diberikan pada role ini"
+            >
+              {permissionGroups.length > 0 ? (
+                <div className="space-y-4">
+                  {permissionGroups.map((group) => {
+                    const isCollapsed = collapsed[group.category] === true;
+                    return (
                       <div
                         key={group.category}
-                        className="border rounded-lg p-4"
+                        className="rounded-xl border border-slate-200 p-4"
                       >
-                        <div className="flex items-center space-x-2 mb-3">
-                          <Checkbox
-                            id={`group-${group.category}`}
-                            checked={isGroupSelected(group.permissions)}
-                            ref={(input) => {
-                              if (input && "indeterminate" in input) {
-                                (input as HTMLInputElement).indeterminate =
-                                  isGroupPartiallySelected(group.permissions);
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              id={`group-${group.category}`}
+                              className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                              checked={isGroupSelected(group.permissions)}
+                              onCheckedChange={(checked) =>
+                                handleSelectAllInGroup(
+                                  group.permissions,
+                                  !!checked
+                                )
                               }
-                            }}
-                            onCheckedChange={(checked) =>
-                              handleSelectAllInGroup(
-                                group.permissions,
-                                !!checked
-                              )
+                            />
+                            <Label
+                              htmlFor={`group-${group.category}`}
+                              className="cursor-pointer text-sm font-semibold capitalize text-slate-900"
+                            >
+                              {group.category} ({group.permissions.length})
+                            </Label>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCollapsed((prev) => ({
+                                ...prev,
+                                [group.category]: !isCollapsed,
+                              }))
                             }
-                          />
-                          <Label
-                            htmlFor={`group-${group.category}`}
-                            className="text-sm font-semibold capitalize cursor-pointer"
+                            className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                            aria-label={`${isCollapsed ? "Buka" : "Lipat"} kategori ${group.category}`}
+                            aria-expanded={!isCollapsed}
                           >
-                            {group.category} ({group.permissions.length})
-                          </Label>
+                            <ChevronUp
+                              className={`h-4 w-4 transition-transform ${isCollapsed ? "rotate-180" : ""}`}
+                              aria-hidden
+                            />
+                          </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 ml-6">
-                          {group.permissions.map((permission) => {
-                            const isUsersIndex =
-                              permission.name === "users.index";
-                            return (
-                              <div
-                                key={permission.id}
-                                className="flex items-center space-x-2"
-                              >
-                                <Checkbox
-                                  id={`permission-${permission.id}`}
-                                  checked={formData.permissions?.includes(
-                                    permission.id
-                                  )}
-                                  disabled={isUsersIndex}
-                                  onCheckedChange={(checked) =>
-                                    handlePermissionChange(
-                                      permission.id,
-                                      !!checked
-                                    )
-                                  }
-                                />
-                                <Label
-                                  htmlFor={`permission-${permission.id}`}
-                                  className={`text-sm cursor-pointer ${
-                                    isUsersIndex
-                                      ? "text-blue-600 font-medium"
-                                      : ""
-                                  }`}
+                        {!isCollapsed && (
+                          <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 pl-8 md:grid-cols-2 lg:grid-cols-3">
+                            {group.permissions.map((permission) => {
+                              const isUsersIndex =
+                                permission.name === "users.index";
+                              return (
+                                <div
+                                  key={permission.id}
+                                  className="flex items-center gap-3"
                                 >
-                                  {permission.name}
-                                  {isUsersIndex && (
-                                    <span className="text-xs text-blue-500 ml-1">
-                                      (Required)
-                                    </span>
-                                  )}
-                                </Label>
-                              </div>
-                            );
-                          })}
-                        </div>
+                                  <Checkbox
+                                    id={`permission-${permission.id}`}
+                                    className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                                    checked={formData.permissions?.includes(
+                                      permission.id
+                                    )}
+                                    disabled={isUsersIndex}
+                                    onCheckedChange={(checked) =>
+                                      handlePermissionChange(
+                                        permission.id,
+                                        !!checked
+                                      )
+                                    }
+                                  />
+                                  <Label
+                                    htmlFor={`permission-${permission.id}`}
+                                    className={`cursor-pointer text-sm ${
+                                      isUsersIndex
+                                        ? "font-medium text-blue-600"
+                                        : "text-slate-700"
+                                    }`}
+                                  >
+                                    {permission.name}
+                                    {isUsersIndex && (
+                                      <span className="ml-1 text-xs text-blue-500">
+                                        (Required)
+                                      </span>
+                                    )}
+                                  </Label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Memuat permissions...</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <Users className="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                  <p className="text-slate-500">Memuat permissions...</p>
+                </div>
+              )}
+            </SectionCard>
 
-            {/* Submit Buttons */}
-            <div className="flex justify-end gap-3">
+            <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5">
               <Button
                 type="button"
                 variant="outline"
+                className="h-11 rounded-lg border-slate-200 px-6"
                 onClick={() => router.push("/dashboard/roles")}
                 disabled={loading}
               >
@@ -391,26 +414,26 @@ export default function CreateRolePage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+                className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Membuat...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menyimpan...
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4" />
-                    Buat Role
+                    <Save className="h-4 w-4" aria-hidden />
+                    Simpan Role
                   </>
                 )}
               </Button>
             </div>
           </form>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">Tips:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+            <h3 className="mb-2 font-semibold text-blue-900">Tips:</h3>
+            <ul className="space-y-1 text-sm text-blue-800">
               <li>• Nama role harus unik dan deskriptif</li>
               <li>
                 • <strong>users.index</strong> permission wajib dan tidak dapat

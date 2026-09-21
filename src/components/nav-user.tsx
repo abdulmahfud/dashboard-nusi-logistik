@@ -77,22 +77,24 @@ export function NavUser() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="h-auto rounded-xl border border-slate-100 bg-white p-2.5 shadow-sm hover:bg-slate-50 data-[state=open]:bg-slate-50 data-[state=open]:text-slate-900"
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
+              <Avatar className="h-9 w-9 rounded-full">
                 <AvatarImage src={"/images/user.png"} alt={user.name} />
-                <AvatarFallback className="rounded-lg">
+                <AvatarFallback className="rounded-full bg-blue-100 text-blue-600">
                   {user.name ? user.name[0] : "U"}
                 </AvatarFallback>
               </Avatar>
 
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate font-semibold text-slate-900">
+                  {user.name}
+                </span>
+                <span className="truncate text-xs text-slate-500">
                   {user.email}
                 </span>
               </div>
-              <MoreVerticalIcon className="ml-auto size-4" />
+              <MoreVerticalIcon className="ml-auto size-4 text-slate-400" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

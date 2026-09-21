@@ -44,10 +44,33 @@ export interface Order {
   user: OrderUser;
   created_at: string;
   request_payload?: Record<string, unknown>;
+  /** Nominal yang ditagih (sama dengan POST /admin/payments/create). Selalu ada untuk `menunggu_pembayaran`; `null` = data anomali. */
+  payment_amount?: number | null;
+}
+
+/** Nilai `status` yang valid untuk filter GET /admin/list-orders (selain itu 422). */
+export type OrderStatusFilter =
+  | "menunggu_pembayaran"
+  | "belum_proses"
+  | "belum_di_expedisi"
+  | "proses_pengiriman"
+  | "kendala_pengiriman"
+  | "sampai_tujuan"
+  | "retur"
+  | "dibatalkan";
+
+export interface OrderListMeta {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from?: number | null;
+  to?: number | null;
 }
 
 export interface OrderListResponse {
   data: Order[];
+  meta?: OrderListMeta;
 }
 
 // Table Display Types

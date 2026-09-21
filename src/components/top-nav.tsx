@@ -1,56 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Button } from "./ui/button";
-import { CirclePlus } from "lucide-react";
-import { NavUserTop } from "./nav-user-top";
-import Image from "next/image";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
-export default function TopVav() {
-  function useIsMobile(breakpoint = 768) {
-    const [isMobile, setIsMobile] = useState(false);
+import { Button } from "@/components/ui/button";
+import { NavUserTop } from "./nav-user-top";
 
-    useEffect(() => {
-      const checkIsMobile = () => {
-        setIsMobile(window.innerWidth <= breakpoint);
-      };
-
-      checkIsMobile();
-
-      window.addEventListener("resize", checkIsMobile);
-      return () => window.removeEventListener("resize", checkIsMobile);
-    }, [breakpoint]);
-
-    return isMobile;
-  }
-
-  const isMobile = useIsMobile();
-
+/** Bagian kanan top bar: tombol Kirim Paket + menu akun. */
+export default function TopNav() {
   return (
-    <div className="fixed right-3 top-2 z-50 rounded-xl border border-slate-200 bg-white/95 px-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/85 md:right-6">
-      <div className="flex items-center flex-shrink-0 py-1">
-        <Image
-          src="/images/BhisaKirim_3.png"
-          alt="Logo Bisakirim"
-          width={100}
-          height={200}
-          priority
-          className="items-start block md:hidden pr-2"
-        />
-        {!isMobile && (
-          <Link href="/dashboard/paket/paket-reguler" passHref>
-            <Button
-              variant="outline"
-              className="h-12 px-6 py-4 mr-2 text-lg text-white border-blue-500 rounded-full bg-gradient-to-r from-blue-500 to-blue-700 hover:bg-blue-700 hover:text-white"
-            >
-              <CirclePlus />
-              Kirim Paket
-            </Button>
-          </Link>
-        )}{" "}
-        {!isMobile && <NavUserTop />}{" "}
-      </div>
+    <div className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-200 bg-white pl-2 pr-4 md:gap-4 md:pr-6">
+      <Button
+        asChild
+        className="h-11 gap-2 rounded-xl bg-blue-600 px-3 font-semibold text-white shadow-sm hover:bg-blue-700 md:px-5"
+      >
+        <Link href="/dashboard/paket/paket-reguler" aria-label="Kirim Paket">
+          <Plus className="h-5 w-5" aria-hidden />
+          <span className="hidden sm:inline">Kirim Paket</span>
+        </Link>
+      </Button>
+      <NavUserTop />
     </div>
   );
 }

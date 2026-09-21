@@ -20,7 +20,14 @@ import type {
   ShipperCreateRequest,
   ShipperUpdateRequest,
 } from "@/types/dataPengirim";
-import type { OrderListResponse } from "@/types/laporanPengiriman";
+import type {
+  OrderListResponse,
+  OrderStatusFilter,
+} from "@/types/laporanPengiriman";
+import type {
+  PaymentHistoryQuery,
+  PaymentHistoryResponse,
+} from "@/types/payment";
 import type {
   OrderRequest,
   OrderResponse,
@@ -64,6 +71,8 @@ import type {
 } from "@/types/discount";
 import type {
   WalletBalanceResponse,
+  WalletMyTransactionsQuery,
+  WalletSummaryResponse,
   WalletTopupResponse,
   WalletTransactionsResponse,
   WalletTransactionItem,
@@ -751,6 +760,21 @@ export const getOrders = async (
   return res.data;
 };
 
+/**
+ * GET /admin/list-orders dengan filter & pagination.
+ * Tanpa `start_date`/`end_date` + dengan `status` = semua order berstatus itu, kapan pun dibuat.
+ */
+export const getOrdersPage = async (params: {
+  status?: OrderStatusFilter;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<OrderListResponse> => {
+  const res = await apiClient.get("/admin/list-orders", { params });
+  return res.data;
+};
+
 // ✅ Get order statistics from backend
 export const getOrderStatistics = async (
   startDate?: string,
@@ -1312,20 +1336,9 @@ export const getPaymentStatus = async (
   return res.data;
 };
 
-export const getPaymentHistory = async (params?: {
-  per_page?: number;
-  status?: string;
-}): Promise<{
-  success: boolean;
-  message?: string;
-  data?: Record<string, unknown>[];
-  pagination?: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-  };
-}> => {
+export const getPaymentHistory = async (
+  params?: PaymentHistoryQuery
+): Promise<PaymentHistoryResponse> => {
   const res = await apiClient.get("/admin/payments/history", { params });
   return res.data;
 };
@@ -1582,11 +1595,21 @@ export const getWalletBalance = async (): Promise<WalletBalanceResponse> => {
   return res.data;
 };
 
+/** Ringkasan wallet bulanan user login — permission: wallet.view. `month` = YYYY-MM (default bulan berjalan). */
+export const getWalletSummary = async (
+  month?: string
+): Promise<WalletSummaryResponse> => {
+  const res = await apiClient.get<WalletSummaryResponse>(
+    "/admin/wallet/summary",
+    { params: month ? { month } : undefined }
+  );
+  return res.data;
+};
+
 /** Riwayat transaksi user login — permission: wallet.view */
-export const getMyWalletTransactions = async (params?: {
-  page?: number;
-  per_page?: number;
-}): Promise<WalletTransactionsResponse> => {
+export const getMyWalletTransactions = async (
+  params?: WalletMyTransactionsQuery
+): Promise<WalletTransactionsResponse> => {
   const res = await apiClient.get<WalletTransactionsResponse>(
     "/admin/wallet/transactions",
     { params }
