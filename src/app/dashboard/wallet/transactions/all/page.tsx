@@ -3,16 +3,13 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { AccessDeniedCard } from "@/components/wallet/access-denied-card";
 import { WalletTransactionTable } from "@/components/wallet/wallet-transaction-table";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,17 +33,34 @@ import type {
 import { AxiosError } from "axios";
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
+  Calendar,
+  Filter,
   Globe,
   Loader2,
+  ReceiptText,
   RefreshCw,
+  RotateCcw,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const PER_PAGE_OPTIONS = [10, 20, 30, 40, 50] as const;
+
+const TYPE_OPTIONS = [
+  { value: "topup", label: "Top Up" },
+  { value: "withdraw", label: "Withdraw" },
+  { value: "cod_income", label: "COD Income" },
+  { value: "payment", label: "Pembayaran" },
+] as const;
+
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "success", label: "Success" },
+  { value: "failed", label: "Failed" },
+] as const;
+
+const fieldCls = "h-10 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-700";
 
 export default function WalletAllTransactionsPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
@@ -156,6 +170,25 @@ export default function WalletAllTransactionsPage() {
     setFilterTick((t) => t + 1);
   };
 
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
+    setPage(1);
+    setFilterTick((t) => t + 1);
+  };
+
+  const resetFilters = () => {
+    setUserId("");
+    setAmountMin("");
+    setAmountMax("");
+    setDateFrom("");
+    setDateTo("");
+    setTypeFilter("__all");
+    setStatusFilter("__all");
+    setPage(1);
+    setPerPage(20);
+    setFilterTick((t) => t + 1);
+  };
+
   if (authLoading) {
     return (
       <SidebarProvider>
@@ -207,17 +240,16 @@ export default function WalletAllTransactionsPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <Globe className="h-7 w-7 text-indigo-600" />
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Semua transaksi wallet
-              </h1>
-            </div>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Tampilan administrator untuk seluruh pengguna, bukan riwayat pribadi.
-            </p>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Semua Transaksi" },
+            ]}
+            icon={Globe}
+            title="Semua Transaksi Wallet"
+            description="Tampilan administrator untuk seluruh pengguna, bukan riwayat pribadi."
+            illustration="/images/wallet2.png"
+          />
 
           {forbidden && (
             <Card className="border-red-200 bg-red-50">
@@ -237,101 +269,120 @@ export default function WalletAllTransactionsPage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Filter</CardTitle>
-              <CardDescription>
-                Saring berdasarkan user, tanggal, nominal, tipe, dan status.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <SectionCard
+            icon={SlidersHorizontal}
+            title="Filter Transaksi"
+            description="Saring transaksi berdasarkan kebutuhan Anda."
+          >
+            <div className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="f-user">User ID</Label>
+                  <Label htmlFor="f-user" className={labelCls}>
+                    User ID
+                  </Label>
                   <Input
                     id="f-user"
                     inputMode="numeric"
-                    placeholder="Opsional"
+                    placeholder="Masukkan User ID"
+                    className={fieldCls}
                     value={userId}
                     onChange={(e) => setUserId(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="f-amin">Nominal min (Rp)</Label>
+                  <Label htmlFor="f-amin" className={labelCls}>
+                    Nominal Min (Rp)
+                  </Label>
                   <Input
                     id="f-amin"
-                    placeholder="Opsional"
+                    placeholder="Contoh: 1000"
+                    className={fieldCls}
                     value={amountMin}
                     onChange={(e) => setAmountMin(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="f-amax">Nominal max (Rp)</Label>
+                  <Label htmlFor="f-amax" className={labelCls}>
+                    Nominal Max (Rp)
+                  </Label>
                   <Input
                     id="f-amax"
-                    placeholder="Opsional"
+                    placeholder="Contoh: 1000000"
+                    className={fieldCls}
                     value={amountMax}
                     onChange={(e) => setAmountMax(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="f-df">Tanggal dari</Label>
-                  <Input
-                    id="f-df"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
+                  <Label htmlFor="f-df" className={labelCls}>
+                    Tanggal Dari
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="f-df"
+                      type="date"
+                      className={`${fieldCls} pl-9`}
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="f-dt" className={labelCls}>
+                    Tanggal Sampai
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="f-dt"
+                      type="date"
+                      className={`${fieldCls} pl-9`}
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="f-dt">Tanggal sampai</Label>
-                  <Input
-                    id="f-dt"
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipe</Label>
+                  <Label className={labelCls}>Tipe</Label>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Semua" />
+                    <SelectTrigger className={fieldCls}>
+                      <SelectValue placeholder="Semua tipe" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">Semua tipe</SelectItem>
-                      <SelectItem value="topup">topup</SelectItem>
-                      <SelectItem value="withdraw">withdraw</SelectItem>
-                      <SelectItem value="cod_income">cod_income</SelectItem>
-                      <SelectItem value="payment">payment</SelectItem>
+                      {TYPE_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label className={labelCls}>Status</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Semua" />
+                    <SelectTrigger className={fieldCls}>
+                      <SelectValue placeholder="Semua status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all">Semua status</SelectItem>
-                      <SelectItem value="pending">pending</SelectItem>
-                      <SelectItem value="success">success</SelectItem>
-                      <SelectItem value="failed">failed</SelectItem>
+                      {STATUS_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Per halaman</Label>
+                  <Label className={labelCls}>Per Halaman</Label>
                   <Select
                     value={String(perPage)}
-                    onValueChange={(v) => {
-                      setPerPage(Number(v));
-                      setPage(1);
-                      setFilterTick((t) => t + 1);
-                    }}
+                    onValueChange={(v) => handlePerPageChange(Number(v))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldCls}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -344,134 +395,78 @@ export default function WalletAllTransactionsPage() {
                   </Select>
                 </div>
               </div>
+
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   onClick={applyFilters}
-                  variant="blueGradient"
+                  className="h-10 gap-2 rounded-lg bg-blue-600 px-5 text-white hover:bg-blue-700"
                 >
-                  Terapkan filter
+                  <Filter className="h-4 w-4" />
+                  Terapkan Filter
                 </Button>
                 <Button
                   type="button"
-                  variant="blueGradientOutline"
-                  onClick={() => {
-                    setUserId("");
-                    setAmountMin("");
-                    setAmountMax("");
-                    setDateFrom("");
-                    setDateTo("");
-                    setTypeFilter("__all");
-                    setStatusFilter("__all");
-                    setPage(1);
-                    setPerPage(20);
-                    setFilterTick((t) => t + 1);
-                  }}
+                  variant="outline"
+                  onClick={resetFilters}
+                  className="h-10 gap-2 rounded-lg border-slate-200 px-4 text-blue-700 hover:bg-blue-50"
                 >
+                  <RotateCcw className="h-4 w-4" />
                   Reset
                 </Button>
                 <Button
                   type="button"
-                  variant="blueGradientOutline"
+                  variant="outline"
                   onClick={() => setFilterTick((t) => t + 1)}
                   disabled={loading}
+                  className="h-10 gap-2 rounded-lg border-slate-200 px-4 text-blue-700 hover:bg-blue-50"
                 >
                   <RefreshCw
-                    className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                   />
-                  Muat ulang
+                  Muat Ulang
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </SectionCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Data transaksi</CardTitle>
-              <CardDescription>
-                {total > 0 ? `${total} entri (global)` : "Tidak ada data"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {error && !forbidden && (
-                <div className="mb-4 flex items-center gap-2 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-              {loading ? (
-                <div className="flex justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                </div>
-              ) : forbidden ? null : rows.length === 0 ? (
-                <p className="text-muted-foreground py-12 text-center text-sm">
-                  Tidak ada transaksi untuk filter ini.
-                </p>
-              ) : (
-                <>
-                  <WalletTransactionTable rows={rows} showUserColumn />
-                  {lastPage > 1 && (
-                    <div className="mt-4 flex items-center justify-between px-1">
-                      <span className="text-sm text-muted-foreground">
-                        Total {total} entri
-                      </span>
-                      <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                          Halaman {page} dari {lastPage}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            disabled={page <= 1 || loading}
-                            onClick={() => setPage(1)}
-                          >
-                            <span className="sr-only">Go to first page</span>
-                            <ChevronsLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            disabled={page <= 1 || loading}
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          >
-                            <span className="sr-only">
-                              Go to previous page
-                            </span>
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            disabled={page >= lastPage || loading}
-                            onClick={() =>
-                              setPage((p) => Math.min(lastPage, p + 1))
-                            }
-                          >
-                            <span className="sr-only">Go to next page</span>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            disabled={page >= lastPage || loading}
-                            onClick={() => setPage(lastPage)}
-                          >
-                            <span className="sr-only">Go to last page</span>
-                            <ChevronsRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <SectionCard
+            icon={ReceiptText}
+            title="Data Transaksi"
+            description={
+              total > 0 ? `${total} entri (global)` : "Tidak ada data"
+            }
+          >
+            {error && !forbidden && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : forbidden ? null : rows.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-500">
+                Tidak ada transaksi untuk filter ini.
+              </p>
+            ) : (
+              <>
+                <WalletTransactionTable rows={rows} showUserColumn />
+                <NumberedPagination
+                  className="mt-2"
+                  page={page}
+                  lastPage={lastPage}
+                  total={total}
+                  perPage={perPage}
+                  disabled={loading}
+                  onPageChange={setPage}
+                  onPerPageChange={handlePerPageChange}
+                />
+              </>
+            )}
+          </SectionCard>
         </div>
       </SidebarInset>
     </SidebarProvider>

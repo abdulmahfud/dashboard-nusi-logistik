@@ -8,84 +8,134 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatRupiah } from "@/lib/currency";
-import { formatDateIdLong } from "@/lib/date";
+import { StatusBadge } from "@/components/redesign/status-badge";
+import {
+  TX_AMOUNT_CLASS,
+  TxIconCircle,
+  formatSignedRupiah,
+  getTxTypeMeta,
+} from "@/components/redesign/tx-type";
+import { formatDateTimeId } from "@/lib/date";
+import { cn } from "@/lib/utils";
 import type { WalletTransactionItem } from "@/types/wallet";
-
-export function formatTxCell(v: unknown): string {
-  if (v === undefined || v === null) return "—";
-  if (typeof v === "number")
-    return new Intl.NumberFormat("id-ID").format(v);
-  return String(v);
-}
-
-function formatTxDate(v: unknown): string {
-  // API biasanya mengirim string ISO pada `created_at`
-  if (typeof v === "string" || typeof v === "number" || v instanceof Date) {
-    return formatDateIdLong(v as string | number | Date);
-  }
-  return "—";
-}
 
 type Props = {
   rows: WalletTransactionItem[];
   showUserColumn?: boolean;
 };
 
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+
 export function WalletTransactionTable({
   rows,
   showUserColumn = false,
 }: Props) {
   return (
-    <div className="max-h-[min(560px,70vh)] overflow-x-auto overflow-y-auto rounded-md border">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow>
-            {showUserColumn && <TableHead>Pengguna</TableHead>}
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Jenis / Keterangan</TableHead>
-            <TableHead className="text-right">Nominal</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Referensi</TableHead>
+          <TableRow className="border-slate-100 hover:bg-transparent">
+            {showUserColumn && <TableHead className={headCls}>Pengguna</TableHead>}
+            <TableHead className={headCls}>Tanggal</TableHead>
+            <TableHead className={headCls}>Jenis / Keterangan</TableHead>
+            <TableHead className={cn(headCls, "text-right")}>Nominal</TableHead>
+            <TableHead className={headCls}>Status</TableHead>
+            <TableHead className={headCls}>Referensi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, idx) => (
-            <TableRow key={row.id ?? idx}>
-              {showUserColumn && (
-                <TableCell className="max-w-[180px] text-sm">
-                  {row.user?.name
-                    ? `${row.user.name}${row.user.email ? ` (${row.user.email})` : ""}`
-                    : row.user?.id != null
-                      ? `User #${row.user.id}`
-                      : "—"}
-                </TableCell>
-              )}
-              <TableCell className="whitespace-nowrap text-sm">
-                {formatTxDate(row.created_at)}
-              </TableCell>
-              <TableCell className="max-w-[220px] text-sm">
-                {formatTxCell(row.description ?? row.type ?? "—")}
-              </TableCell>
-              <TableCell className="text-right text-sm tabular-nums">
-                {formatRupiah(
-                  typeof row.amount === "string" || typeof row.amount === "number"
-                    ? row.amount
-                    : 0
+          {rows.map((row, idx) => {
+            const { tone } = getTxTypeMeta(row.type);
+            const dt = formatDateTimeId(row.created_at);
+            const description =
+              typeof row.description === "string" && row.description
+                ? row.description
+                : null;
+            const typeLabel =
+              typeof row.type === "string" && row.type ? row.type : null;
+            const reference =
+              row.reference_no || row.payment?.reference_no || null;
+
+            return (
+              <TableRow
+                key={row.id ?? idx}
+                className="border-slate-100 hover:bg-slate-50/60"
+              >
+                {showUserColumn && (
+                  <TableCell className="max-w-[200px] py-4 text-sm">
+                    {row.user?.name ? (
+                      <>
+                        <p className="font-medium text-slate-900">
+                          {row.user.name}
+                        </p>
+                        {row.user.email && (
+                          <p className="truncate text-xs text-slate-500">
+                            {row.user.email}
+                          </p>
+                        )}
+                      </>
+                    ) : row.user?.id != null ? (
+                      <span className="text-slate-700">User #{row.user.id}</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </TableCell>
                 )}
-              </TableCell>
-              <TableCell className="text-sm">
-                {formatTxCell(row.status)}
-              </TableCell>
-              <TableCell className="max-w-[160px] break-all text-xs">
-                {row.reference_no
-                  ? String(row.reference_no)
-                  : row.payment?.reference_no
-                    ? String(row.payment.reference_no)
-                    : "—"}
-              </TableCell>
-            </TableRow>
-          ))}
+
+                <TableCell className="whitespace-nowrap py-4 text-sm">
+                  {dt ? (
+                    <>
+                      <p className="text-slate-900">{dt.date}</p>
+                      <p className="text-xs tabular-nums text-slate-500">
+                        {dt.time}
+                      </p>
+                    </>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </TableCell>
+
+                <TableCell className="min-w-[240px] max-w-[340px] py-4">
+                  <div className="flex items-center gap-3">
+                    <TxIconCircle type={row.type} />
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 text-sm font-medium text-slate-900">
+                        {description ?? typeLabel ?? "—"}
+                      </p>
+                      {description && typeLabel && (
+                        <p className="text-xs capitalize text-slate-500">
+                          {typeLabel.replace(/_/g, " ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+
+                <TableCell
+                  className={cn(
+                    "whitespace-nowrap py-4 text-right text-sm font-semibold tabular-nums",
+                    TX_AMOUNT_CLASS[tone]
+                  )}
+                >
+                  {formatSignedRupiah(
+                    typeof row.amount === "string" ||
+                      typeof row.amount === "number"
+                      ? row.amount
+                      : 0,
+                    tone
+                  )}
+                </TableCell>
+
+                <TableCell className="py-4">
+                  <StatusBadge status={row.status} />
+                </TableCell>
+
+                <TableCell className="max-w-[180px] break-all py-4 text-xs text-slate-600">
+                  {reference ? String(reference) : "–"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
