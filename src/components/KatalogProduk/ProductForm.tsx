@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save } from "lucide-react";
+import { ChevronLeft, Save } from "lucide-react";
 import { Product, CreateProductPayload } from "@/types/product";
 import { itemTypes } from "@/types/dataRegulerForm";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { WeightInput } from "@/components/ui/weight-input";
+
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-800";
 
 interface ProductFormProps {
   product?: Product | null;
@@ -104,147 +106,166 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center space-y-0 pb-4">
-        <Button variant="ghost" size="sm" onClick={onCancel} className="mr-4">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <CardTitle className="text-xl font-semibold">
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Kembali"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          <ChevronLeft className="h-5 w-5" aria-hidden />
+        </button>
+        <h2 className="text-lg font-semibold text-slate-900">
           {product ? "Edit Produk" : "Tambah Produk Baru"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Name */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="name">
-                Nama Produk <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Contoh: Kaos Polos L"
-                className={errors.name ? "border-red-500" : ""}
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name}</p>
-              )}
-            </div>
+        </h2>
+      </div>
 
-            {/* Category */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Kategori</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => handleInputChange("category", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori (opsional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Tanpa Kategori</SelectItem>
-                  {itemTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Price */}
-            <div className="space-y-2">
-              <Label htmlFor="price">Harga</Label>
-              <CurrencyInput
-                value={formData.price}
-                onChange={(value) => handleInputChange("price", value)}
-                placeholder="75000"
-              />
-              <p className="text-xs text-muted-foreground">
-                Dipakai sebagai nilai barang default saat buat order
-              </p>
-            </div>
-
-            {/* Weight */}
-            <div className="space-y-2">
-              <Label htmlFor="weight">
-                Berat (gram) <span className="text-red-500">*</span>
-              </Label>
-              <WeightInput
-                id="weight"
-                value={formData.weight}
-                onChange={(value) => handleInputChange("weight", value)}
-                placeholder="300"
-                className={errors.weight ? "border-red-500" : ""}
-              />
-              {errors.weight && (
-                <p className="text-sm text-red-500">{errors.weight}</p>
-              )}
-            </div>
-
-            {/* Is Active */}
-            <div className="space-y-2">
-              <Label htmlFor="is_active">Status</Label>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("is_active", checked)
-                  }
-                />
-                <Label htmlFor="is_active" className="text-sm">
-                  {formData.is_active ? "Aktif" : "Tidak Aktif"}
-                </Label>
-              </div>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Name */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="name" className={labelCls}>
+              Nama Produk <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              placeholder="Contoh: Kaos Polos L"
+              className={`${fieldCls} ${errors.name ? "border-red-500" : ""}`}
+            />
+            {errors.name && (
+              <p className="text-sm text-red-500">{errors.name}</p>
+            )}
           </div>
 
-          {/* Dimensions */}
+          {/* Category */}
           <div className="space-y-2">
-            <Label>Dimensi (cm, opsional)</Label>
-            <div className="grid grid-cols-3 gap-4">
-              <Input
-                type="number"
-                min="0"
-                placeholder="Panjang"
-                value={formData.panjang}
-                onChange={(e) => handleInputChange("panjang", e.target.value)}
-              />
-              <Input
-                type="number"
-                min="0"
-                placeholder="Lebar"
-                value={formData.lebar}
-                onChange={(e) => handleInputChange("lebar", e.target.value)}
-              />
-              <Input
-                type="number"
-                min="0"
-                placeholder="Tinggi"
-                value={formData.tinggi}
-                onChange={(e) => handleInputChange("tinggi", e.target.value)}
-              />
-            </div>
+            <Label htmlFor="category" className={labelCls}>
+              Kategori
+            </Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => handleInputChange("category", value)}
+            >
+              <SelectTrigger id="category" className={fieldCls}>
+                <SelectValue placeholder="Pilih kategori (opsional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa Kategori</SelectItem>
+                {itemTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Submit Buttons */}
-          <div className="flex items-center justify-end space-x-4 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              className="h-11 px-6 py-4 font-semibold bg-blue-500 text-white hover:bg-blue-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out"
-            >
-              <Save className="h-4 w-4" />
-              {product ? "Update Produk" : "Simpan Produk"}
-            </Button>
+          {/* Price */}
+          <div className="space-y-2">
+            <Label htmlFor="price" className={labelCls}>
+              Harga
+            </Label>
+            <CurrencyInput
+              value={formData.price}
+              onChange={(value) => handleInputChange("price", value)}
+              placeholder="75000"
+              className={fieldCls}
+            />
+            <p className="text-xs text-slate-400">
+              Dipakai sebagai nilai barang default saat buat order
+            </p>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+
+          {/* Weight */}
+          <div className="space-y-2">
+            <Label htmlFor="weight" className={labelCls}>
+              Berat (gram) <span className="text-red-500">*</span>
+            </Label>
+            <WeightInput
+              id="weight"
+              value={formData.weight}
+              onChange={(value) => handleInputChange("weight", value)}
+              placeholder="300"
+              className={`${fieldCls} ${errors.weight ? "border-red-500" : ""}`}
+            />
+            {errors.weight && (
+              <p className="text-sm text-red-500">{errors.weight}</p>
+            )}
+          </div>
+
+          {/* Is Active */}
+          <div className="space-y-2">
+            <Label htmlFor="is_active" className={labelCls}>
+              Status
+            </Label>
+            <div className="flex h-11 items-center gap-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) =>
+                  handleInputChange("is_active", checked)
+                }
+              />
+              <Label htmlFor="is_active" className="text-sm text-slate-700">
+                {formData.is_active ? "Aktif" : "Tidak Aktif"}
+              </Label>
+            </div>
+          </div>
+        </div>
+
+        {/* Dimensions */}
+        <div className="space-y-2">
+          <Label className={labelCls}>Dimensi (cm, opsional)</Label>
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              type="number"
+              min="0"
+              placeholder="Panjang"
+              value={formData.panjang}
+              onChange={(e) => handleInputChange("panjang", e.target.value)}
+              className={fieldCls}
+            />
+            <Input
+              type="number"
+              min="0"
+              placeholder="Lebar"
+              value={formData.lebar}
+              onChange={(e) => handleInputChange("lebar", e.target.value)}
+              className={fieldCls}
+            />
+            <Input
+              type="number"
+              min="0"
+              placeholder="Tinggi"
+              value={formData.tinggi}
+              onChange={(e) => handleInputChange("tinggi", e.target.value)}
+              className={fieldCls}
+            />
+          </div>
+        </div>
+
+        {/* Submit Buttons */}
+        <div className="flex items-center justify-end gap-3 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 rounded-lg border-slate-200"
+            onClick={onCancel}
+          >
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+          >
+            <Save className="h-4 w-4" aria-hidden />
+            {product ? "Update Produk" : "Simpan Produk"}
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
+import { StatCard } from "@/components/redesign/stat-card";
 import { StatusBadge } from "@/components/redesign/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,21 +25,26 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { getAllPayments, normalizeAllPayments } from "@/lib/apiClient";
-import type { PaymentAllItem } from "@/types/payment";
+import type { PaymentAllItem, PaymentAllSummary } from "@/types/payment";
 import { formatDateTimeId } from "@/lib/date";
 import {
   Calendar,
+  CheckCircle2,
+  Clock,
   ClipboardListIcon,
+  DollarSign,
   Filter,
   Loader2,
   RefreshCw,
   RotateCcw,
   Search,
   SlidersHorizontal,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
 
 type FilterState = {
-  user_id: string;
+  search: string;
   status: string;
   payment_method: string;
   date_from: string;
@@ -49,7 +55,7 @@ type FilterState = {
 };
 
 const initialFilters: FilterState = {
-  user_id: "",
+  search: "",
   status: "all",
   payment_method: "all",
   date_from: "",
@@ -121,6 +127,7 @@ export default function LaporanSemuaMutasiPage() {
   /** Filter yang benar-benar dipakai untuk request. */
   const [applied, setApplied] = useState<FilterState>(initialFilters);
   const [rows, setRows] = useState<PaymentAllItem[]>([]);
+  const [summary, setSummary] = useState<PaymentAllSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -134,7 +141,7 @@ export default function LaporanSemuaMutasiPage() {
     setError(null);
     try {
       const res = await getAllPayments({
-        user_id: applied.user_id ? Number(applied.user_id) : undefined,
+        search: applied.search || undefined,
         status: applied.status === "all" ? undefined : applied.status,
         payment_method:
           applied.payment_method === "all" ? undefined : applied.payment_method,
@@ -150,6 +157,7 @@ export default function LaporanSemuaMutasiPage() {
       const pg = extractPagination(res);
       setLastPage(pg.lastPage);
       setTotal(pg.total);
+      setSummary(res.summary ?? null);
     } catch (e) {
       if (e instanceof AxiosError) {
         const msg = (e.response?.data as { message?: string })?.message;
@@ -160,6 +168,7 @@ export default function LaporanSemuaMutasiPage() {
       setRows([]);
       setLastPage(1);
       setTotal(0);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -186,6 +195,20 @@ export default function LaporanSemuaMutasiPage() {
     setApplied(initialFilters);
     setPage(1);
   };
+
+  const byStatus = summary?.by_status;
+  const failedBucket = byStatus
+    ? {
+        count: byStatus.failed.count + byStatus.expired.count,
+        total_amount: byStatus.failed.total_amount + byStatus.expired.total_amount,
+      }
+    : null;
+  const bucketValue = (count: number | undefined) =>
+    count !== undefined ? String(count) : loading ? "…" : "–";
+  const bucketPercent = (count: number | undefined, fallback: string) =>
+    count !== undefined && summary && summary.total > 0
+      ? `${((count / summary.total) * 100).toFixed(1)}% dari total`
+      : fallback;
 
   if (authLoading) {
     return (
@@ -240,8 +263,8 @@ export default function LaporanSemuaMutasiPage() {
             >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="f-user" className={labelCls}>
-                    User ID
+                  <Label htmlFor="f-search" className={labelCls}>
+                    Cari Email / Nama
                   </Label>
                   <div className="relative">
                     <Search
@@ -249,14 +272,11 @@ export default function LaporanSemuaMutasiPage() {
                       aria-hidden
                     />
                     <Input
-                      id="f-user"
-                      placeholder="Masukkan User ID"
-                      value={filters.user_id}
+                      id="f-search"
+                      placeholder="Cari email atau nama pengguna..."
+                      value={filters.search}
                       onChange={(e) =>
-                        setFilters((p) => ({
-                          ...p,
-                          user_id: e.target.value.replace(/[^\d]/g, ""),
-                        }))
+                        setFilters((p) => ({ ...p, search: e.target.value }))
                       }
                       className={`${fieldCls} pl-9`}
                     />
@@ -446,6 +466,50 @@ export default function LaporanSemuaMutasiPage() {
               </div>
             </form>
           </SectionCard>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard
+              icon={DollarSign}
+              tone="blue"
+              title="Total Transaksi"
+              value={bucketValue(summary?.total)}
+              hint="Semua transaksi"
+            />
+            <StatCard
+              icon={CheckCircle2}
+              tone="green"
+              title="Transaksi Berhasil"
+              value={bucketValue(byStatus?.paid.count)}
+              hint={bucketPercent(byStatus?.paid.count, "Pembayaran sukses")}
+            />
+            <StatCard
+              icon={Clock}
+              tone="orange"
+              title="Menunggu"
+              value={bucketValue(byStatus?.pending.count)}
+              hint={bucketPercent(byStatus?.pending.count, "Menunggu pembayaran")}
+            />
+            <StatCard
+              icon={XCircle}
+              tone="red"
+              title="Gagal"
+              value={bucketValue(failedBucket?.count)}
+              hint={bucketPercent(failedBucket?.count, "Gagal atau kedaluwarsa")}
+            />
+            <StatCard
+              icon={TrendingUp}
+              tone="violet"
+              title="Total Amount"
+              value={
+                summary?.total_amount !== undefined
+                  ? formatAmount(summary.total_amount)
+                  : loading
+                    ? "…"
+                    : "–"
+              }
+              hint="Semua transaksi"
+            />
+          </div>
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">

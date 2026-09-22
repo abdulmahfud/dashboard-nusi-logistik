@@ -3,9 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +31,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateIdLong } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
@@ -54,16 +56,12 @@ import {
 } from "@/types/kerjaSama";
 import { AxiosError } from "axios";
 import {
-  ArrowLeft,
   Ban,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   CircleDollarSign,
   Handshake,
   Loader2,
   Pencil,
+  Save,
   Wallet,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -80,6 +78,10 @@ function getErrorMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+const rowCls = "flex justify-between gap-4 py-2 text-sm";
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
 
 export default function KerjaSamaAkunDetailPage() {
   const params = useParams();
@@ -197,8 +199,8 @@ export default function KerjaSamaAkunDetailPage() {
     [userId, ledgerType, ledgerStatus, ledgerPerPage]
   );
 
-  const handleLedgerPerPageChange = (value: string) => {
-    setLedgerPerPage(Number(value));
+  const handleLedgerPerPageChange = (value: number) => {
+    setLedgerPerPage(value);
   };
 
   useEffect(() => {
@@ -395,26 +397,19 @@ export default function KerjaSamaAkunDetailPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => router.push("/dashboard/kerja-sama/akun")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-                <Handshake className="h-6 w-6 text-blue-600" />
-                {account?.company_name || account?.name || "Akun Kerja Sama"}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                {account?.email}
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              {
+                label: "Akun Kerja Sama",
+                href: "/dashboard/kerja-sama/akun",
+              },
+              { label: account?.company_name || account?.name || "Detail" },
+            ]}
+            back={{ href: "/dashboard/kerja-sama/akun" }}
+            title={account?.company_name || account?.name || "Akun Kerja Sama"}
+            description={account?.email}
+          />
 
           {error ? (
             <div
@@ -425,80 +420,82 @@ export default function KerjaSamaAkunDetailPage() {
             </div>
           ) : account ? (
             <>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 {/* Profil */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg">Profil</CardTitle>
-                    {canUpdate && (
+                <SectionCard
+                  icon={Handshake}
+                  title="Profil"
+                  action={
+                    canUpdate ? (
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="gap-2"
+                        className="h-9 gap-1.5 rounded-lg border-slate-200"
                         onClick={openEdit}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
                         Edit
                       </Button>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tipe Akun</span>
-                      <Badge variant="outline" className="capitalize">
+                    ) : undefined
+                  }
+                >
+                  <div className="divide-y divide-slate-100">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Tipe Akun</span>
+                      <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold capitalize text-blue-700">
                         {account.account_type}
-                      </Badge>
+                      </span>
                     </div>
                     {account.account_type === "corporate" ? (
                       <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            Nama PIC
+                        <div className={rowCls}>
+                          <span className="text-slate-500">Nama PIC</span>
+                          <span className="text-slate-900">
+                            {account.pic_name || "—"}
                           </span>
-                          <span>{account.pic_name || "—"}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">NPWP</span>
-                          <span>{account.npwp || "—"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            No. Legalitas
+                        <div className={rowCls}>
+                          <span className="text-slate-500">NPWP</span>
+                          <span className="text-slate-900">
+                            {account.npwp || "—"}
                           </span>
-                          <span>{account.company_legality_no || "—"}</span>
+                        </div>
+                        <div className={rowCls}>
+                          <span className="text-slate-500">No. Legalitas</span>
+                          <span className="text-slate-900">
+                            {account.company_legality_no || "—"}
+                          </span>
                         </div>
                       </>
                     ) : (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">No. KTP</span>
-                        <span>{account.ktp_no || "—"}</span>
+                      <div className={rowCls}>
+                        <span className="text-slate-500">No. KTP</span>
+                        <span className="text-slate-900">
+                          {account.ktp_no || "—"}
+                        </span>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Alamat Penagihan
-                      </span>
-                      <span className="max-w-[60%] text-right">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Alamat Penagihan</span>
+                      <span className="max-w-[60%] text-right text-slate-900">
                         {account.billing_address || "—"}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">
                         Telepon / Email Penagihan
                       </span>
-                      <span className="max-w-[60%] text-right">
+                      <span className="max-w-[60%] text-right text-slate-900">
                         {account.billing_phone || "—"}
                         {account.billing_email
                           ? ` · ${account.billing_email}`
                           : ""}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Rekening Bank
-                      </span>
-                      <span className="max-w-[60%] text-right">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Rekening Bank</span>
+                      <span className="max-w-[60%] text-right text-slate-900">
                         {account.billing_bank_name
                           ? `${account.billing_bank_name} · ${
                               account.billing_bank_account_no || "-"
@@ -506,60 +503,55 @@ export default function KerjaSamaAkunDetailPage() {
                           : "—"}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Kontak Penagihan
-                      </span>
-                      <span className="max-w-[60%] text-right">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Kontak Penagihan</span>
+                      <span className="max-w-[60%] text-right text-slate-900">
                         {account.pic_penagihan_name || "—"}
                         {account.pic_penagihan_phone
                           ? ` (${account.pic_penagihan_phone})`
                           : ""}
                       </span>
                     </div>
-                    {account.kerja_sama_notes && (
-                      <div className="rounded-md bg-slate-50 p-2 text-xs text-muted-foreground">
-                        {account.kerja_sama_notes}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  </div>
+                  {account.kerja_sama_notes && (
+                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                      {account.kerja_sama_notes}
+                    </div>
+                  )}
+                </SectionCard>
 
                 {/* Kredit & Status */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg">Kredit & Status</CardTitle>
-                    {account.kerja_sama_is_active ? (
-                      <Badge className="border-green-200 bg-green-100 text-green-800">
-                        Aktif
-                      </Badge>
-                    ) : (
-                      <Badge className="border-red-200 bg-red-100 text-red-800">
-                        Nonaktif
-                      </Badge>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Limit Kredit
-                      </span>
-                      <span className="font-medium">
+                <SectionCard
+                  icon={Wallet}
+                  title="Kredit & Status"
+                  action={
+                    <StatusBadge
+                      status={
+                        account.kerja_sama_is_active ? "success" : "failed"
+                      }
+                      label={
+                        account.kerja_sama_is_active ? "Aktif" : "Nonaktif"
+                      }
+                    />
+                  }
+                >
+                  <div className="divide-y divide-slate-100">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Limit Kredit</span>
+                      <span className="font-medium text-slate-900">
                         {formatRupiah(account.credit_limit)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Max Outstanding
-                      </span>
-                      <span>
+                    <div className={rowCls}>
+                      <span className="text-slate-500">Max Outstanding</span>
+                      <span className="text-slate-900">
                         {account.max_outstanding != null
                           ? formatRupiah(account.max_outstanding)
                           : "Sama dengan limit kredit"}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">
                         Outstanding Saat Ini
                       </span>
                       <span className="font-semibold text-blue-700">
@@ -568,274 +560,210 @@ export default function KerjaSamaAkunDetailPage() {
                         )}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
+                    <div className={rowCls}>
+                      <span className="text-slate-500">
                         Tanggal Jatuh Tempo
                       </span>
-                      <span>Setiap tanggal {account.billing_due_day}</span>
+                      <span className="text-slate-900">
+                        Setiap tanggal {account.billing_due_day}
+                      </span>
                     </div>
-                    {account.suspended_at && (
-                      <div className="rounded-md bg-red-50 p-2 text-xs text-red-800">
-                        Disuspend {formatDateIdLong(account.suspended_at)}
-                        {account.suspended_reason
-                          ? `: ${account.suspended_reason}`
-                          : ""}
-                      </div>
-                    )}
+                  </div>
+                  {account.suspended_at && (
+                    <div className="mt-3 rounded-lg bg-rose-50 p-3 text-xs text-rose-800">
+                      Disuspend {formatDateIdLong(account.suspended_at)}
+                      {account.suspended_reason
+                        ? `: ${account.suspended_reason}`
+                        : ""}
+                    </div>
+                  )}
 
-                    <div className="flex flex-wrap gap-2 pt-3">
-                      {canManageCredit && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-2"
-                          onClick={openCredit}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Ubah Limit
-                        </Button>
-                      )}
-                      {canManageCredit && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-2"
-                          onClick={() => void openPayment()}
-                        >
-                          <CircleDollarSign className="h-4 w-4" />
-                          Catat Pembayaran
-                        </Button>
-                      )}
-                      {canSuspend && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={
-                            account.kerja_sama_is_active
-                              ? "destructive"
-                              : "default"
-                          }
-                          className="gap-2"
-                          onClick={() => setSuspendOpen(true)}
-                        >
-                          <Ban className="h-4 w-4" />
-                          {account.kerja_sama_is_active
-                            ? "Suspend"
-                            : "Aktifkan Kembali"}
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {canManageCredit && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 gap-1.5 rounded-lg border-slate-200"
+                        onClick={openCredit}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        Ubah Limit
+                      </Button>
+                    )}
+                    {canManageCredit && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 gap-1.5 rounded-lg border-slate-200"
+                        onClick={() => void openPayment()}
+                      >
+                        <CircleDollarSign className="h-3.5 w-3.5" aria-hidden />
+                        Catat Pembayaran
+                      </Button>
+                    )}
+                    {canSuspend && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          account.kerja_sama_is_active
+                            ? "destructive"
+                            : "default"
+                        }
+                        className="h-9 gap-1.5 rounded-lg"
+                        onClick={() => setSuspendOpen(true)}
+                      >
+                        <Ban className="h-3.5 w-3.5" aria-hidden />
+                        {account.kerja_sama_is_active
+                          ? "Suspend"
+                          : "Aktifkan Kembali"}
+                      </Button>
+                    )}
+                  </div>
+                </SectionCard>
               </div>
 
               {/* Ledger */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Wallet className="h-5 w-5" />
-                    Riwayat Transaksi Kredit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-3">
-                    <Select value={ledgerType} onValueChange={setLedgerType}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Tipe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Tipe</SelectItem>
-                        <SelectItem value="charge">Tagihan</SelectItem>
-                        <SelectItem value="adjustment">Penyesuaian</SelectItem>
-                        <SelectItem value="payment">Pembayaran</SelectItem>
-                        <SelectItem value="write_off">Hapus Buku</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={ledgerStatus} onValueChange={setLedgerStatus}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="pending">Belum Sampai</SelectItem>
-                        <SelectItem value="confirmed">
-                          Terkonfirmasi
-                        </SelectItem>
-                        <SelectItem value="invoiced">
-                          Sudah Ditagih
-                        </SelectItem>
-                        <SelectItem value="voided">Dibatalkan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <SectionCard icon={Wallet} title="Riwayat Transaksi Kredit">
+                <div className="mb-4 flex flex-wrap gap-3">
+                  <Select value={ledgerType} onValueChange={setLedgerType}>
+                    <SelectTrigger className={`w-[160px] ${fieldCls}`}>
+                      <SelectValue placeholder="Tipe" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Tipe</SelectItem>
+                      <SelectItem value="charge">Tagihan</SelectItem>
+                      <SelectItem value="adjustment">Penyesuaian</SelectItem>
+                      <SelectItem value="payment">Pembayaran</SelectItem>
+                      <SelectItem value="write_off">Hapus Buku</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={ledgerStatus} onValueChange={setLedgerStatus}>
+                    <SelectTrigger className={`w-[160px] ${fieldCls}`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="pending">Belum Sampai</SelectItem>
+                      <SelectItem value="confirmed">
+                        Terkonfirmasi
+                      </SelectItem>
+                      <SelectItem value="invoiced">Sudah Ditagih</SelectItem>
+                      <SelectItem value="voided">Dibatalkan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                  {ledgerLoading ? (
-                    <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Memuat…
+                {ledgerLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-slate-500">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Memuat…
+                  </div>
+                ) : ledger.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    Belum ada transaksi.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="overflow-x-auto rounded-xl border border-slate-100">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-100 hover:bg-transparent">
+                            <TableHead className={headCls}>Tanggal</TableHead>
+                            <TableHead className={headCls}>Tipe</TableHead>
+                            <TableHead className={headCls}>
+                              Deskripsi
+                            </TableHead>
+                            <TableHead className={headCls}>Status</TableHead>
+                            <TableHead className={`${headCls} text-right`}>
+                              Nominal
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ledger.map((entry) => {
+                            const amount = Number(entry.amount);
+                            const isNegative = amount < 0;
+                            return (
+                              <TableRow
+                                key={entry.id}
+                                className="border-slate-100 hover:bg-slate-50/60"
+                              >
+                                <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
+                                  {formatDateIdLong(entry.created_at)}
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                    {KERJA_SAMA_LEDGER_TYPE_LABEL[
+                                      entry.type
+                                    ] ?? entry.type}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="max-w-[280px] truncate py-4 text-sm text-slate-700">
+                                  {entry.description || "—"}
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                    {KERJA_SAMA_LEDGER_STATUS_LABEL[
+                                      entry.status
+                                    ] ?? entry.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell
+                                  className={`whitespace-nowrap py-4 text-right text-sm font-semibold tabular-nums ${
+                                    isNegative
+                                      ? "text-emerald-700"
+                                      : "text-rose-700"
+                                  }`}
+                                >
+                                  {isNegative ? "-" : "+"}
+                                  {formatRupiah(Math.abs(amount))}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
-                  ) : ledger.length === 0 ? (
-                    <p className="text-muted-foreground py-8 text-center text-sm">
-                      Belum ada transaksi.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Tanggal</TableHead>
-                              <TableHead>Tipe</TableHead>
-                              <TableHead>Deskripsi</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">
-                                Nominal
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {ledger.map((entry) => {
-                              const amount = Number(entry.amount);
-                              const isNegative = amount < 0;
-                              return (
-                                <TableRow key={entry.id}>
-                                  <TableCell className="whitespace-nowrap text-sm">
-                                    {formatDateIdLong(entry.created_at)}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">
-                                      {KERJA_SAMA_LEDGER_TYPE_LABEL[
-                                        entry.type
-                                      ] ?? entry.type}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="max-w-[280px] truncate text-sm">
-                                    {entry.description || "—"}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">
-                                      {KERJA_SAMA_LEDGER_STATUS_LABEL[
-                                        entry.status
-                                      ] ?? entry.status}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell
-                                    className={`text-right font-medium tabular-nums ${
-                                      isNegative
-                                        ? "text-green-700"
-                                        : "text-red-700"
-                                    }`}
-                                  >
-                                    {isNegative ? "-" : "+"}
-                                    {formatRupiah(Math.abs(amount))}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-sm text-muted-foreground">
-                          Total {ledgerTotal} transaksi
-                        </span>
-                        <div className="flex items-center space-x-6 lg:space-x-8">
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm font-medium">
-                              Baris per halaman
-                            </p>
-                            <Select
-                              value={`${ledgerPerPage}`}
-                              onValueChange={handleLedgerPerPageChange}
-                            >
-                              <SelectTrigger className="h-8 w-[70px]">
-                                <SelectValue placeholder={ledgerPerPage} />
-                              </SelectTrigger>
-                              <SelectContent side="top">
-                                {[10, 20, 30, 40, 50].map((size) => (
-                                  <SelectItem key={size} value={`${size}`}>
-                                    {size}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                            Halaman {ledgerPage} dari {ledgerLastPage}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="hidden h-8 w-8 p-0 lg:flex"
-                              onClick={() => fetchLedger(1)}
-                              disabled={ledgerPage <= 1 || ledgerLoading}
-                            >
-                              <span className="sr-only">Go to first page</span>
-                              <ChevronsLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-8 w-8 p-0"
-                              onClick={() => fetchLedger(ledgerPage - 1)}
-                              disabled={ledgerPage <= 1 || ledgerLoading}
-                            >
-                              <span className="sr-only">
-                                Go to previous page
-                              </span>
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-8 w-8 p-0"
-                              onClick={() => fetchLedger(ledgerPage + 1)}
-                              disabled={
-                                ledgerPage >= ledgerLastPage || ledgerLoading
-                              }
-                            >
-                              <span className="sr-only">Go to next page</span>
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="hidden h-8 w-8 p-0 lg:flex"
-                              onClick={() => fetchLedger(ledgerLastPage)}
-                              disabled={
-                                ledgerPage >= ledgerLastPage || ledgerLoading
-                              }
-                            >
-                              <span className="sr-only">Go to last page</span>
-                              <ChevronsRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+
+                    <NumberedPagination
+                      page={ledgerPage}
+                      lastPage={ledgerLastPage}
+                      total={ledgerTotal}
+                      perPage={ledgerPerPage}
+                      disabled={ledgerLoading}
+                      onPageChange={(p) => void fetchLedger(p)}
+                      onPerPageChange={handleLedgerPerPageChange}
+                    />
+                  </div>
+                )}
+              </SectionCard>
             </>
           ) : null}
         </div>
 
         {/* Dialog: Edit Profile */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden sm:max-w-2xl">
-            <DialogHeader className="shrink-0 text-left">
-              <DialogTitle>Edit Profil Akun</DialogTitle>
-              <DialogDescription>
-                Tidak mengubah limit kredit / status aktif — pakai aksi
-                terpisah untuk itu.
-              </DialogDescription>
+          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-2xl border-slate-100 p-0 sm:max-w-2xl">
+            <DialogHeader className="shrink-0 border-b border-slate-100 p-6 text-left">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Pencil className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Edit Profil Akun</DialogTitle>
+                  <DialogDescription>
+                    Tidak mengubah limit kredit / status aktif — pakai aksi
+                    terpisah untuk itu.
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-2">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
               {account?.account_type === "personal" && !upgradeToCorporate && (
-                <div className="flex flex-col gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
                   <span>
                     Akun ini masih terdaftar sebagai <strong>Personal</strong>.
                     Akun kerja sama personal baru sudah tidak bisa dibuat lagi
@@ -845,7 +773,7 @@ export default function KerjaSamaAkunDetailPage() {
                   <Button
                     type="button"
                     size="sm"
-                    className="shrink-0 bg-blue-500 text-white hover:bg-blue-600"
+                    className="h-9 shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700"
                     onClick={() => setUpgradeToCorporate(true)}
                   >
                     Upgrade ke Corporate
@@ -1024,10 +952,11 @@ export default function KerjaSamaAkunDetailPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+            <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 p-6">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setEditOpen(false)}
                 disabled={editSaving}
               >
@@ -1037,12 +966,15 @@ export default function KerjaSamaAkunDetailPage() {
                 type="button"
                 onClick={() => void submitEdit()}
                 disabled={editSaving}
-                className="bg-blue-500 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {editSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Simpan"
+                  <>
+                    <Save className="h-4 w-4" aria-hidden />
+                    Simpan
+                  </>
                 )}
               </Button>
             </DialogFooter>
@@ -1051,9 +983,14 @@ export default function KerjaSamaAkunDetailPage() {
 
         {/* Dialog: Ubah Limit Kredit */}
         <Dialog open={creditOpen} onOpenChange={setCreditOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Ubah Limit Kredit</DialogTitle>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Pencil className="h-5 w-5" aria-hidden />
+                </span>
+                <DialogTitle>Ubah Limit Kredit</DialogTitle>
+              </div>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1">
@@ -1102,7 +1039,7 @@ export default function KerjaSamaAkunDetailPage() {
                   }}
                 />
                 {resetMaxOutstanding && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-400">
                     Akan disimpan sebagai kosong (mengikuti limit kredit).
                   </p>
                 )}
@@ -1123,10 +1060,11 @@ export default function KerjaSamaAkunDetailPage() {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setCreditOpen(false)}
                 disabled={creditSaving}
               >
@@ -1136,7 +1074,7 @@ export default function KerjaSamaAkunDetailPage() {
                 type="button"
                 onClick={() => void submitCredit()}
                 disabled={creditSaving}
-                className="bg-blue-500 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {creditSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1150,8 +1088,11 @@ export default function KerjaSamaAkunDetailPage() {
 
         {/* Dialog: Suspend / Aktifkan */}
         <Dialog open={suspendOpen} onOpenChange={setSuspendOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+            <DialogHeader className="items-center text-center sm:text-center">
+              <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                <Ban className="h-7 w-7" aria-hidden />
+              </span>
               <DialogTitle>
                 {account?.kerja_sama_is_active
                   ? "Suspend akun ini?"
@@ -1173,10 +1114,11 @@ export default function KerjaSamaAkunDetailPage() {
                 />
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:justify-center">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setSuspendOpen(false)}
                 disabled={suspendSaving}
               >
@@ -1187,6 +1129,7 @@ export default function KerjaSamaAkunDetailPage() {
                 variant={
                   account?.kerja_sama_is_active ? "destructive" : "default"
                 }
+                className="h-10 gap-2 rounded-lg"
                 onClick={() => void submitToggleActive()}
                 disabled={suspendSaving}
               >
@@ -1204,13 +1147,20 @@ export default function KerjaSamaAkunDetailPage() {
 
         {/* Dialog: Catat Pembayaran */}
         <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Catat Pembayaran Manual</DialogTitle>
-              <DialogDescription>
-                Untuk transfer dari customer di luar sistem. Mengurangi
-                outstanding balance.
-              </DialogDescription>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <CircleDollarSign className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Catat Pembayaran Manual</DialogTitle>
+                  <DialogDescription>
+                    Untuk transfer dari customer di luar sistem. Mengurangi
+                    outstanding balance.
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1">
@@ -1267,16 +1217,17 @@ export default function KerjaSamaAkunDetailPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-400">
                   Kalau diisi, status invoice terkait otomatis diperbarui
                   (lunas/sebagian lunas) sesuai nominal pembayaran ini.
                 </p>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setPaymentOpen(false)}
                 disabled={paymentSaving}
               >
@@ -1286,7 +1237,7 @@ export default function KerjaSamaAkunDetailPage() {
                 type="button"
                 onClick={() => void submitPayment()}
                 disabled={paymentSaving}
-                className="bg-blue-500 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {paymentSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

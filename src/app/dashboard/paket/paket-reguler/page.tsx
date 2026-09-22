@@ -3,101 +3,43 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/redesign/page-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Clock3,
+  Loader2,
+  PackageCheck,
+  ShieldCheck,
+  Truck,
+} from "lucide-react";
+import { useCallback, useState } from "react";
 import RegularPackageForm from "../../../../components/PaketReguler/RegularPackageForm";
-import CalculationResults from "@/components/PaketReguler/CalculationResults";
+import {
+  savePaketRegulerCheckout,
+  type PaketRegulerCheckoutFormData,
+} from "@/components/PaketReguler/checkout-storage";
 
 const PaketReguler = () => {
-  const [formResetKey, setFormResetKey] = useState(0);
+  const router = useRouter();
   const [isSearching, setIsSearching] = useState(false);
-  const [calculationResult, setCalculationResult] = useState<
-    Record<string, unknown> | undefined
-  >(undefined);
-  const [formData, setFormData] = useState<{
-    itemValue?: string;
-    paymentMethod?: string;
-    formData?: {
-      receiverName: string;
-      receiverPhone: string;
-      province: string;
-      regency: string;
-      district: string;
-      receiverAddress: string;
-      itemContent: string;
-      itemType: string;
-      itemValue: string;
-      itemQuantity: string;
-      weight: string;
-      length: string;
-      width: string;
-      height: string;
-      notes: string;
-      deliveryType: "pickup" | "dropoff"; // Frontend format: "pickup" or "dropoff"
-      paymentMethod: string;
-    };
-    businessData?: {
-      id: number;
-      businessName: string;
-      senderName: string;
-      contact: string;
-      province: string | null;
-      regency: string | null;
-      district: string | null;
-      address: string;
-    } | null;
-    receiverId?: string | null;
-  }>({});
-  const lastPaymentMethodRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    // This is just to ensure framer-motion is properly initialized
-    const container = document.getElementById("app-container");
-    if (container) {
-      container.classList.add("motion-safe");
-    }
-  }, []);
+  const [formData, setFormData] = useState<PaketRegulerCheckoutFormData>({});
 
   const handleCalculationResult = useCallback(
     (result: Record<string, unknown>) => {
-      setCalculationResult(result);
       setIsSearching(false);
+      savePaketRegulerCheckout({ result, formData });
+      router.push("/dashboard/paket/paket-reguler/ringkasan");
+    },
+    [formData, router]
+  );
+
+  const handleFormDataChange = useCallback(
+    (data: PaketRegulerCheckoutFormData) => {
+      setFormData(data);
     },
     []
   );
-
-  const handleFormDataChange = useCallback((data: typeof formData) => {
-    setFormData(data);
-  }, []);
-
-  useEffect(() => {
-    const currentMethod = formData.paymentMethod;
-    const previousMethod = lastPaymentMethodRef.current;
-
-    // Saat metode pembayaran berubah (COD <-> Non-COD), hasil lama harus dihapus
-    // agar user melakukan submit ulang dengan parameter terbaru.
-    if (
-      calculationResult &&
-      previousMethod &&
-      currentMethod &&
-      previousMethod !== currentMethod
-    ) {
-      setCalculationResult(undefined);
-      setIsSearching(false);
-    }
-
-    lastPaymentMethodRef.current = currentMethod;
-  }, [formData.paymentMethod, calculationResult]);
-
-  const handleResetForm = useCallback(() => {
-    setFormData({});
-    setCalculationResult(undefined);
-    setIsSearching(false);
-    setFormResetKey((k) => k + 1);
-  }, []);
 
   return (
     <SidebarProvider>
@@ -109,85 +51,103 @@ const PaketReguler = () => {
           </div>
           <TopNav />
         </div>
-        <div className="flex flex-col flex-1 bg-blue-100">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 md:px-6">
-              <main className="container flex-1">
-                <div
-                  id="app-container"
-                  className="grid grid-cols-1 gap-6 md:grid-cols-2"
-                >
-                  <div className="flex flex-col mx-2">
-                    <RegularPackageForm
-                      key={formResetKey}
-                      onResult={handleCalculationResult}
-                      setIsSearching={setIsSearching}
-                      onFormDataChange={handleFormDataChange}
-                    />
-                  </div>
 
-                  <AnimatePresence mode="wait">
-                    <Card className="h-full mx-2 border shadow-sm border-muted rounded-xl">
-                      <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="text-lg font-semibold text-gray-800">
-                          Pilih Ekspedisi
-                        </CardTitle>
-                      </CardHeader>
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Kirim Paket Reguler" },
+            ]}
+            icon={Truck}
+            title="Kirim Paket Reguler"
+            description="Kirim paket ke seluruh Indonesia dengan mudah dan aman."
+            illustration="/images/delivery-truck.png"
+            illustrationClassName="w-[140px]"
+          />
 
-                      <CardContent className="flex items-center justify-center">
-                        {isSearching ? (
-                          <motion.div
-                            key="loading"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center h-60"
-                          >
-                            <div className="w-12 h-12 border-4 border-blue-300 rounded-full border-t-blue-600 animate-spin"></div>
-                            <p className="mt-4 text-sm text-gray-500">
-                              Mencari layanan pengiriman...
-                            </p>
-                          </motion.div>
-                        ) : calculationResult ? (
-                          <motion.div
-                            key="result"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col w-full"
-                          >
-                            <CalculationResults
-                              isSearching={isSearching}
-                              result={calculationResult}
-                              formData={formData}
-                              onResetForm={handleResetForm}
-                            />
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="empty"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center gap-4 text-center"
-                          >
-                            <Image
-                              src="/images/card.png"
-                              alt="Empty search illustration"
-                              width={240}
-                              height={240}
-                              className="object-contain"
-                            />
-                            <p className="text-sm text-gray-600 forn-semibold">
-                              Input dulu yuk data alamat paketnya..
-                            </p>
-                          </motion.div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </AnimatePresence>
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-10">
+            <div className="min-w-0 lg:col-span-7">
+              <RegularPackageForm
+                onResult={handleCalculationResult}
+                setIsSearching={setIsSearching}
+                onFormDataChange={handleFormDataChange}
+              />
+            </div>
+
+            <div className="min-w-0 space-y-6 lg:col-span-3">
+              {isSearching && (
+                <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin text-blue-600" />
+                  <p className="text-sm text-slate-600">
+                    Mencari layanan pengiriman dari beberapa ekspedisi...
+                  </p>
                 </div>
-              </main>
+              )}
+
+              <div className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 md:p-5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-600">
+                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">
+                    Pengiriman dijamin aman
+                  </p>
+                  <p className="mt-0.5 text-sm text-blue-800">
+                    Kami bekerja sama dengan ekspedisi terpercaya untuk
+                    memastikan paket Anda sampai dengan aman.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
+                <h2 className="mb-4 text-base font-semibold text-slate-900">
+                  Cara Kerja Pengiriman
+                </h2>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Truck className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        Lengkapi data pengiriman
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Isi data pengirim, penerima, dan detail paket di sebelah
+                        kiri.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Clock3 className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        Bandingkan pilihan ekspedisi
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Setelah klik &quot;Lanjut ke Ringkasan&quot;, Anda akan
+                        melihat harga dari beberapa ekspedisi sekaligus.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <PackageCheck className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        Bayar & paket siap dikirim
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Pilih ekspedisi, selesaikan pembayaran, dan paket siap
+                        dijemput/diantar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -108,9 +108,26 @@ export type PaymentAllQuery = {
   amount_min?: number;
   amount_max?: number;
   reference_no?: string;
+  /**
+   * Cari di reference_no, external_id, invoice_id, payment_method,
+   * payment_channel, serta nama & email pemilik pembayaran.
+   */
+  search?: string;
   page?: number;
   per_page?: number;
 };
+
+/**
+ * Ringkasan agregat GET /admin/payments/all — dihitung dari semua filter yang
+ * aktif (user_id/payment_method/date_from/date_to/amount_min/amount_max/
+ * reference_no/search) TAPI mengabaikan filter `status`, supaya breakdown per
+ * status selalu lengkap. Tanpa filter aktif = ringkasan all-time.
+ */
+export interface PaymentAllSummary {
+  total: number;
+  total_amount: number;
+  by_status: Record<"pending" | "paid" | "expired" | "failed", PaymentSummaryBucket>;
+}
 
 export interface PaymentAllItem {
   id?: number;
@@ -141,4 +158,5 @@ export interface PaymentAllResponse {
     per_page: number;
     total: number;
   };
+  summary?: PaymentAllSummary;
 }

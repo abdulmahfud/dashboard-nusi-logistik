@@ -25,6 +25,8 @@ import type {
   OrderStatusFilter,
 } from "@/types/laporanPengiriman";
 import type {
+  PaymentAllQuery,
+  PaymentAllResponse,
   PaymentHistoryQuery,
   PaymentHistoryResponse,
 } from "@/types/payment";
@@ -59,6 +61,7 @@ import type {
   BankAccountListResponse,
   BankAccountCreateRequest,
   BankAccountCreateResponse,
+  BankAccountUpdateRequest,
   BankAccount,
   BankAccountsAllQuery,
   BankAccountAllListResponse,
@@ -1136,18 +1139,47 @@ export const createBankAccount = async (
   return res.data;
 };
 
+/**
+ * Edit rekening — selalu balik ke status `pending` (perlu diverifikasi ulang admin).
+ * Foto opsional: hanya dikirim kalau user mengganti file baru.
+ * Multipart lewat POST + `_method=PUT` (Laravel tidak mem-parse body multipart pada request PUT asli).
+ */
 export const updateBankAccount = async (
   id: number,
-  data: BankAccountCreateRequest
+  data: BankAccountUpdateRequest
 ): Promise<BankAccountCreateResponse> => {
-  const res = await apiClient.put(`/admin/bank-accounts/${id}`, data);
+  const formData = new FormData();
+  formData.append("bank_name", data.bank_name);
+  formData.append("account_name", data.account_name);
+  formData.append("account_number", data.account_number);
+  if (data.photo_rekening) formData.append("photo_rekening", data.photo_rekening);
+  if (data.photo_ktp) formData.append("photo_ktp", data.photo_ktp);
+  formData.append("_method", "PUT");
+
+  const res = await apiClient.post(`/admin/bank-accounts/${id}`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return res.data;
 };
 
+/**
+ * Ajukan hapus rekening — BUKAN hapus langsung. Mengisi `deletion_requested_at`;
+ * rekening baru benar-benar terhapus setelah admin approve-deletion.
+ */
 export const deleteBankAccount = async (
   id: number
 ): Promise<BankAccountCreateResponse> => {
   const res = await apiClient.delete(`/admin/bank-accounts/${id}`);
+  return res.data;
+};
+
+/** Jadikan rekening ini sebagai rekening utama — harus berstatus approved dan tidak sedang mengajukan hapus. */
+export const setDefaultBankAccount = async (
+  id: number
+): Promise<{ success: boolean; message: string; data?: BankAccount }> => {
+  const res = await apiClient.patch(`/admin/bank-accounts/${id}/set-default`);
   return res.data;
 };
 
@@ -1194,6 +1226,33 @@ export const rejectBankAccount = async (
   const res = await apiClient.post(`/admin/bank-accounts/${id}/reject`, {
     reason,
   });
+  return res.data;
+};
+
+/** Setujui permintaan hapus rekening — rekening BENAR-BENAR dihapus, tidak bisa dibatalkan (permission: bank-accounts.approve). */
+export const approveBankAccountDeletion = async (
+  id: number
+): Promise<{
+  success: boolean;
+  message: string;
+}> => {
+  const res = await apiClient.patch(
+    `/admin/bank-accounts/${id}/approve-deletion`
+  );
+  return res.data;
+};
+
+/** Tolak permintaan hapus rekening — rekening kembali normal (permission: bank-accounts.reject). */
+export const rejectBankAccountDeletion = async (
+  id: number
+): Promise<{
+  success: boolean;
+  message: string;
+  data?: BankAccount;
+}> => {
+  const res = await apiClient.patch(
+    `/admin/bank-accounts/${id}/reject-deletion`
+  );
   return res.data;
 };
 
@@ -1343,28 +1402,9 @@ export const getPaymentHistory = async (
   return res.data;
 };
 
-export const getAllPayments = async (params?: {
-  user_id?: number;
-  status?: string;
-  payment_method?: string;
-  date_from?: string;
-  date_to?: string;
-  amount_min?: number;
-  amount_max?: number;
-  reference_no?: string;
-  page?: number;
-  per_page?: number;
-}): Promise<{
-  success?: boolean;
-  message?: string;
-  data?: Record<string, unknown>[];
-  pagination?: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-  };
-}> => {
+export const getAllPayments = async (
+  params?: PaymentAllQuery
+): Promise<PaymentAllResponse> => {
   const res = await apiClient.get("/admin/payments/all", { params });
   return res.data;
 };

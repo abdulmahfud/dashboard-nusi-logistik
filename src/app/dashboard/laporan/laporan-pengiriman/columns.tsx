@@ -4,11 +4,67 @@ import { ColumnDef } from "@tanstack/react-table";
 import { DeliveryReport } from "@/types/laporanPengiriman";
 import { PrintLabelButton } from "@/components/Laporan/PrintLabelButton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Package, Clock, CreditCard } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Hourglass,
+  Info,
+  Package,
+  RefreshCw,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
-import { formatDateIdLong } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
+import { cn } from "@/lib/utils";
+
+/** Warna badge status khusus laporan pengiriman (nama status sudah berbahasa Indonesia). */
+const STATUS_STYLE: Record<
+  string,
+  { className: string; icon: typeof Package }
+> = {
+  "Menunggu Pembayaran": {
+    className: "bg-amber-50 text-amber-700",
+    icon: CreditCard,
+  },
+  "Belum Proses": { className: "bg-amber-50 text-amber-700", icon: Hourglass },
+  "Belum di Expedisi": {
+    className: "bg-slate-100 text-slate-600",
+    icon: Info,
+  },
+  "Proses Pengiriman": { className: "bg-blue-50 text-blue-700", icon: Truck },
+  "Kendala Pengiriman": {
+    className: "bg-rose-50 text-rose-700",
+    icon: AlertTriangle,
+  },
+  "Sampai Tujuan": {
+    className: "bg-emerald-50 text-emerald-700",
+    icon: CheckCircle2,
+  },
+  Retur: { className: "bg-violet-50 text-violet-700", icon: RefreshCw },
+  Dibatalkan: { className: "bg-rose-50 text-rose-700", icon: XCircle },
+};
+
+export function DeliveryStatusBadge({ status }: { status: string }) {
+  const style = STATUS_STYLE[status] ?? {
+    className: "bg-slate-100 text-slate-600",
+    icon: Package,
+  };
+  const Icon = style.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
+        style.className
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      {status}
+    </span>
+  );
+}
 
 // Kolom tabel
 export const columns: ColumnDef<DeliveryReport>[] = [
@@ -19,19 +75,23 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "shipmentNo",
     header: "NO RESI / AWB",
+    cell: ({ row }) => (
+      <span className="font-mono text-xs text-slate-700">
+        {row.original.shipmentNo}
+      </span>
+    ),
   },
-  // Kolom "JENIS PAKET" disembunyikan sementara
-  // {
-  //   accessorKey: "packageType",
-  //   header: "JENIS PAKET",
-  // },
+  {
+    accessorKey: "packageType",
+    header: "JENIS PAKET",
+  },
   {
     accessorKey: "recipient",
     header: "PENERIMA",
   },
   {
     accessorKey: "courierService",
-    header: "EXPEDISI / LAYANAN",
+    header: "EKSPEDISI / LAYANAN",
   },
   {
     accessorKey: "totalShipment",
@@ -49,125 +109,52 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "status",
     header: "STATUS",
-    cell: ({ row }) => {
-      const status = row.original.status;
-
-      // Define status configurations
-      const statusConfig = {
-        menunggu_pembayaran: {
-          label: "Menunggu Pembayaran",
-          variant: "destructive" as const,
-          icon: CreditCard,
-        },
-        belum_proses: {
-          label: "Belum Diproses",
-          variant: "secondary" as const,
-          icon: Clock,
-        },
-        belum_di_expedisi: {
-          label: "Belum di Expedisi",
-          variant: "outline" as const,
-          icon: Package,
-        },
-        proses_pengiriman: {
-          label: "Proses Pengiriman",
-          variant: "default" as const,
-          icon: Package,
-        },
-        kendala_pengiriman: {
-          label: "Kendala Pengiriman",
-          variant: "destructive" as const,
-          icon: Package,
-        },
-        sampai_tujuan: {
-          label: "Sampai Tujuan",
-          variant: "default" as const,
-          icon: Package,
-        },
-        retur: {
-          label: "Retur",
-          variant: "secondary" as const,
-          icon: Package,
-        },
-        dibatalkan: {
-          label: "Dibatalkan",
-          variant: "destructive" as const,
-          icon: Package,
-        },
-      };
-
-      const config = statusConfig[status as keyof typeof statusConfig] || {
-        label: status,
-        variant: "outline" as const,
-        icon: Package,
-      };
-
-      const IconComponent = config.icon;
-
-      return (
-        <Badge variant={config.variant} className="gap-1">
-          <IconComponent className="h-3 w-3" />
-          {config.label}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "createdAt",
-    header: "TANGGAL DIBUAT",
-    cell: ({ row }) => formatDateIdLong(row.original.createdAt),
-  },
-  {
-    id: "tracking",
-    header: "TRACKING",
-    cell: ({ row }) => {
-      const order = row.original;
-      const hasAwb =
-        order.shipmentNo &&
-        order.shipmentNo !== "-" &&
-        order.status !== "menunggu_pembayaran";
-
-      if (!hasAwb) {
-        return (
-          <Button variant="outline" size="sm" disabled className="w-full">
-            <Clock className="h-4 w-4 mr-1" />
-            Belum Tersedia
-          </Button>
-        );
-      }
-
-      return (
-        <Link
-          href={`/dashboard/tracking?awb=${encodeURIComponent(order.shipmentNo)}`}
-        >
-          <Button variant="outline" size="sm" className="w-full">
-            <Package className="h-4 w-4 mr-1" />
-            Lacak
-          </Button>
-        </Link>
-      );
-    },
+    cell: ({ row }) => <DeliveryStatusBadge status={row.original.status} />,
   },
   {
     id: "actions",
-    header: "CETAK RESI",
+    header: "AKSI",
     cell: ({ row }) => {
       const order = row.original;
       const hasAwb =
         order.shipmentNo &&
         order.shipmentNo !== "-" &&
-        order.status !== "menunggu_pembayaran";
+        order.status !== "Menunggu Pembayaran";
 
       if (!hasAwb) {
         return (
-          <Button variant="outline" size="sm" disabled className="w-32">
-            <Clock className="h-4 w-4 mr-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            className="h-8 gap-1.5 rounded-lg text-xs"
+          >
+            <Clock className="h-3.5 w-3.5" />
             Belum Tersedia
           </Button>
         );
       }
 
-      return <PrintLabelButton orderId={order.orderId} className="w-32" />;
+      return (
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/dashboard/tracking?awb=${encodeURIComponent(order.shipmentNo)}`}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 rounded-lg text-xs"
+            >
+              <Package className="h-3.5 w-3.5" />
+              Lacak
+            </Button>
+          </Link>
+          <PrintLabelButton
+            orderId={order.orderId}
+            className="h-8 gap-1.5 rounded-lg text-xs"
+          />
+        </div>
+      );
     },
   },
 ];

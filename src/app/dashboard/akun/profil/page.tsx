@@ -8,17 +8,19 @@ import TopNav from "@/components/top-nav";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import {
   ArrowLeft,
   Edit,
+  Landmark,
   Mail,
   Phone,
+  Settings,
   User as UserIcon,
-  CheckCircle,
-  XCircle,
   UserCog,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -98,190 +100,129 @@ export default function UserProfilePage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserCog className="h-7 w-7 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Profil
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  Informasi pribadi Anda.
-                </p>
-              </div>
-          </div>
-          <Button
-            onClick={() => router.push(`/dashboard/akun/profil/edit`)}
-            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-          >
-            <Edit className="h-4 w-4" />
-            Edit Profil
-          </Button>
-        </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Profil" },
+            ]}
+            icon={UserCog}
+            title="Profil"
+            description="Informasi pribadi Anda."
+            action={
+              <Button
+                onClick={() => router.push(`/dashboard/akun/profil/edit`)}
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit className="h-4 w-4" aria-hidden />
+                Edit Profil
+              </Button>
+            }
+          />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main User Info */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserIcon className="h-5 w-5" />
-                  Informasi Pribadi
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            {/* Main User Info */}
+            <div className="lg:col-span-2">
+              <SectionCard icon={UserIcon} title="Informasi Pribadi">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-slate-500">
                       Nama Lengkap
-                    </label>
-                    <p className="text-lg font-medium">{user.name}</p>
+                    </p>
+                    <p className="text-lg font-medium text-slate-900">
+                      {user.name}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <p className="flex items-center gap-1 text-sm font-medium text-slate-500">
+                        <Mail className="h-4 w-4" aria-hidden />
+                        Email
+                      </p>
+                      <p className="text-lg text-slate-900">{user.email}</p>
+                    </div>
+                    <div>
+                      <p className="flex items-center gap-1 text-sm font-medium text-slate-500">
+                        <Phone className="h-4 w-4" aria-hidden />
+                        WhatsApp
+                      </p>
+                      <p className="font-mono text-lg text-slate-900">
+                        {user.whatsapp}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              </SectionCard>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                      <Mail className="h-4 w-4" />
-                      Email
-                    </label>
-                    <p className="text-lg">{user.email}</p>
+            {/* Sidebar Info */}
+            <div className="space-y-6">
+              <SectionCard icon={UserCog} title="Status Akun">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">
+                      Status Email
+                    </span>
+                    <StatusBadge
+                      status={isVerified ? "success" : "pending"}
+                      label={isVerified ? "Terverifikasi" : "Belum Verifikasi"}
+                    />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      WhatsApp
-                    </label>
-                    <p className="text-lg font-mono">{user.whatsapp}</p>
-                  </div>
+
+                  {isVerified && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-500">
+                        Tanggal Verifikasi
+                      </p>
+                      <p className="text-sm text-slate-900">
+                        {new Date(user.email_verified_at!).toLocaleDateString(
+                          "id-ID",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </SectionCard>
 
-          {/* Sidebar Info */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Status Akun</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Status Email</span>
-                  <Badge
-                    variant={isVerified ? "default" : "secondary"}
-                    className={`flex items-center gap-1 ${isVerified
-                        ? "bg-green-100 text-green-800 hover:bg-green-200"
-                        : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-                      }`}
+              <SectionCard icon={Settings} title="Pengaturan">
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-start gap-2 rounded-lg border-slate-200"
+                    onClick={() => router.push(`/dashboard/akun/profil/edit`)}
                   >
-                    {isVerified ? (
-                      <CheckCircle className="h-3 w-3" />
-                    ) : (
-                      <XCircle className="h-3 w-3" />
-                    )}
-                    {isVerified ? "Terverifikasi" : "Belum Verifikasi"}
-                  </Badge>
+                    <Edit className="h-4 w-4" aria-hidden />
+                    Edit Profil
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-start gap-2 rounded-lg border-slate-200"
+                    onClick={() => router.push(`/dashboard/akun/rekening`)}
+                  >
+                    <Landmark className="h-4 w-4" aria-hidden />
+                    Rekening Bank
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-start gap-2 rounded-lg border-slate-200"
+                    onClick={() => router.push(`/dashboard/akun/social-media`)}
+                  >
+                    <Phone className="h-4 w-4" aria-hidden />
+                    Social Media
+                  </Button>
                 </div>
-
-                {isVerified && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Tanggal Verifikasi
-                    </label>
-                    <p className="text-sm">
-                      {new Date(user.email_verified_at!).toLocaleDateString(
-                        "id-ID",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Calendar className="h-5 w-5" />
-                    Timeline
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Tanggal Bergabung
-                    </label>
-                    <p className="text-sm">
-                      {new Date(user.created_at).toLocaleDateString("id-ID", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Terakhir Diperbarui
-                    </label>
-                    <p className="text-sm">
-                      {new Date(user.updated_at).toLocaleDateString("id-ID", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card> */}
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Pengaturan</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => router.push(`/dashboard/akun/profil/edit`)}
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit Profil
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => router.push(`/dashboard/akun/rekening`)}
-                >
-                  <UserIcon className="h-4 w-4" />
-                  Rekening Bank
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2"
-                  onClick={() => router.push(`/dashboard/akun/social-media`)}
-                >
-                  <Phone className="h-4 w-4" />
-                  Social Media
-                </Button>
-              </CardContent>
-            </Card>
+              </SectionCard>
+            </div>
           </div>
         </div>
-      </div>
-
-    </SidebarInset>
-    </SidebarProvider >
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

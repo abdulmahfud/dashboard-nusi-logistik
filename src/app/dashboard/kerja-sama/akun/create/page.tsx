@@ -4,20 +4,32 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { useAuth } from "@/context/AuthContext";
 import { createKerjaSamaAccount, getUsers } from "@/lib/apiClient";
 import type { CreateKerjaSamaAccountPayload } from "@/types/kerjaSama";
 import type { User } from "@/types/users";
 import { AxiosError } from "axios";
-import { ArrowLeft, Handshake, Loader2, Search } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  Loader2,
+  Save,
+  Search,
+  UserSearch,
+  Wallet,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-800";
 
 export default function CreateKerjaSamaAkunPage() {
   const router = useRouter();
@@ -229,178 +241,162 @@ export default function CreateKerjaSamaAkunPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => router.push("/dashboard/kerja-sama/akun")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-                <Handshake className="h-6 w-6 text-blue-600" />
-                Aktifkan Akun Kerja Sama
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Data & limit yang sudah disepakati di luar sistem (offline).
-                Begitu disimpan, akun langsung aktif — tidak ada status
-                pending.
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Akun Kerja Sama", href: "/dashboard/kerja-sama/akun" },
+              { label: "Aktifkan Akun" },
+            ]}
+            back={{ href: "/dashboard/kerja-sama/akun" }}
+            title="Aktifkan Akun Kerja Sama"
+            description="Data & limit yang sudah disepakati di luar sistem (offline). Begitu disimpan, akun langsung aktif — tidak ada status pending."
+          />
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">1. Pilih User</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="relative" ref={userInputRef}>
-                  <Label htmlFor="user-search">
-                    Cari user terdaftar (nama/email){" "}
-                    <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="mt-1 flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        id="user-search"
-                        ref={userInputElRef}
-                        placeholder="Ketik minimal 3 huruf, lalu Enter atau klik cari…"
-                        value={userQuery}
-                        onChange={(e) => {
-                          setUserQuery(e.target.value);
-                          setSelectedUser(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            triggerManualSearch();
-                          }
-                        }}
-                        autoComplete="off"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={triggerManualSearch}
-                      disabled={searchingUser}
-                    >
-                      {searchingUser ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Search className="h-4 w-4" />
-                      )}
-                    </Button>
+            <SectionCard icon={UserSearch} title="1. Pilih User">
+              <div className="relative" ref={userInputRef}>
+                <Label htmlFor="user-search" className={labelCls}>
+                  Cari user terdaftar (nama/email){" "}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <div className="mt-1 flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="user-search"
+                      ref={userInputElRef}
+                      placeholder="Ketik minimal 3 huruf, lalu Enter atau klik cari…"
+                      value={userQuery}
+                      onChange={(e) => {
+                        setUserQuery(e.target.value);
+                        setSelectedUser(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          triggerManualSearch();
+                        }
+                      }}
+                      autoComplete="off"
+                      className={fieldCls}
+                    />
                   </div>
-                  {showResults && userResults.length > 0 && (
-                    <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-white shadow-lg">
-                      {userResults.map((u) => (
-                        <div
-                          key={u.id}
-                          className="cursor-pointer border-b p-3 last:border-b-0 hover:bg-blue-50"
-                          onClick={() => handleSelectUser(u)}
-                        >
-                          <p className="text-sm font-medium">{u.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {u.email}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {!searchingUser &&
-                    searchAttempted &&
-                    userResults.length === 0 &&
-                    !selectedUser && (
-                      <div className="absolute z-20 mt-1 w-full rounded-md border bg-white p-3 text-sm text-muted-foreground shadow-lg">
-                        Tidak ada user terdaftar yang cocok dengan &quot;
-                        {userQuery.trim()}&quot;.
-                      </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={triggerManualSearch}
+                    disabled={searchingUser}
+                    className="h-11 w-11 shrink-0 rounded-lg border-slate-200 p-0"
+                  >
+                    {searchingUser ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
                     )}
-                  {selectedUser && (
-                    <p className="mt-2 text-sm text-green-700">
-                      Terpilih: {selectedUser.name} ({selectedUser.email})
-                    </p>
+                  </Button>
+                </div>
+                {showResults && userResults.length > 0 && (
+                  <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    {userResults.map((u) => (
+                      <div
+                        key={u.id}
+                        className="cursor-pointer border-b border-slate-100 p-3 last:border-b-0 hover:bg-blue-50"
+                        onClick={() => handleSelectUser(u)}
+                      >
+                        <p className="text-sm font-medium text-slate-900">
+                          {u.name}
+                        </p>
+                        <p className="text-xs text-slate-500">{u.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!searchingUser &&
+                  searchAttempted &&
+                  userResults.length === 0 &&
+                  !selectedUser && (
+                    <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-500 shadow-lg">
+                      Tidak ada user terdaftar yang cocok dengan &quot;
+                      {userQuery.trim()}&quot;.
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                {selectedUser && (
+                  <p className="mt-2 text-sm text-emerald-700">
+                    Terpilih: {selectedUser.name} ({selectedUser.email})
+                  </p>
+                )}
+              </div>
+            </SectionCard>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">2. Data Perusahaan & PIC</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="company_name">
-                      Nama Perusahaan <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="company_name"
-                      value={form.company_name}
-                      onChange={(e) =>
-                        handleField("company_name", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pic_name">
-                      Nama PIC <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="pic_name"
-                      value={form.pic_name}
-                      onChange={(e) =>
-                        handleField("pic_name", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company_legality_no">
-                      No. Legalitas (NIB/SIUP)
-                    </Label>
-                    <Input
-                      id="company_legality_no"
-                      value={form.company_legality_no}
-                      onChange={(e) =>
-                        handleField("company_legality_no", e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="npwp">NPWP</Label>
-                    <Input
-                      id="npwp"
-                      value={form.npwp}
-                      onChange={(e) => handleField("npwp", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pic_ktp_no">No. KTP PIC</Label>
-                    <Input
-                      id="pic_ktp_no"
-                      value={form.pic_ktp_no}
-                      onChange={(e) =>
-                        handleField("pic_ktp_no", e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">3. Limit Kredit</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <SectionCard icon={Building2} title="2. Data Perusahaan & PIC">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="credit_limit">
+                  <Label htmlFor="company_name" className={labelCls}>
+                    Nama Perusahaan <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="company_name"
+                    value={form.company_name}
+                    onChange={(e) =>
+                      handleField("company_name", e.target.value)
+                    }
+                    className={fieldCls}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pic_name" className={labelCls}>
+                    Nama PIC <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="pic_name"
+                    value={form.pic_name}
+                    onChange={(e) => handleField("pic_name", e.target.value)}
+                    className={fieldCls}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company_legality_no" className={labelCls}>
+                    No. Legalitas (NIB/SIUP)
+                  </Label>
+                  <Input
+                    id="company_legality_no"
+                    value={form.company_legality_no}
+                    onChange={(e) =>
+                      handleField("company_legality_no", e.target.value)
+                    }
+                    className={fieldCls}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="npwp" className={labelCls}>
+                    NPWP
+                  </Label>
+                  <Input
+                    id="npwp"
+                    value={form.npwp}
+                    onChange={(e) => handleField("npwp", e.target.value)}
+                    className={fieldCls}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pic_ktp_no" className={labelCls}>
+                    No. KTP PIC
+                  </Label>
+                  <Input
+                    id="pic_ktp_no"
+                    value={form.pic_ktp_no}
+                    onChange={(e) =>
+                      handleField("pic_ktp_no", e.target.value)
+                    }
+                    className={fieldCls}
+                  />
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard icon={Wallet} title="3. Limit Kredit">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="credit_limit" className={labelCls}>
                     Limit Kredit (Rp) <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -411,10 +407,11 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("credit_limit", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="max_outstanding">
+                  <Label htmlFor="max_outstanding" className={labelCls}>
                     Max Outstanding (Rp)
                   </Label>
                   <Input
@@ -426,10 +423,11 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("max_outstanding", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="billing_due_day">
+                  <Label htmlFor="billing_due_day" className={labelCls}>
                     Tanggal Jatuh Tempo (1-31)
                   </Label>
                   <Input
@@ -441,25 +439,27 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("billing_due_day", e.target.value)
                     }
+                    className={fieldCls}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-400">
                     Tanggal tetap tiap bulan (default 25). Kalau sudah lewat
                     saat invoice digenerate, jatuh tempo otomatis maju ke
                     bulan depan.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </SectionCard>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  4. Data Penagihan (opsional)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <SectionCard
+              icon={CreditCard}
+              title="4. Data Penagihan"
+              description="Opsional"
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="billing_address">Alamat Penagihan</Label>
+                  <Label htmlFor="billing_address" className={labelCls}>
+                    Alamat Penagihan
+                  </Label>
                   <Textarea
                     id="billing_address"
                     value={form.billing_address}
@@ -470,17 +470,22 @@ export default function CreateKerjaSamaAkunPage() {
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="billing_phone">Telepon Penagihan</Label>
+                    <Label htmlFor="billing_phone" className={labelCls}>
+                      Telepon Penagihan
+                    </Label>
                     <Input
                       id="billing_phone"
                       value={form.billing_phone}
                       onChange={(e) =>
                         handleField("billing_phone", e.target.value)
                       }
+                      className={fieldCls}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="billing_email">Email Penagihan</Label>
+                    <Label htmlFor="billing_email" className={labelCls}>
+                      Email Penagihan
+                    </Label>
                     <Input
                       id="billing_email"
                       type="email"
@@ -488,21 +493,28 @@ export default function CreateKerjaSamaAkunPage() {
                       onChange={(e) =>
                         handleField("billing_email", e.target.value)
                       }
+                      className={fieldCls}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="billing_bank_name">Nama Bank</Label>
+                  <Label htmlFor="billing_bank_name" className={labelCls}>
+                    Nama Bank
+                  </Label>
                   <Input
                     id="billing_bank_name"
                     value={form.billing_bank_name}
                     onChange={(e) =>
                       handleField("billing_bank_name", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="billing_bank_account_name">
+                  <Label
+                    htmlFor="billing_bank_account_name"
+                    className={labelCls}
+                  >
                     Nama Pemilik Rekening
                   </Label>
                   <Input
@@ -511,10 +523,14 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("billing_bank_account_name", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="billing_bank_account_no">
+                  <Label
+                    htmlFor="billing_bank_account_no"
+                    className={labelCls}
+                  >
                     Nomor Rekening
                   </Label>
                   <Input
@@ -523,10 +539,11 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("billing_bank_account_no", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pic_penagihan_name">
+                  <Label htmlFor="pic_penagihan_name" className={labelCls}>
                     Nama Kontak Penagihan
                   </Label>
                   <Input
@@ -535,10 +552,11 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("pic_penagihan_name", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pic_penagihan_phone">
+                  <Label htmlFor="pic_penagihan_phone" className={labelCls}>
                     Telepon Kontak Penagihan
                   </Label>
                   <Input
@@ -547,10 +565,13 @@ export default function CreateKerjaSamaAkunPage() {
                     onChange={(e) =>
                       handleField("pic_penagihan_phone", e.target.value)
                     }
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="kerja_sama_notes">Catatan Internal</Label>
+                  <Label htmlFor="kerja_sama_notes" className={labelCls}>
+                    Catatan Internal
+                  </Label>
                   <Textarea
                     id="kerja_sama_notes"
                     placeholder="Mis. Disepakati per meeting 5 Sept 2026"
@@ -560,13 +581,14 @@ export default function CreateKerjaSamaAkunPage() {
                     }
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </SectionCard>
 
             <div className="flex justify-end gap-3">
               <Button
                 type="button"
                 variant="outline"
+                className="h-11 rounded-lg border-slate-200"
                 onClick={() => router.push("/dashboard/kerja-sama/akun")}
                 disabled={submitting}
               >
@@ -574,13 +596,16 @@ export default function CreateKerjaSamaAkunPage() {
               </Button>
               <Button
                 type="submit"
-                className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+                className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
                 disabled={submitting}
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Aktifkan Akun"
+                  <>
+                    <Save className="h-4 w-4" aria-hidden />
+                    Aktifkan Akun
+                  </>
                 )}
               </Button>
             </div>

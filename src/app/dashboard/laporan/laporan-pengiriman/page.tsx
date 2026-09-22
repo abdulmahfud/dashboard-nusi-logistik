@@ -3,24 +3,45 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  CheckCircle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import {
+  DateRangeField,
+  toApiDate,
+} from "@/components/redesign/date-range-field";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardListIcon,
+  Download,
+  Hourglass,
   Info,
-  LayoutGrid,
+  Loader2,
   Package,
   Package2,
   RefreshCw,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
   Truck,
+  Wallet,
   XCircle,
-  Hourglass,
-  ClipboardListIcon,
-  ClipboardCheck,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { DateRange } from "react-day-picker";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { getOrders } from "@/lib/apiClient";
@@ -30,11 +51,29 @@ import {
   STATUS_MAPPING,
   VENDOR_MAPPING,
 } from "@/types/laporanPengiriman";
+import { cn } from "@/lib/utils";
 
-// Function to transform API data to table format
+const STATUS_OPTIONS = [
+  "Semua Status",
+  "Menunggu Pembayaran",
+  "Belum Proses",
+  "Belum di Expedisi",
+  "Proses Pengiriman",
+  "Kendala Pengiriman",
+  "Sampai Tujuan",
+  "Retur",
+  "Dibatalkan",
+];
+
+const PACKAGE_TYPE_OPTIONS = [
+  "Semua Jenis Paket",
+  "Paket Reguler",
+  "Paket Instant",
+  "COD",
+];
+
 const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
-  // Determine package type based on service_type_code
-  let packageType: DeliveryReport["packageType"] = "Paket Reguler"; // Default value
+  let packageType: DeliveryReport["packageType"] = "Paket Reguler";
   if (order.service_type_code === "COD") {
     packageType = "COD";
   } else if (order.service_type_code === "REGULER") {
@@ -43,29 +82,18 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
     packageType = "Paket Instant";
   }
 
-  // Map vendor to courier service
   const courierService = VENDOR_MAPPING[order.vendor] || order.vendor;
-
-  // Map status
   const status = STATUS_MAPPING[order.status] || order.status;
-
-  // Determine shipping method based on service_type_code
   const shippingMethod: DeliveryReport["shippingMethod"] =
     order.service_type_code === "COD" ? "COD" : "REGULER";
-
-  // Map shipment_type to service (DROPOFF or PICKUP)
   const service: DeliveryReport["service"] =
     order.shipment_type === "PICKUP" ? "PICKUP" : "DROPOFF";
-
-  // Calculate total shipment from cod_value or item_value
   const totalShipment =
     parseFloat(order.cod_value) || parseFloat(order.item_value) || 0;
-
-  // Format date
   const createdAt = new Date(order.created_at).toISOString().split("T")[0];
 
   return {
-    orderId: order.id, // Add order ID for label download
+    orderId: order.id,
     createdAt,
     shipmentNo: order.awb_no || order.reference_no,
     packageType,
@@ -75,273 +103,311 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
     shippingMethod,
     service,
     status,
-    vendor: order.vendor, // Add vendor information for label URL
+    vendor: order.vendor,
   };
 };
 
+function exportDeliveryReportCsv(rows: DeliveryReport[]) {
+  const headers = [
+    "No Resi/AWB",
+    "Jenis Paket",
+    "Penerima",
+    "Ekspedisi/Layanan",
+    "Harga",
+    "Metode Pengiriman",
+    "Tipe Layanan",
+    "Status",
+    "Tanggal Dibuat",
+  ];
+  const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const lines = [headers.join(",")];
+  rows.forEach((r) => {
+    lines.push(
+      [
+        r.shipmentNo,
+        r.packageType,
+        r.recipient,
+        r.courierService,
+        r.totalShipment,
+        r.shippingMethod,
+        r.service,
+        r.status,
+        r.createdAt,
+      ]
+        .map(escape)
+        .join(",")
+    );
+  });
+  const csv = "﻿" + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `laporan-pengiriman-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+type Tone = "blue" | "violet" | "green" | "orange" | "amber" | "slate" | "rose";
+
+const TONE_CLASS: Record<Tone, { icon: string; bar: string; badge: string }> = {
+  blue: {
+    icon: "bg-blue-50 text-blue-600",
+    bar: "bg-blue-600",
+    badge: "bg-blue-50 text-blue-700",
+  },
+  violet: {
+    icon: "bg-violet-50 text-violet-600",
+    bar: "bg-violet-600",
+    badge: "bg-violet-50 text-violet-700",
+  },
+  green: {
+    icon: "bg-emerald-50 text-emerald-600",
+    bar: "bg-emerald-500",
+    badge: "bg-emerald-50 text-emerald-700",
+  },
+  orange: {
+    icon: "bg-orange-50 text-orange-500",
+    bar: "bg-orange-500",
+    badge: "bg-orange-50 text-orange-700",
+  },
+  amber: {
+    icon: "bg-amber-50 text-amber-600",
+    bar: "bg-amber-500",
+    badge: "bg-amber-50 text-amber-700",
+  },
+  slate: {
+    icon: "bg-slate-100 text-slate-500",
+    bar: "bg-slate-400",
+    badge: "bg-slate-100 text-slate-600",
+  },
+  rose: {
+    icon: "bg-rose-50 text-rose-600",
+    bar: "bg-rose-500",
+    badge: "bg-rose-50 text-rose-700",
+  },
+};
+
+function ProgressStatCard({
+  icon: Icon,
+  tone,
+  title,
+  value,
+  hint,
+  percentage,
+  horizontal,
+}: {
+  icon: LucideIcon;
+  tone: Tone;
+  title: string;
+  value: number;
+  hint: string;
+  percentage?: number;
+  /** Ikon besar di kiri, judul+nilai+bar di kanan (dipakai untuk 4 kartu ringkasan utama). */
+  horizontal?: boolean;
+}) {
+  const t = TONE_CLASS[tone];
+  const bar = percentage !== undefined && (
+    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+      <div
+        className={cn("h-full rounded-full", t.bar)}
+        style={{ width: `${Math.min(percentage, 100)}%` }}
+      />
+    </div>
+  );
+
+  if (horizontal) {
+    return (
+      <div className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+        <span
+          className={cn(
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-full",
+            t.icon
+          )}
+        >
+          <Icon className="h-7 w-7" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-slate-500">{title}</p>
+            {percentage !== undefined && (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                  t.badge
+                )}
+              >
+                {percentage}%
+              </span>
+            )}
+          </div>
+          <p className="text-2xl font-bold tabular-nums text-slate-900">
+            {value}
+          </p>
+          {bar}
+          <p className="mt-1 text-xs text-slate-400">{hint}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm md:p-5">
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+            t.icon
+          )}
+        >
+          <Icon className="h-5 w-5" aria-hidden />
+        </span>
+        {percentage !== undefined && (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-medium",
+              t.badge
+            )}
+          >
+            {percentage}%
+          </span>
+        )}
+      </div>
+      <p className="mt-3 text-sm text-slate-500">{title}</p>
+      <p className="text-2xl font-bold tabular-nums text-slate-900">{value}</p>
+      {bar}
+      <p className="mt-1 text-xs text-slate-400">{hint}</p>
+    </div>
+  );
+}
+
 const LaporanPengiriman = () => {
-  const [statusFilter, setStatusFilter] = useState<string>("Semua Status");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [packageTypeFilter, setPackageTypeFilter] =
-    useState<string>("Semua Status");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Semua Status");
+  const [packageTypeFilter, setPackageTypeFilter] = useState(
+    "Semua Jenis Paket"
+  );
+  const [periode, setPeriode] = useState<DateRange | undefined>(undefined);
   const [dataReport, setDataReport] = useState<DeliveryReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch orders from API. `isRefresh` skips the full-page loading state
-  // and uses a lighter spinner on the table's refresh button instead.
-  const fetchOrders = async (isRefresh = false) => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const fetchOrders = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+        const startDate = periode?.from ? toApiDate(periode.from) : undefined;
+        const endDate = periode?.to
+          ? toApiDate(periode.to)
+          : periode?.from
+            ? toApiDate(periode.from)
+            : undefined;
+        const response = await getOrders(startDate, endDate);
+        setDataReport(response.data.map(transformOrderToDeliveryReport));
+      } catch (err) {
+        console.error("Error fetching orders:", err);
+        setError("Gagal memuat data laporan pengiriman.");
+      } finally {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
       }
-      setError(null);
-      const response = await getOrders();
-
-      // Transform API data to table format
-      const transformedData = response.data.map(
-        transformOrderToDeliveryReport
-      );
-      setDataReport(transformedData);
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-      setError("Failed to fetch orders data");
-    } finally {
-      if (isRefresh) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
-      }
-    }
-  };
+    },
+    [periode]
+  );
 
   useEffect(() => {
-    fetchOrders();
+    void fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [periode]);
 
-  // Calculate statistics from real data
-  const calculateStatistics = () => {
-    const totalPengiriman = dataReport.length;
-    const paketReguler = dataReport.filter(
-      (item) => item.packageType === "Paket Reguler"
+  const stats = useMemo(() => {
+    const total = dataReport.length;
+    const reguler = dataReport.filter(
+      (d) => d.packageType === "Paket Reguler"
     ).length;
-    const paketInstant = dataReport.filter(
-      (item) => item.packageType === "Paket Instant"
+    const instant = dataReport.filter(
+      (d) => d.packageType === "Paket Instant"
     ).length;
     const cod = dataReport.filter(
-      (item) => item.packageType === "COD" || item.shippingMethod === "COD"
+      (d) => d.packageType === "COD" || d.shippingMethod === "COD"
     ).length;
-
+    const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
     return {
-      totalPengiriman,
-      paketReguler,
-      paketInstant,
+      total,
+      reguler,
+      instant,
       cod,
-      paketRegulerPercentage:
-        totalPengiriman > 0
-          ? Math.round((paketReguler / totalPengiriman) * 100)
-          : 0,
-      paketInstantPercentage:
-        totalPengiriman > 0
-          ? Math.round((paketInstant / totalPengiriman) * 100)
-          : 0,
-      codPercentage:
-        totalPengiriman > 0 ? Math.round((cod / totalPengiriman) * 100) : 0,
+      regulerPct: pct(reguler),
+      instantPct: pct(instant),
+      codPct: pct(cod),
     };
-  };
+  }, [dataReport]);
 
-  const calculateStatusStatistics = () => {
-    const statusCounts = {
-      "Belum Proses": dataReport.filter(
-        (item) => item.status === "Belum Proses"
-      ).length,
-      "Belum di Expedisi": dataReport.filter(
-        (item) => item.status === "Belum di Expedisi"
-      ).length,
-      "Proses Pengiriman": dataReport.filter(
-        (item) => item.status === "Proses Pengiriman"
-      ).length,
-      "Kendala Pengiriman": dataReport.filter(
-        (item) => item.status === "Kendala Pengiriman"
-      ).length,
-      "Sampai Tujuan": dataReport.filter(
-        (item) => item.status === "Sampai Tujuan"
-      ).length,
-      Retur: dataReport.filter((item) => item.status === "Retur").length,
-      Dibatalkan: dataReport.filter((item) => item.status === "Dibatalkan")
-        .length,
-    };
-
+  const statusStats = useMemo(() => {
     const total = dataReport.length;
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-    }));
+    const count = (status: string) =>
+      dataReport.filter((d) => d.status === status).length;
+    const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+    const entries = [
+      "Belum Proses",
+      "Belum di Expedisi",
+      "Proses Pengiriman",
+      "Kendala Pengiriman",
+      "Sampai Tujuan",
+      "Retur",
+      "Dibatalkan",
+    ].map((status) => {
+      const c = count(status);
+      return { status, count: c, percentage: pct(c) };
+    });
+    return entries;
+  }, [dataReport]);
+
+  const filteredData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return dataReport.filter((item) => {
+      const searchMatch =
+        !q ||
+        item.shipmentNo.toLowerCase().includes(q) ||
+        item.recipient.toLowerCase().includes(q);
+      const statusMatch =
+        statusFilter === "Semua Status" || item.status === statusFilter;
+      const packageMatch =
+        packageTypeFilter === "Semua Jenis Paket" ||
+        item.packageType === packageTypeFilter;
+      return searchMatch && statusMatch && packageMatch;
+    });
+  }, [dataReport, search, statusFilter, packageTypeFilter]);
+
+  const hasFilter =
+    Boolean(search) ||
+    statusFilter !== "Semua Status" ||
+    packageTypeFilter !== "Semua Jenis Paket";
+
+  const resetFilter = () => {
+    setSearch("");
+    setStatusFilter("Semua Status");
+    setPackageTypeFilter("Semua Jenis Paket");
   };
 
-  const stats = calculateStatistics();
-  const statusStats = calculateStatusStatistics();
-
-  // Updated data arrays using real statistics
-  const data = [
-    {
-      label: "Total Pengiriman",
-      value: stats.totalPengiriman,
-      icon: (
-        <LayoutGrid
-          size={24}
-          className="bg-blue-200 text-blue-500 rounded-full p-1"
-        />
-      ),
-      percentage: null,
-    },
-    {
-      label: "Paket Reguler",
-      value: stats.paketReguler,
-      icon: (
-        <Package
-          size={24}
-          className="bg-blue-200 text-blue-500 rounded-full p-1"
-        />
-      ),
-      percentage: stats.paketRegulerPercentage,
-    },
-    {
-      label: "Paket Instant",
-      value: stats.paketInstant,
-      icon: (
-        <Truck
-          size={24}
-          className="bg-blue-200 text-blue-500 rounded-full p-1"
-        />
-      ),
-      percentage: stats.paketInstantPercentage,
-    },
-    {
-      label: "COD",
-      value: stats.cod,
-      icon: (
-        <Package2
-          size={24}
-          className="bg-blue-200 text-blue-500 rounded-full p-1"
-        />
-      ),
-      percentage: stats.codPercentage,
-    },
-  ];
-
-  const statusData = [
-    {
-      label: "Belum Proses",
-      value: statusStats.find((s) => s.status === "Belum Proses")?.count || 0,
-      icon: <Hourglass size={18} className="text-yellow-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Belum Proses")?.percentage || 0,
-    },
-    {
-      label: "Belum di Expedisi",
-      value:
-        statusStats.find((s) => s.status === "Belum di Expedisi")?.count || 0,
-      icon: <Info size={18} className="text-blue-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Belum di Expedisi")?.percentage ||
-        0,
-    },
-    {
-      label: "Proses Pengiriman",
-      value:
-        statusStats.find((s) => s.status === "Proses Pengiriman")?.count || 0,
-      icon: <Truck size={18} className="text-blue-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Proses Pengiriman")?.percentage ||
-        0,
-    },
-    {
-      label: "Kendala Pengiriman",
-      value:
-        statusStats.find((s) => s.status === "Kendala Pengiriman")?.count || 0,
-      icon: <XCircle size={18} className="text-red-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Kendala Pengiriman")
-          ?.percentage || 0,
-    },
-    {
-      label: "Sampai Tujuan",
-      value: statusStats.find((s) => s.status === "Sampai Tujuan")?.count || 0,
-      icon: <CheckCircle size={18} className="text-green-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Sampai Tujuan")?.percentage || 0,
-    },
-    {
-      label: "Retur",
-      value: statusStats.find((s) => s.status === "Retur")?.count || 0,
-      icon: <RefreshCw size={18} className="text-blue-500" />,
-      percentage:
-        statusStats.find((s) => s.status === "Retur")?.percentage || 0,
-    },
-    {
-      label: "Dibatalkan",
-      value: statusStats.find((s) => s.status === "Dibatalkan")?.count || 0,
-      icon: <XCircle size={18} className="text-red-600" />,
-      percentage:
-        statusStats.find((s) => s.status === "Dibatalkan")?.percentage || 0,
-    },
-  ];
-
-  if (loading) {
-    return (
-      <SidebarProvider>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <div className="flex items-center justify-between w-full">
-            <div className="flex-1">
-              <SiteHeader />
-            </div>
-            <TopNav />
-          </div>
-          <div className="flex flex-1 flex-col bg-blue-100">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-3 md:px-6">
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-lg">Loading...</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    );
-  }
-
-  if (error) {
-    return (
-      <SidebarProvider>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <div className="flex items-center justify-between w-full">
-            <div className="flex-1">
-              <SiteHeader />
-            </div>
-            <TopNav />
-          </div>
-          <div className="flex flex-1 flex-col bg-blue-100">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-3 md:px-6">
-                <div className="flex items-center justify-center h-64">
-                  <div className="text-lg text-red-500">{error}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    );
-  }
+  const statusIcon: Record<string, { icon: LucideIcon; tone: Tone }> = {
+    "Belum Proses": { icon: Hourglass, tone: "amber" },
+    "Belum di Expedisi": { icon: Info, tone: "slate" },
+    "Proses Pengiriman": { icon: Truck, tone: "blue" },
+    "Kendala Pengiriman": { icon: AlertTriangle, tone: "rose" },
+    "Sampai Tujuan": { icon: CheckCircle2, tone: "green" },
+    Retur: { icon: RefreshCw, tone: "violet" },
+    Dibatalkan: { icon: XCircle, tone: "rose" },
+  };
 
   return (
     <SidebarProvider>
@@ -353,103 +419,207 @@ const LaporanPengiriman = () => {
           </div>
           <TopNav />
         </div>
-        <div className="flex flex-1 flex-col bg-blue-50/80">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-3 sm:gap-4 md:gap-6 py-3 sm:py-4 md:py-6 px-3 md:px-6">
-              {/* Header - Mobile responsive */}
-              <div className="flex items-center gap-2">
-                <ClipboardListIcon className="h-7 w-7 text-blue-600" />
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                    Laporan Pengiriman
-                  </h1>
-                  <p className="text-muted-foreground text-sm">
-                    Riwayat pengiriman dengan filter admin.
-                  </p>
+
+        <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Laporan Pengiriman" },
+            ]}
+            icon={ClipboardListIcon}
+            title="Laporan Pengiriman"
+            description="Riwayat pengiriman dengan filter admin."
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <DateRangeField
+                  value={periode}
+                  onChange={setPeriode}
+                  placeholder="Semua periode"
+                  className="w-[240px]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 gap-2 rounded-lg border-slate-200 bg-white"
+                  disabled={refreshing}
+                  onClick={() => void fetchOrders(true)}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                    aria-hidden
+                  />
+                  Refresh
+                </Button>
+                <Button
+                  type="button"
+                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  disabled={filteredData.length === 0}
+                  onClick={() => exportDeliveryReportCsv(filteredData)}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              </div>
+            }
+          />
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <span className="text-sm text-slate-500">Memuat data...</span>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <ProgressStatCard
+                  horizontal
+                  icon={Package}
+                  tone="blue"
+                  title="Total Pengiriman"
+                  value={stats.total}
+                  hint="Semua pengiriman"
+                />
+                <ProgressStatCard
+                  horizontal
+                  icon={Package2}
+                  tone="violet"
+                  title="Paket Reguler"
+                  value={stats.reguler}
+                  hint={`${stats.regulerPct}% dari total`}
+                  percentage={stats.regulerPct}
+                />
+                <ProgressStatCard
+                  horizontal
+                  icon={Truck}
+                  tone="green"
+                  title="Paket Instant"
+                  value={stats.instant}
+                  hint={`${stats.instantPct}% dari total`}
+                  percentage={stats.instantPct}
+                />
+                <ProgressStatCard
+                  horizontal
+                  icon={Wallet}
+                  tone="orange"
+                  title="COD"
+                  value={stats.cod}
+                  hint={`${stats.codPct}% dari total`}
+                  percentage={stats.codPct}
+                />
+              </div>
+
+              <SectionCard
+                icon={ClipboardCheck}
+                title="Status Pengiriman"
+                description="Ringkasan status pengiriman."
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {statusStats.map((s) => {
+                    const meta = statusIcon[s.status];
+                    return (
+                      <ProgressStatCard
+                        key={s.status}
+                        icon={meta.icon}
+                        tone={meta.tone}
+                        title={s.status}
+                        value={s.count}
+                        hint={`${s.percentage}% dari total`}
+                        percentage={s.percentage}
+                      />
+                    );
+                  })}
                 </div>
-              </div>
+              </SectionCard>
 
-              {/* Kartu Statistik Pengiriman - Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {data.map((item, index) => (
-                  <Card key={index} className="shadow-md">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-4">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        {item.icon}
-                        <span className="text-xs sm:text-sm leading-tight">
-                          {item.label}
-                        </span>
-                      </CardTitle>
-                      {item.percentage !== null && (
-                        <span className="text-xs text-blue-700 rounded-full bg-blue-100 px-2 py-1 flex-shrink-0">
-                          {item.percentage}%
-                        </span>
-                      )}
-                    </CardHeader>
-                    <CardContent className="p-3 sm:p-4 pt-0">
-                      <p className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                        {item.value}
-                      </p>
-                      {item.percentage !== null && (
-                        <Progress value={item.percentage} className="mt-2" />
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <SectionCard icon={SlidersHorizontal} title="Filter Data">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Cari Data
+                    </Label>
+                    <div className="relative">
+                      <Search
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                      <Input
+                        placeholder="Cari nomor resi, penerima..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="h-11 rounded-lg border-slate-200 bg-white pl-9"
+                      />
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <ClipboardCheck className="h-7 w-7 text-blue-600" />
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                    Status Pengiriman
-                  </h1>
-                  <p className="text-muted-foreground text-sm">
-                    Status pengiriman dengan filter admin.
-                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Filter Status
+                    </Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Filter Jenis Paket
+                    </Label>
+                    <Select
+                      value={packageTypeFilter}
+                      onValueChange={setPackageTypeFilter}
+                    >
+                      <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PACKAGE_TYPE_OPTIONS.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!hasFilter}
+                      onClick={resetFilter}
+                      className="h-11 w-full gap-2 rounded-lg border-slate-200"
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      Reset Filter
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              {/* Kartu Status Pengiriman - Better Mobile Layout */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
-                {statusData.map((status, index) => (
-                  <Card key={index} className="shadow-md">
-                    <CardHeader className="flex flex-col space-y-2 pb-2 p-3 sm:p-4">
-                      <div className="flex items-center justify-between">
-                        {status.icon}
-                        <span className="text-xs text-blue-700 rounded-full bg-blue-100 px-2 py-1 flex-shrink-0">
-                          {status.percentage}%
-                        </span>
-                      </div>
-                      <CardTitle className="text-xs sm:text-sm font-medium leading-tight">
-                        {status.label}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0 p-3 sm:p-4">
-                      <p className="text-lg sm:text-xl lg:text-2xl font-bold">
-                        {status.value}
-                      </p>
-                      <Progress value={status.percentage} className="mt-2" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              </SectionCard>
 
-              <Card className="overflow-hidden">
+              <SectionCard
+                icon={ClipboardListIcon}
+                title="Data Pengiriman"
+                description={`${filteredData.length} entri`}
+              >
                 <DataTable
                   columns={columns}
-                  data={dataReport}
-                  statusFilter={statusFilter}
-                  setStatusFilter={setStatusFilter}
-                  dateRange={dateRange}
-                  setDateRange={setDateRange}
-                  packageTypeFilter={packageTypeFilter}
-                  setPackageTypeFilter={setPackageTypeFilter}
-                  onRefresh={() => fetchOrders(true)}
-                  isRefreshing={refreshing}
+                  data={filteredData}
+                  hasFilter={hasFilter}
                 />
-              </Card>
-            </div>
-          </div>
+              </SectionCard>
+            </>
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>

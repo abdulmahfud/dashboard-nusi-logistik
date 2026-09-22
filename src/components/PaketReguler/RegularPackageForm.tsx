@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { SectionCard } from "@/components/redesign/section-card";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,8 @@ import {
   CircleChevronRight,
   Loader2,
   Boxes,
+  Truck,
+  CreditCard,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -973,33 +975,30 @@ export default function RegularPackageForm({
   );
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div>
       <form onSubmit={handleSubmit}>
-        {/* Section Detail Pengiriman */}
-        <Card className="p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Detail Pengiriman</h2>
-
-          <div className="mb-6">
-            <Label>Opsi Penjemputan</Label>
+        {/* Section Opsi Penjemputan & Metode Pembayaran */}
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <SectionCard icon={Truck} title="Opsi Penjemputan">
             <RadioGroup
               value={formData.deliveryType}
               onValueChange={(value) => handleChange("deliveryType", value)}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 gap-3"
             >
               {/* Pick Up Option */}
               <label
                 htmlFor="pickup"
-                className={`flex items-start space-x-2 p-4 rounded-lg border cursor-pointer transition ${
+                className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                   formData.deliveryType === "pickup"
-                    ? "border-blue-500 bg-blue-200"
-                    : "border-gray-200 hover:border-gray-400"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <RadioGroupItem value="pickup" id="pickup" className="peer" />
+                <RadioGroupItem value="pickup" id="pickup" className="mt-0.5" />
                 <div>
-                  <div className="font-medium">Pick Up</div>
-                  <div className="text-sm text-gray-500">
-                    Paket akan dijemput ke tempatmu
+                  <div className="font-medium text-slate-900">Pick Up</div>
+                  <div className="text-sm text-slate-500">
+                    Kurir menjemput paket di alamat Anda
                   </div>
                 </div>
               </label>
@@ -1007,44 +1006,45 @@ export default function RegularPackageForm({
               {/* Drop Off Option */}
               <label
                 htmlFor="dropoff"
-                className={`flex items-start space-x-2 p-4 rounded-lg border cursor-pointer transition ${
+                className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                   formData.deliveryType === "dropoff"
-                    ? "border-blue-500 bg-blue-200"
-                    : "border-gray-200 hover:border-gray-400"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <RadioGroupItem value="dropoff" id="dropoff" className="peer" />
+                <RadioGroupItem value="dropoff" id="dropoff" className="mt-0.5" />
                 <div>
-                  <div className="font-medium">Drop Off</div>
-                  <div className="text-sm text-gray-500">
-                    Paket perlu diantar ke agen ekspedisi
+                  <div className="font-medium text-slate-900">Drop Off</div>
+                  <div className="text-sm text-slate-500">
+                    Anda antar paket ke gerai/agen
                   </div>
                 </div>
               </label>
             </RadioGroup>
-          </div>
+          </SectionCard>
 
-          <div className="mb-6">
-            <Label>Metode Pembayaran</Label>
+          <SectionCard icon={CreditCard} title="Metode Pembayaran">
             <RadioGroup
               value={formData.paymentMethod}
               onValueChange={(value) => handleChange("paymentMethod", value)}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 gap-3"
             >
               {/* COD Option */}
               <label
                 htmlFor="cod"
-                className={`flex items-center space-x-2 p-4 rounded-lg border cursor-pointer transition ${
+                className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                   formData.paymentMethod === "cod"
-                    ? "border-blue-500 bg-blue-200"
-                    : "border-gray-200 hover:border-gray-400"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <RadioGroupItem value="cod" id="cod" className="peer" />
+                <RadioGroupItem value="cod" id="cod" className="mt-0.5" />
                 <div>
-                  <div className="font-medium">COD (Cash on Delivery)</div>
-                  <div className="text-sm text-gray-500">
-                    Pembayaran akan dilakukan saat paket sampai di tujuan
+                  <div className="font-medium text-slate-900">
+                    COD (Cash on Delivery)
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    Nilai barang + ongkir dibayar penerima saat paket sampai
                   </div>
                 </div>
               </label>
@@ -1052,34 +1052,32 @@ export default function RegularPackageForm({
               {/* Non-COD Option */}
               <label
                 htmlFor="non-cod"
-                className={`flex items-center space-x-2 p-4 rounded-lg border cursor-pointer transition ${
+                className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                   formData.paymentMethod === "non-cod"
-                    ? "border-blue-500 bg-blue-200"
-                    : "border-gray-200 hover:border-gray-400"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <RadioGroupItem value="non-cod" id="non-cod" className="peer" />
+                <RadioGroupItem value="non-cod" id="non-cod" className="mt-0.5" />
                 <div>
-                  <div className="font-medium">Non-COD</div>
-                  <div className="text-sm text-gray-500">
-                    Pembayaran akan dilakukan sebelum paket dikirim
+                  <div className="font-medium text-slate-900">Non-COD</div>
+                  <div className="text-sm text-slate-500">
+                    Pembayaran dilakukan sebelum paket dikirim
                   </div>
                 </div>
               </label>
             </RadioGroup>
-          </div>
-        </Card>
+          </SectionCard>
+        </div>
         {/* Section List Pengirim */}
-        <Card className="p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Pengirim
-            </h2>
-            {/* Button untuk membuka popup */}
+        <SectionCard
+          icon={Send}
+          title="Data Pengirim"
+          className="mb-6"
+          action={
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
+                <Button className="h-10 gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">
                   <PenLine size={16} /> Pilih List Pengirim
                 </Button>
               </DialogTrigger>
@@ -1108,8 +1106,8 @@ export default function RegularPackageForm({
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-
+          }
+        >
           <div className="space-y-4">
             {/* Error display */}
             {formErrors.sender && (
@@ -1117,7 +1115,7 @@ export default function RegularPackageForm({
                 {formErrors.sender}
               </div>
             )}
-            
+
             {/* Semua field langsung editable */}
             <div>
               <Label htmlFor="senderName">
@@ -1294,18 +1292,16 @@ export default function RegularPackageForm({
               />
             </div>
           </div>
-        </Card>
+        </SectionCard>
         {/* Section List Penerima */}
-        <Card className="p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Penerima
-            </h2>
-            {/* Button untuk membuka popup list penerima */}
+        <SectionCard
+          icon={User}
+          title="Data Penerima"
+          className="mb-6"
+          action={
             <Popover open={openRecipient} onOpenChange={setOpenRecipient}>
               <PopoverTrigger asChild>
-                <Button className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out">
+                <Button className="h-10 gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">
                   <PenLine size={16} /> Pilih List Penerima
                 </Button>
               </PopoverTrigger>
@@ -1346,7 +1342,7 @@ export default function RegularPackageForm({
                           // Set receiver address query to show the location
                           const fullAddress = `${recipient.district || ""}, ${recipient.regency || ""}, ${recipient.province || ""}`;
                           setReceiverAddressQuery(fullAddress.trim());
-                          
+
                           // Create AddressResult-like object for saved recipient
                           const addressResult: AddressResult = {
                             type: "subdistrict",
@@ -1363,7 +1359,7 @@ export default function RegularPackageForm({
                             subdistrict_id: 0,
                           };
                           setSelectedReceiverAddress(addressResult);
-                          
+
                           setOpenRecipient(false);
                         }}
                       >
@@ -1384,7 +1380,8 @@ export default function RegularPackageForm({
                 </div>
               </PopoverContent>
             </Popover>
-          </div>
+          }
+        >
 
           <div className="space-y-4">
             {/* Nama & Nomor Telepon */}
@@ -1543,26 +1540,24 @@ export default function RegularPackageForm({
               )}
             </div>
           </div>
-        </Card>
+        </SectionCard>
         {/* Section Detail Product */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Detail Paket
-            </h2>
+        <SectionCard
+          icon={Package}
+          title="Detail Paket"
+          action={
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 rounded-lg"
               onClick={handleOpenCatalog}
             >
               <Boxes className="h-4 w-4" />
               Pilih dari Katalog Produk
             </Button>
-          </div>
-
+          }
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -1649,7 +1644,7 @@ export default function RegularPackageForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div>
                 <Label htmlFor="weight">
                   Berat <span className="text-red-500">*</span>
@@ -1667,9 +1662,6 @@ export default function RegularPackageForm({
                   </p>
                 )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-3 md:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="length">
                   Panjang (cm) <span className="text-red-500">*</span>
@@ -1738,7 +1730,7 @@ export default function RegularPackageForm({
 
             <Button
               type="submit"
-              className="w-full h-11 px-6 py-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 text-sm flex items-center gap-2 rounded-full shadow-md transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -1748,13 +1740,13 @@ export default function RegularPackageForm({
                 </>
               ) : (
                 <>
+                  Lanjut ke Ringkasan
                   <CircleChevronRight className="w-4 h-4" />
-                  Pilih Expedisi
                 </>
               )}
             </Button>
           </div>
-        </Card>
+        </SectionCard>
       </form>
       {/* Hasil cek ongkir dihandle parent */}
 

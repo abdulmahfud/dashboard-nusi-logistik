@@ -10,7 +10,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,10 +26,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Power, PowerOff, Boxes } from "lucide-react";
+import {
+  AlertTriangle,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Power,
+  PowerOff,
+  Boxes,
+} from "lucide-react";
 import { Product } from "@/types/product";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "@/lib/currency";
+
+const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 interface ProductListProps {
   products: Product[];
@@ -116,68 +125,77 @@ export function ProductList({
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-muted-foreground">
-          <Boxes className="h-12 w-12 mx-auto mb-4 opacity-20" />
-          <h3 className="text-lg font-medium mb-2">Belum ada produk</h3>
-          <p className="text-sm">
-            Tambahkan produk agar bisa dipilih cepat saat membuat order.
-          </p>
-        </div>
+      <div className="flex flex-col items-center py-12 text-center">
+        <span className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
+          <Boxes className="h-9 w-9 text-blue-300" aria-hidden />
+        </span>
+        <p className="font-semibold text-slate-900">Belum ada produk</p>
+        <p className="mt-1 max-w-xs text-sm text-slate-500">
+          Tambahkan produk agar bisa dipilih cepat saat membuat order.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="rounded-md border overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-slate-100">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nama Produk</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Berat</TableHead>
-              <TableHead>Dimensi</TableHead>
-              <TableHead>Harga</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="border-slate-100 hover:bg-transparent">
+              <TableHead className={headCls}>Nama Produk</TableHead>
+              <TableHead className={headCls}>Kategori</TableHead>
+              <TableHead className={headCls}>Berat</TableHead>
+              <TableHead className={headCls}>Dimensi</TableHead>
+              <TableHead className={headCls}>Harga</TableHead>
+              <TableHead className={headCls}>Status</TableHead>
+              <TableHead className={`${headCls} text-right`}>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>
+              <TableRow
+                key={product.id}
+                className="border-slate-100 hover:bg-slate-50/60"
+              >
+                <TableCell className="py-4 font-medium text-slate-900">
+                  {product.name}
+                </TableCell>
+                <TableCell className="py-4">
                   {product.category ? (
-                    <Badge variant="outline">{product.category}</Badge>
+                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                      {product.category}
+                    </span>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </TableCell>
-                <TableCell>{formatWeightGram(product)}</TableCell>
-                <TableCell className="whitespace-nowrap">
+                <TableCell className="py-4 text-sm text-slate-700">
+                  {formatWeightGram(product)}
+                </TableCell>
+                <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
                   {formatDimensions(product)}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-4 text-sm text-slate-700">
                   {product.price ? formatRupiah(product.price) : "-"}
                 </TableCell>
-                <TableCell>
-                  <Badge
-                    className={
+                <TableCell className="py-4">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                       product.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
                   >
                     {product.is_active ? "Aktif" : "Tidak Aktif"}
-                  </Badge>
+                  </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-4 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="h-8 w-8 p-0"
+                        className="h-9 w-9 rounded-lg p-0"
                         disabled={
                           deletingId === product.id ||
                           togglingId === product.id
@@ -259,8 +277,11 @@ export function ProductList({
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="rounded-2xl border-slate-100">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+              <AlertTriangle className="h-7 w-7" aria-hidden />
+            </span>
             <AlertDialogTitle>Hapus Produk</AlertDialogTitle>
             <AlertDialogDescription>
               Apakah Anda yakin ingin menghapus produk &quot;
@@ -268,11 +289,13 @@ export function ProductList({
               dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogCancel className="h-10 rounded-lg border-slate-200">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-red-600 hover:bg-red-700"
+              className="h-10 rounded-lg bg-rose-600 hover:bg-rose-700"
             >
               Hapus
             </AlertDialogAction>

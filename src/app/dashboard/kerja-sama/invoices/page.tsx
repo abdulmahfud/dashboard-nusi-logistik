@@ -3,9 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateIdLong } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
@@ -40,17 +41,9 @@ import {
   getKerjaSamaAccounts,
   getKerjaSamaInvoices,
 } from "@/lib/apiClient";
-import {
-  KERJA_SAMA_INVOICE_STATUS_LABEL,
-  type KerjaSamaAccount,
-  type KerjaSamaInvoice,
-} from "@/types/kerjaSama";
+import type { KerjaSamaAccount, KerjaSamaInvoice } from "@/types/kerjaSama";
 import { AxiosError } from "axios";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Eye,
   Loader2,
   Plus,
@@ -61,6 +54,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { InvoiceStatusBadge } from "./status-badge";
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof AxiosError) {
@@ -69,22 +63,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function statusBadgeClass(status: string): string {
-  switch (status) {
-    case "paid":
-      return "border-green-200 bg-green-100 text-green-800";
-    case "partially_paid":
-      return "border-amber-200 bg-amber-100 text-amber-900";
-    case "overdue":
-      return "border-red-200 bg-red-100 text-red-800";
-    case "issued":
-      return "border-blue-200 bg-blue-100 text-blue-800";
-    case "void":
-      return "border-gray-200 bg-gray-100 text-gray-700";
-    default:
-      return "border-slate-200 bg-slate-100 text-slate-700";
-  }
-}
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
 
 export default function KerjaSamaInvoicesPage() {
   const { hasPermission, loading: authLoading } = useAuth();
@@ -166,8 +146,8 @@ export default function KerjaSamaInvoicesPage() {
     [statusFilter, perPage]
   );
 
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
+  const handlePerPageChange = (value: number) => {
+    setPerPage(value);
   };
 
   useEffect(() => {
@@ -273,248 +253,187 @@ export default function KerjaSamaInvoicesPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-                <ReceiptText className="h-7 w-7 text-blue-600" />
-                Invoice Kerja Sama
-              </h1>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Tagihan bulanan untuk akun postpaid, dari transaksi
-                confirmed yang belum ditagih.
-              </p>
-            </div>
-            {canGenerate && (
-              <Button
-                type="button"
-                className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-                onClick={() => setGenOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Generate Invoice
-              </Button>
-            )}
-          </div>
-
-          <Card className="border-blue-100 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Daftar invoice</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="unpaid">
-                      Belum Lunas (Terkirim + Sebagian + Jatuh Tempo)
-                    </SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="issued">Terkirim</SelectItem>
-                    <SelectItem value="partially_paid">
-                      Sebagian Lunas
-                    </SelectItem>
-                    <SelectItem value="paid">Lunas</SelectItem>
-                    <SelectItem value="overdue">Jatuh Tempo</SelectItem>
-                    <SelectItem value="void">Dibatalkan</SelectItem>
-                  </SelectContent>
-                </Select>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Invoice Kerja Sama" },
+            ]}
+            icon={ReceiptText}
+            title="Invoice Kerja Sama"
+            description="Tagihan bulanan untuk akun postpaid, dari transaksi confirmed yang belum ditagih."
+            action={
+              canGenerate ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => fetchList(page)}
-                  disabled={loading}
+                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setGenOpen(true)}
                 >
-                  <RefreshCw
-                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                  />
-                  Refresh
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Generate Invoice
                 </Button>
-              </div>
+              ) : undefined
+            }
+          />
 
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Memuat data…
-                </div>
-              ) : error ? (
-                <div
-                  className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
-                  role="alert"
-                >
-                  {error}
-                </div>
-              ) : rows.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  Belum ada invoice.
-                </p>
-              ) : (
-                <>
-                  <div className="overflow-x-auto rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>No. Invoice</TableHead>
-                          <TableHead>Akun</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Jatuh Tempo</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead className="text-right">Dibayar</TableHead>
-                          <TableHead className="text-right">Sisa</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rows.map((inv) => {
-                          const grandTotal = Number(inv.grand_total) || 0;
-                          const paidAmount = Number(inv.paid_amount) || 0;
-                          const remaining = Math.max(
-                            grandTotal - paidAmount,
-                            0
-                          );
-                          return (
-                          <TableRow key={inv.id}>
-                            <TableCell className="font-mono text-sm">
+          <SectionCard icon={ReceiptText} title="Daftar Invoice">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className={`w-full sm:w-[240px] ${fieldCls}`}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="unpaid">
+                    Belum Lunas (Terkirim + Sebagian + Jatuh Tempo)
+                  </SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="issued">Terkirim</SelectItem>
+                  <SelectItem value="partially_paid">
+                    Sebagian Lunas
+                  </SelectItem>
+                  <SelectItem value="paid">Lunas</SelectItem>
+                  <SelectItem value="overdue">Jatuh Tempo</SelectItem>
+                  <SelectItem value="void">Dibatalkan</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-2 rounded-lg border-slate-200"
+                onClick={() => fetchList(page)}
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Refresh
+              </Button>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-slate-500">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Memuat data…
+              </div>
+            ) : error ? (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+                role="alert"
+              >
+                {error}
+              </div>
+            ) : rows.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">
+                Belum ada invoice.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="overflow-x-auto rounded-xl border border-slate-100">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-100 hover:bg-transparent">
+                        <TableHead className={headCls}>No. Invoice</TableHead>
+                        <TableHead className={headCls}>Akun</TableHead>
+                        <TableHead className={headCls}>Status</TableHead>
+                        <TableHead className={headCls}>Jatuh Tempo</TableHead>
+                        <TableHead className={`${headCls} text-right`}>
+                          Total
+                        </TableHead>
+                        <TableHead className={`${headCls} text-right`}>
+                          Dibayar
+                        </TableHead>
+                        <TableHead className={`${headCls} text-right`}>
+                          Sisa
+                        </TableHead>
+                        <TableHead className={`${headCls} text-right`}>
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map((inv) => {
+                        const grandTotal = Number(inv.grand_total) || 0;
+                        const paidAmount = Number(inv.paid_amount) || 0;
+                        const remaining = Math.max(
+                          grandTotal - paidAmount,
+                          0
+                        );
+                        return (
+                          <TableRow
+                            key={inv.id}
+                            className="border-slate-100 hover:bg-slate-50/60"
+                          >
+                            <TableCell className="py-4 font-mono text-xs text-slate-700">
                               {inv.invoice_no}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell className="py-4 text-sm text-slate-700">
                               {inv.user?.company_name || inv.user?.name || "—"}
                             </TableCell>
-                            <TableCell>
-                              <Badge className={statusBadgeClass(inv.status)}>
-                                {KERJA_SAMA_INVOICE_STATUS_LABEL[inv.status] ??
-                                  inv.status}
-                              </Badge>
+                            <TableCell className="py-4">
+                              <InvoiceStatusBadge status={inv.status} />
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-sm">
+                            <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
                               {formatDateIdLong(inv.due_date)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums">
+                            <TableCell className="whitespace-nowrap py-4 text-right text-sm font-medium tabular-nums text-slate-900">
                               {formatRupiah(grandTotal)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums text-green-700">
+                            <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-emerald-700">
                               {formatRupiah(paidAmount)}
                             </TableCell>
                             <TableCell
-                              className={`whitespace-nowrap text-right tabular-nums font-medium ${
-                                remaining > 0 ? "text-red-700" : "text-muted-foreground"
+                              className={`whitespace-nowrap py-4 text-right text-sm font-medium tabular-nums ${
+                                remaining > 0
+                                  ? "text-rose-700"
+                                  : "text-slate-400"
                               }`}
                             >
                               {formatRupiah(remaining)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="py-4 text-right">
                               <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                className="gap-2"
+                                className="h-9 gap-1.5 rounded-lg border-slate-200"
                                 onClick={() =>
                                   router.push(
                                     `/dashboard/kerja-sama/invoices/${inv.id}`
                                   )
                                 }
                               >
-                                <Eye className="h-4 w-4" />
+                                <Eye className="h-3.5 w-3.5" aria-hidden />
                                 Detail
                               </Button>
                             </TableCell>
                           </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
 
-                  {isUnpaidView ? (
-                    <div className="px-1 text-sm text-muted-foreground">
-                      Total {total} invoice belum lunas — menampilkan hingga{" "}
-                      {UNPAID_FETCH_CAP} invoice per status (Terkirim,
-                      Sebagian Lunas, Jatuh Tempo), diurutkan dari jatuh tempo
-                      terdekat.
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-sm text-muted-foreground">
-                        Total {total} invoice
-                      </span>
-                      <div className="flex items-center space-x-6 lg:space-x-8">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium">
-                            Baris per halaman
-                          </p>
-                          <Select
-                            value={`${perPage}`}
-                            onValueChange={handlePerPageChange}
-                          >
-                            <SelectTrigger className="h-8 w-[70px]">
-                              <SelectValue placeholder={perPage} />
-                            </SelectTrigger>
-                            <SelectContent side="top">
-                              {[10, 20, 30, 40, 50].map((size) => (
-                                <SelectItem key={size} value={`${size}`}>
-                                  {size}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                          Halaman {page} dari {lastPage}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            onClick={() => fetchList(1)}
-                            disabled={page <= 1 || loading}
-                          >
-                            <span className="sr-only">Go to first page</span>
-                            <ChevronsLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            onClick={() => fetchList(page - 1)}
-                            disabled={page <= 1 || loading}
-                          >
-                            <span className="sr-only">
-                              Go to previous page
-                            </span>
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            onClick={() => fetchList(page + 1)}
-                            disabled={page >= lastPage || loading}
-                          >
-                            <span className="sr-only">Go to next page</span>
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            onClick={() => fetchList(lastPage)}
-                            disabled={page >= lastPage || loading}
-                          >
-                            <span className="sr-only">Go to last page</span>
-                            <ChevronsRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                {isUnpaidView ? (
+                  <p className="text-sm text-slate-500">
+                    Total {total} invoice belum lunas — menampilkan hingga{" "}
+                    {UNPAID_FETCH_CAP} invoice per status (Terkirim, Sebagian
+                    Lunas, Jatuh Tempo), diurutkan dari jatuh tempo terdekat.
+                  </p>
+                ) : (
+                  <NumberedPagination
+                    page={page}
+                    lastPage={lastPage}
+                    total={total}
+                    perPage={perPage}
+                    disabled={loading}
+                    onPageChange={(p) => void fetchList(p)}
+                    onPerPageChange={handlePerPageChange}
+                  />
+                )}
+              </div>
+            )}
+          </SectionCard>
         </div>
 
         <Dialog
@@ -524,14 +443,21 @@ export default function KerjaSamaInvoicesPage() {
             if (!open) resetGenerateForm();
           }}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Generate Invoice</DialogTitle>
-              <DialogDescription>
-                Semua transaksi berstatus confirmed yang belum ditagih akan
-                otomatis diikutkan, apa pun tanggalnya. Periode di bawah
-                hanya label administratif.
-              </DialogDescription>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <ReceiptText className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Generate Invoice</DialogTitle>
+                  <DialogDescription>
+                    Semua transaksi berstatus confirmed yang belum ditagih
+                    akan otomatis diikutkan, apa pun tanggalnya. Periode di
+                    bawah hanya label administratif.
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
             <div className="space-y-3">
               <div className="relative" ref={accountInputRef}>
@@ -548,6 +474,7 @@ export default function KerjaSamaInvoicesPage() {
                       setSelectedAccount(null);
                     }}
                     autoComplete="off"
+                    className={fieldCls}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     {searchingAccount ? (
@@ -558,11 +485,11 @@ export default function KerjaSamaInvoicesPage() {
                   </div>
                 </div>
                 {showAccountResults && accountResults.length > 0 && (
-                  <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-md border bg-white shadow-lg">
+                  <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                     {accountResults.map((acc) => (
                       <div
                         key={acc.id}
-                        className="cursor-pointer border-b p-3 last:border-b-0 hover:bg-blue-50"
+                        className="cursor-pointer border-b border-slate-100 p-3 last:border-b-0 hover:bg-blue-50"
                         onClick={() => {
                           setSelectedAccount(acc);
                           setAccountQuery(
@@ -571,12 +498,10 @@ export default function KerjaSamaInvoicesPage() {
                           setShowAccountResults(false);
                         }}
                       >
-                        <p className="text-sm font-medium">
+                        <p className="text-sm font-medium text-slate-900">
                           {acc.company_name || acc.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {acc.email}
-                        </p>
+                        <p className="text-xs text-slate-500">{acc.email}</p>
                       </div>
                     ))}
                   </div>
@@ -589,6 +514,7 @@ export default function KerjaSamaInvoicesPage() {
                     type="date"
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
+                    className={fieldCls}
                   />
                 </div>
                 <div className="space-y-1">
@@ -597,14 +523,16 @@ export default function KerjaSamaInvoicesPage() {
                     type="date"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
+                    className={fieldCls}
                   />
                 </div>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setGenOpen(false)}
                 disabled={genSaving}
               >
@@ -614,7 +542,7 @@ export default function KerjaSamaInvoicesPage() {
                 type="button"
                 onClick={() => void submitGenerate()}
                 disabled={genSaving}
-                className="bg-blue-500 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {genSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

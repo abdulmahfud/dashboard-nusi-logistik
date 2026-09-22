@@ -10,6 +10,8 @@ export interface BankAccount {
   verified_at: string | null;
   rejected_reason: string | null;
   is_default: boolean;
+  /** Terisi kalau ada permintaan hapus yang sedang menunggu persetujuan admin. */
+  deletion_requested_at?: string | null;
   created_at: string;
   updated_at: string;
   photo_rekening_url?: string;
@@ -57,6 +59,15 @@ export interface BankAccountCreateRequest {
   photo_ktp: File;
 }
 
+/** PUT /admin/bank-accounts/{id} — foto opsional (re-upload, replace foto lama). */
+export interface BankAccountUpdateRequest {
+  bank_name: string;
+  account_name: string;
+  account_number: string;
+  photo_rekening?: File;
+  photo_ktp?: File;
+}
+
 export interface BankAccountCreateResponse {
   success: boolean;
   message: string;
@@ -73,6 +84,8 @@ export type BankAccountsAllQuery = {
   user_id?: number;
   status?: "pending" | "approved" | "rejected";
   search?: string;
+  /** 1 = hanya rekening yang sedang mengajukan hapus; 0 = sebaliknya. */
+  pending_deletion?: 0 | 1;
   page?: number;
   /** 1–100, default backend 20 */
   per_page?: number;

@@ -27,11 +27,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Power, PowerOff, Tag } from "lucide-react";
+import {
+  AlertTriangle,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Power,
+  PowerOff,
+  Tag,
+} from "lucide-react";
 import { FlatShippingRate } from "@/types/flatShippingRate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "@/lib/currency";
 import { getVendorBadgeClass } from "@/lib/pricingVendors";
+
+const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 interface FlatRateListProps {
   rates: FlatShippingRate[];
@@ -114,77 +124,88 @@ export function FlatRateList({
 
   if (rates.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-muted-foreground">
-          <Tag className="h-12 w-12 mx-auto mb-4 opacity-20" />
-          <h3 className="text-lg font-medium mb-2">
-            Belum ada program flat ongkir
-          </h3>
-          <p className="text-sm">
-            Buat program baru untuk memberi harga tetap di rute tertentu.
-          </p>
-        </div>
+      <div className="flex flex-col items-center py-12 text-center">
+        <span className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
+          <Tag className="h-9 w-9 text-blue-300" aria-hidden />
+        </span>
+        <p className="font-semibold text-slate-900">
+          Belum ada program flat ongkir
+        </p>
+        <p className="mt-1 max-w-xs text-sm text-slate-500">
+          Buat program baru untuk memberi harga tetap di rute tertentu.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="rounded-md border overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-slate-100">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nama Program</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Harga Flat</TableHead>
-              <TableHead>Cakupan Provinsi</TableHead>
-              <TableHead>Maks. Berat</TableHead>
-              <TableHead>Prioritas</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="border-slate-100 hover:bg-transparent">
+              <TableHead className={headCls}>Nama Program</TableHead>
+              <TableHead className={headCls}>Vendor</TableHead>
+              <TableHead className={headCls}>Harga Flat</TableHead>
+              <TableHead className={headCls}>Cakupan Provinsi</TableHead>
+              <TableHead className={headCls}>Maks. Berat</TableHead>
+              <TableHead className={headCls}>Prioritas</TableHead>
+              <TableHead className={headCls}>Status</TableHead>
+              <TableHead className={`${headCls} text-right`}>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rates.map((rate) => (
-              <TableRow key={rate.id}>
-                <TableCell className="font-medium">{rate.name}</TableCell>
-                <TableCell>
+              <TableRow
+                key={rate.id}
+                className="border-slate-100 hover:bg-slate-50/60"
+              >
+                <TableCell className="py-4 font-medium text-slate-900">
+                  {rate.name}
+                </TableCell>
+                <TableCell className="py-4">
                   {rate.vendor ? (
                     <Badge className={getVendorBadgeClass(rate.vendor)}>
                       {rate.vendor}
                     </Badge>
                   ) : (
-                    <Badge variant="outline">Semua</Badge>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                      Semua
+                    </span>
                   )}
                 </TableCell>
-                <TableCell className="font-medium text-green-600">
+                <TableCell className="py-4 text-sm font-medium text-emerald-700">
                   {formatRupiah(rate.flat_price)}
                 </TableCell>
                 <TableCell
-                  className="max-w-[220px] truncate"
+                  className="max-w-[220px] truncate py-4 text-sm text-slate-700"
                   title={rate.covered_provinces?.join(", ")}
                 >
                   {formatProvinces(rate)}
                 </TableCell>
-                <TableCell>{rate.max_weight} kg</TableCell>
-                <TableCell>{rate.priority}</TableCell>
-                <TableCell>
-                  <Badge
-                    className={
+                <TableCell className="py-4 text-sm text-slate-700">
+                  {rate.max_weight} kg
+                </TableCell>
+                <TableCell className="py-4 text-sm text-slate-700">
+                  {rate.priority}
+                </TableCell>
+                <TableCell className="py-4">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                       rate.is_active
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
                   >
                     {rate.is_active ? "Aktif" : "Tidak Aktif"}
-                  </Badge>
+                  </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-4 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="h-8 w-8 p-0"
+                        className="h-9 w-9 rounded-lg p-0"
                         disabled={
                           deletingId === rate.id || togglingId === rate.id
                         }
@@ -262,8 +283,11 @@ export function FlatRateList({
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+        <AlertDialogContent className="rounded-2xl border-slate-100">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+              <AlertTriangle className="h-7 w-7" aria-hidden />
+            </span>
             <AlertDialogTitle>Hapus Program Flat Ongkir</AlertDialogTitle>
             <AlertDialogDescription>
               Apakah Anda yakin ingin menghapus program &quot;
@@ -271,11 +295,13 @@ export function FlatRateList({
               dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogCancel className="h-10 rounded-lg border-slate-200">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-red-600 hover:bg-red-700"
+              className="h-10 rounded-lg bg-rose-600 hover:bg-rose-700"
             >
               Hapus
             </AlertDialogAction>

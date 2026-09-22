@@ -4,11 +4,12 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import TopNav from "@/components/top-nav";
+import { PageHeader } from "@/components/redesign/page-header";
 import { ProductManagement } from "@/components/KatalogProduk/ProductManagement";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Boxes, Loader2 } from "lucide-react";
 
 export default function KatalogProdukPage() {
   const { hasPermission, loading: authLoading } = useAuth();
@@ -50,19 +51,17 @@ export default function KatalogProdukPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Katalog Produk
-              </h1>
-              <p className="text-muted-foreground">
-                Simpan produk yang sering dikirim agar bisa langsung dipilih
-                saat membuat order, tanpa mengetik ulang detail paket.
-              </p>
-            </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Katalog Produk" },
+            ]}
+            icon={Boxes}
+            title="Katalog Produk"
+            description="Simpan produk yang sering dikirim agar bisa langsung dipilih saat membuat order, tanpa mengetik ulang detail paket."
+          />
 
-            <ProductManagement />
-          </div>
+          <ProductManagement />
         </div>
       </SidebarInset>
     </SidebarProvider>

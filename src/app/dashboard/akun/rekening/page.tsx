@@ -2,31 +2,65 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BankLogo } from "@/components/redesign/bank-logo";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { StatCard } from "@/components/redesign/stat-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Plus,
+  AlertTriangle,
   Building2,
-  Phone,
-  RefreshCw,
-  Upload,
+  Copy,
+  Edit,
   FileText,
   Image as ImageIcon,
-  CheckCircle,
-  Clock,
+  Landmark,
+  Loader2,
+  RefreshCw,
+  Save,
+  Star,
+  Trash2,
+  Upload,
+  Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import TopNav from "@/components/top-nav";
-import { getBankAccounts, createBankAccount } from "@/lib/apiClient";
-import { BankAccount, BankAccountCreateRequest } from "@/types/bankAccount";
+import {
+  getBankAccounts,
+  createBankAccount,
+  updateBankAccount,
+  deleteBankAccount,
+  setDefaultBankAccount,
+} from "@/lib/apiClient";
+import type {
+  BankAccount,
+  BankAccountCreateRequest,
+  BankAccountUpdateRequest,
+} from "@/types/bankAccount";
 import { useAuth } from "@/context/AuthContext";
-import Link from "next/link";
+import { AxiosError } from "axios";
 
 const BANK_LIST = [
   "Bank Mandiri",
@@ -67,33 +101,187 @@ const BANK_LIST = [
   "Bank Aceh Syariah",
 ];
 
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+const labelCls = "text-sm font-medium text-slate-800";
+
+/** "1234567890" -> "******7890" (4 digit terakhir tetap terlihat). */
+function maskAccountNumber(value: string): string {
+  if (value.length <= 4) return value;
+  return "*".repeat(value.length - 4) + value.slice(-4);
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AxiosError) {
+    const msg = (error.response?.data as { message?: string })?.message;
+    if (msg) return msg;
+  }
+  return fallback;
+}
+
+type FormValues = {
+  bank_name: string;
+  account_name: string;
+  account_number: string;
+};
+
+type FileState = { photo_rekening: File | null; photo_ktp: File | null };
+type PreviewState = { photo_rekening: string | null; photo_ktp: string | null };
+
+const EMPTY_FILES: FileState = { photo_rekening: null, photo_ktp: null };
+const EMPTY_PREVIEWS: PreviewState = { photo_rekening: null, photo_ktp: null };
+
+function readFileAsPreview(
+  field: "photo_rekening" | "photo_ktp",
+  file: File | null,
+  setFiles: React.Dispatch<React.SetStateAction<FileState>>,
+  setPreviews: React.Dispatch<React.SetStateAction<PreviewState>>
+) {
+  if (!file) {
+    setFiles((prev) => ({ ...prev, [field]: null }));
+    setPreviews((prev) => ({ ...prev, [field]: null }));
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    toast.error("File harus berupa gambar");
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error("Ukuran file maksimal 2MB");
+    return;
+  }
+  setFiles((prev) => ({ ...prev, [field]: file }));
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    setPreviews((prev) => ({ ...prev, [field]: e.target?.result as string }));
+  };
+  reader.readAsDataURL(file);
+}
+
+/** Kotak unggah bergaya sama untuk form tambah & edit. */
+function FileDropzone({
+  label,
+  required,
+  hint,
+  inputId,
+  inputRef,
+  file,
+  preview,
+  existingUrl,
+  disabled,
+  icon: Icon,
+  onPick,
+  onRemove,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  inputId: string;
+  inputRef: React.RefObject<HTMLInputElement>;
+  file: File | null;
+  preview: string | null;
+  existingUrl?: string | null;
+  disabled?: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  onPick: (file: File | null) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className={labelCls}>
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+      <Input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        onChange={(e) => onPick(e.target.files?.[0] || null)}
+        ref={inputRef}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+      >
+        {file ? (
+          <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+            <Icon className="h-5 w-5 text-blue-600" />
+            <span className="max-w-[200px] truncate">{file.name}</span>
+            <X
+              className="h-4 w-4 text-slate-400 hover:text-slate-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+            />
+          </span>
+        ) : (
+          <>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+              <Upload className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="text-sm font-medium text-slate-700">
+              Klik atau tarik file ke sini
+            </span>
+            <span className="text-xs text-slate-400">
+              {hint ?? "PNG, JPG maksimal 2MB"}
+            </span>
+          </>
+        )}
+      </button>
+      {preview ? (
+        // eslint-disable-next-line @next/next/no-img-element -- pratinjau dari data URL lokal
+        <img
+          src={preview}
+          alt={`Pratinjau ${label.toLowerCase()}`}
+          className="mt-2 h-auto max-w-full rounded-lg border border-slate-200"
+        />
+      ) : existingUrl ? (
+        <p className="mt-1 text-xs text-slate-500">
+          Sudah ada foto tersimpan. Unggah file baru untuk menggantinya.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 const Rekening = () => {
-  const { user, loading: authLoading, hasPermission } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<FormValues>({
     bank_name: "",
     account_name: "",
     account_number: "",
   });
-  const [files, setFiles] = useState<{
-    photo_rekening: File | null;
-    photo_ktp: File | null;
-  }>({
-    photo_rekening: null,
-    photo_ktp: null,
-  });
-  const [previews, setPreviews] = useState<{
-    photo_rekening: string | null;
-    photo_ktp: string | null;
-  }>({
-    photo_rekening: null,
-    photo_ktp: null,
-  });
-
+  const [files, setFiles] = useState<FileState>(EMPTY_FILES);
+  const [previews, setPreviews] = useState<PreviewState>(EMPTY_PREVIEWS);
   const rekeningInputRef = useRef<HTMLInputElement>(null);
   const ktpInputRef = useRef<HTMLInputElement>(null);
+
+  // Edit
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<BankAccount | null>(null);
+  const [editData, setEditData] = useState<FormValues>({
+    bank_name: "",
+    account_name: "",
+    account_number: "",
+  });
+  const [editFiles, setEditFiles] = useState<FileState>(EMPTY_FILES);
+  const [editPreviews, setEditPreviews] = useState<PreviewState>(EMPTY_PREVIEWS);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const editRekeningInputRef = useRef<HTMLInputElement>(null);
+  const editKtpInputRef = useRef<HTMLInputElement>(null);
+
+  // Ajukan hapus
+  const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  // Jadikan utama
+  const [settingDefaultId, setSettingDefaultId] = useState<number | null>(null);
 
   /** Hanya rekening milik user login (bukan daftar admin), meskipun role admin */
   const fetchBankAccounts = useCallback(async () => {
@@ -125,50 +313,12 @@ const Rekening = () => {
     void fetchBankAccounts();
   }, [authLoading, fetchBankAccounts]);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleFileChange = (
-    field: "photo_rekening" | "photo_ktp",
-    file: File | null
-  ) => {
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast.error("File harus berupa gambar");
-        return;
-      }
-
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("Ukuran file maksimal 2MB");
-        return;
-      }
-
-      setFiles((prev) => ({ ...prev, [field]: file }));
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviews((prev) => ({
-          ...prev,
-          [field]: e.target?.result as string,
-        }));
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setFiles((prev) => ({ ...prev, [field]: null }));
-      setPreviews((prev) => ({ ...prev, [field]: null }));
-    }
+  const handleInputChange = (field: keyof FormValues, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const removeFile = (field: "photo_rekening" | "photo_ktp") => {
-    setFiles((prev) => ({ ...prev, [field]: null }));
-    setPreviews((prev) => ({ ...prev, [field]: null }));
+    readFileAsPreview(field, null, setFiles, setPreviews);
     if (field === "photo_rekening" && rekeningInputRef.current) {
       rekeningInputRef.current.value = "";
     }
@@ -177,66 +327,39 @@ const Rekening = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Disetujui
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-200">
-            <X className="h-3 w-3 mr-1" />
-            Ditolak
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-            <Clock className="h-3 w-3 mr-1" />
-            Menunggu Verifikasi
-          </Badge>
-        );
-    }
-  };
-
-  const validateForm = () => {
-    if (!formData.bank_name.trim()) {
+  const validateForm = (data: FormValues, filesToCheck: FileState, requirePhotos: boolean) => {
+    if (!data.bank_name.trim()) {
       toast.error("Nama bank harus diisi");
       return false;
     }
-    if (!formData.account_name.trim()) {
+    if (!data.account_name.trim()) {
       toast.error("Nama rekening harus diisi");
       return false;
     }
-    if (!/^[a-zA-Z\s.]+$/.test(formData.account_name.trim())) {
+    if (!/^[a-zA-Z\s.]+$/.test(data.account_name.trim())) {
       toast.error("Nama rekening hanya boleh huruf, spasi");
       return false;
     }
-    if (!formData.account_number.trim()) {
+    if (!data.account_number.trim()) {
       toast.error("Nomor rekening harus diisi");
       return false;
     }
-    if (!files.photo_rekening) {
-      toast.error("Foto rekening harus diupload");
-      return false;
-    }
-    if (!files.photo_ktp) {
-      toast.error("Foto KTP harus diupload");
-      return false;
+    if (requirePhotos) {
+      if (!filesToCheck.photo_rekening) {
+        toast.error("Foto rekening harus diupload");
+        return false;
+      }
+      if (!filesToCheck.photo_ktp) {
+        toast.error("Foto KTP harus diupload");
+        return false;
+      }
     }
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm(formData, files, true)) return;
 
     try {
       setCreating(true);
@@ -251,42 +374,109 @@ const Rekening = () => {
       await createBankAccount(submitData);
       toast.success("Rekening berhasil dikirim untuk verifikasi");
       setFormData({ bank_name: "", account_name: "", account_number: "" });
-      setFiles({ photo_rekening: null, photo_ktp: null });
-      setPreviews({ photo_rekening: null, photo_ktp: null });
+      setFiles(EMPTY_FILES);
+      setPreviews(EMPTY_PREVIEWS);
       if (rekeningInputRef.current) rekeningInputRef.current.value = "";
       if (ktpInputRef.current) ktpInputRef.current.value = "";
-      fetchBankAccounts(); // Refresh data
+      fetchBankAccounts();
     } catch (error: unknown) {
       console.error("Error creating bank account:", error);
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { status?: number } };
-        if (axiosError.response?.status === 409) {
-          toast.error(
-            "Anda sudah memiliki rekening bank. Tidak dapat menambahkan lebih dari satu."
-          );
-        } else {
-          toast.error("Gagal menambahkan rekening");
-        }
-      } else {
-        toast.error("Gagal menambahkan rekening");
-      }
+      toast.error(extractErrorMessage(error, "Gagal menambahkan rekening"));
     } finally {
       setCreating(false);
     }
   };
 
-  const hasAccount = bankAccounts.length > 0;
+  const openEdit = (account: BankAccount) => {
+    setEditTarget(account);
+    setEditData({
+      bank_name: account.bank_name,
+      account_name: account.account_name,
+      account_number: account.account_number,
+    });
+    setEditFiles(EMPTY_FILES);
+    setEditPreviews(EMPTY_PREVIEWS);
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    if (!validateForm(editData, editFiles, false)) return;
+
+    try {
+      setEditSubmitting(true);
+      const body: BankAccountUpdateRequest = {
+        bank_name: editData.bank_name,
+        account_name: editData.account_name,
+        account_number: editData.account_number,
+        photo_rekening: editFiles.photo_rekening ?? undefined,
+        photo_ktp: editFiles.photo_ktp ?? undefined,
+      };
+      await updateBankAccount(editTarget.id, body);
+      toast.success("Rekening berhasil diubah, menunggu verifikasi ulang admin.");
+      setEditOpen(false);
+      setEditTarget(null);
+      fetchBankAccounts();
+    } catch (error) {
+      console.error("Error updating bank account:", error);
+      toast.error(extractErrorMessage(error, "Gagal mengubah rekening"));
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSubmitting(true);
+    try {
+      const res = await deleteBankAccount(deleteTarget.id);
+      toast.success(res.message || "Permintaan penghapusan berhasil diajukan.");
+      setDeleteTarget(null);
+      fetchBankAccounts();
+    } catch (error) {
+      console.error("Error requesting bank account deletion:", error);
+      toast.error(extractErrorMessage(error, "Gagal mengajukan penghapusan rekening"));
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  };
+
+  const handleSetDefault = async (account: BankAccount) => {
+    setSettingDefaultId(account.id);
+    try {
+      await setDefaultBankAccount(account.id);
+      toast.success("Rekening berhasil dijadikan utama.");
+      fetchBankAccounts();
+    } catch (error) {
+      console.error("Error setting default bank account:", error);
+      toast.error(extractErrorMessage(error, "Gagal menjadikan rekening utama"));
+    } finally {
+      setSettingDefaultId(null);
+    }
+  };
+
+  const copyAccountNumber = async (number: string) => {
+    try {
+      await navigator.clipboard.writeText(number);
+      toast.success("Nomor rekening disalin");
+    } catch {
+      toast.error("Gagal menyalin nomor rekening");
+    }
+  };
+
+  const totalAccounts = bankAccounts.length;
+  const activeAccounts = bankAccounts.filter((a) => a.status === "approved").length;
+  const defaultAccount = bankAccounts.find((a) => a.is_default) ?? null;
 
   if (authLoading || loading) {
     return (
       <SidebarProvider>
         <AppSidebar variant="inset" />
         <SidebarInset>
-          <div className="flex items-center justify-center p-8">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="h-6 w-6 animate-spin" />
-              Memuat data rekening...
-            </div>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat data rekening...</span>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -305,382 +495,513 @@ const Rekening = () => {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Building2 className="h-7 w-7 text-blue-600" />
-                Rekening Bank
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Hanya menampilkan rekening Anda sendiri untuk penarikan saldo.
-              </p>
-              {hasPermission("bank-accounts.view_all") && (
-                <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-                  Untuk melihat atau menyetujui rekening pengguna lain, gunakan
-                  menu{" "}
-                  <Link
-                    href="/dashboard/akun/semua-rekening"
-                    className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700"
-                  >
-                    Semua rekening bank
-                  </Link>
-                  .
-                </p>
-              )}
-            </div>
-            <Button
-              onClick={fetchBankAccounts}
-              variant="blueGradientOutline"
-              size="sm"
-              disabled={loading}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Rekening" },
+            ]}
+            icon={Building2}
+            title="Rekening Bank"
+            description="Kelola rekening bank Anda untuk pencairan saldo."
+            action={
+              <Button
+                onClick={fetchBankAccounts}
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Refresh
+              </Button>
+            }
+          />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard
+              icon={Wallet}
+              tone="blue"
+              title="Total Rekening"
+              value={String(totalAccounts)}
+              hint="Semua rekening bank"
+            />
+            <StatCard
+              icon={Building2}
+              tone="green"
+              title="Rekening Aktif"
+              value={String(activeAccounts)}
+              hint="Sudah disetujui admin"
+            />
+            <StatCard
+              icon={Star}
+              tone="orange"
+              title="Rekening Utama"
+              value={defaultAccount?.bank_name ?? "-"}
+              hint={
+                defaultAccount
+                  ? "Bank utama untuk pencairan"
+                  : "Belum ada rekening utama"
+              }
+            />
           </div>
 
-          {hasAccount ? (
-            // Show existing bank account
-            <div className="space-y-4">
-              {bankAccounts.map((account) => (
-                <Card key={account.id} className="shadow-sm">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        <Building2 className="h-5 w-5" />
-                        {account.bank_name}
-                      </CardTitle>
-                      {getStatusBadge(account.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Nama Rekening
-                        </Label>
-                        <p className="text-lg font-medium">
-                          {account.account_name}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Nomor Rekening
-                        </Label>
-                        <p className="text-lg font-mono">
-                          {account.account_number}
-                        </p>
-                      </div>
-                    </div>
-
-                    {account.status === "rejected" &&
-                      account.rejected_reason && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                          <p className="text-sm text-red-800">
-                            <strong>Alasan Penolakan:</strong>{" "}
-                            {account.rejected_reason}
-                          </p>
-                        </div>
-                      )}
-
-                    <div>
-                      <Label className="text-sm font-medium text-gray-500">
-                        Tanggal Ditambahkan
-                      </Label>
-                      <p className="text-sm">
-                        {new Date(account.created_at).toLocaleDateString(
-                          "id-ID",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          }
-                        )}
-                      </p>
-                    </div>
-
-                    {account.verified_at && (
-                      <div>
-                        <Label className="text-sm font-medium text-gray-500">
-                          Tanggal Disetujui
-                        </Label>
-                        <p className="text-sm text-green-600">
-                          {new Date(account.verified_at).toLocaleDateString(
-                            "id-ID",
-                            {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            }
-                          )}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {/* Info untuk mengganti rekening */}
-              <Card className="border-amber-200 bg-amber-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Phone className="h-5 w-5 text-amber-600 mt-0.5" />
-                    <div>
-                      <h3 className="font-semibold text-amber-900">
-                        Ingin Mengganti Rekening?
-                      </h3>
-                      <p className="text-sm text-amber-800 mt-1">
-                        Untuk mengganti atau menambah rekening bank, silakan
-                        hubungi customer service kami melalui WhatsApp atau
-                        email.
-                      </p>
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          variant="blueGradientOutline"
-                          className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                          onClick={() =>
-                            window.open("https://wa.me/6281330323559", "_blank")
-                          }
-                        >
-                          WhatsApp CS
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="blueGradientOutline"
-                          className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                          onClick={() =>
-                            window.open(
-                              "mailto:support@bhisakirim.com",
-                              "_blank"
-                            )
-                          }
-                        >
-                          Email CS
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            // Show form to add bank account
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
-                    Tambah Rekening Bank
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Tambahkan rekening bank untuk penarikan saldo
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="bank_name">Nama Bank *</Label>
-                      <select
-                        id="bank_name"
-                        value={formData.bank_name}
-                        onChange={(e) =>
-                          handleInputChange("bank_name", e.target.value)
-                        }
-                        required
-                        className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Pilih Bank</option>
-                        {BANK_LIST.map((bank, idx) => (
-                          <option key={idx} value={bank}>
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            {/* Form tambah rekening */}
+            <div className="min-w-0 lg:col-span-1">
+              <SectionCard
+                icon={Landmark}
+                title="Tambah Rekening Bank"
+                description="Tambahkan rekening bank baru untuk pencairan saldo."
+              >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_name" className={labelCls}>
+                      Nama Bank <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.bank_name}
+                      onValueChange={(v) => handleInputChange("bank_name", v)}
+                    >
+                      <SelectTrigger id="bank_name" className={fieldCls}>
+                        <SelectValue placeholder="Pilih nama bank" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[min(320px,50vh)] overflow-y-auto">
+                        {BANK_LIST.map((bank) => (
+                          <SelectItem key={bank} value={bank}>
                             {bank}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
-                    </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="account_name">Nama Rekening *</Label>
-                      <Input
-                        id="account_name"
-                        type="text"
-                        value={formData.account_name}
-                        onChange={(e) =>
-                          handleInputChange("account_name", e.target.value)
-                        }
-                        placeholder="Sesuai dengan nama di rekening"
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account_name" className={labelCls}>
+                      Nama Rekening <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="account_name"
+                      type="text"
+                      value={formData.account_name}
+                      onChange={(e) => handleInputChange("account_name", e.target.value)}
+                      placeholder="Sesuai dengan nama di rekening"
+                      required
+                      className={fieldCls}
+                    />
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="account_number">Nomor Rekening *</Label>
-                      <Input
-                        id="account_number"
-                        type="text"
-                        value={formData.account_number}
-                        onChange={(e) =>
-                          handleInputChange("account_number", e.target.value)
-                        }
-                        placeholder="1234567890"
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account_number" className={labelCls}>
+                      Nomor Rekening <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="account_number"
+                      type="text"
+                      value={formData.account_number}
+                      onChange={(e) => handleInputChange("account_number", e.target.value)}
+                      placeholder="1234567890"
+                      required
+                      className={fieldCls}
+                    />
+                  </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="photo_rekening">Foto Rekening *</Label>
-                      <Input
-                        id="photo_rekening"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "photo_rekening",
-                            e.target.files?.[0] || null
-                          )
-                        }
-                        ref={rekeningInputRef}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => rekeningInputRef.current?.click()}
-                        className="w-full bg-blue-500 text-white hover:bg-blue-600"
-                        disabled={creating}
-                      >
-                        {files.photo_rekening ? (
-                          <div className="flex items-center gap-2">
-                            <ImageIcon className="h-5 w-5" />
-                            {files.photo_rekening.name}
-                            <X
-                              className="h-4 w-4 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeFile("photo_rekening");
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload Foto Rekening
-                          </>
-                        )}
-                      </Button>
-                      {previews.photo_rekening && (
-                        <div className="mt-2">
-                          <img
-                            src={previews.photo_rekening}
-                            alt="Preview Rekening"
-                            className="max-w-sm h-auto rounded-md"
-                          />
-                        </div>
-                      )}
-                    </div>
+                  <FileDropzone
+                    label="Foto Buku Rekening"
+                    required
+                    inputId="photo_rekening"
+                    inputRef={rekeningInputRef}
+                    file={files.photo_rekening}
+                    preview={previews.photo_rekening}
+                    disabled={creating}
+                    icon={ImageIcon}
+                    onPick={(f) => readFileAsPreview("photo_rekening", f, setFiles, setPreviews)}
+                    onRemove={() => removeFile("photo_rekening")}
+                  />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="photo_ktp">Foto KTP *</Label>
-                      <Input
-                        id="photo_ktp"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          handleFileChange(
-                            "photo_ktp",
-                            e.target.files?.[0] || null
-                          )
-                        }
-                        ref={ktpInputRef}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => ktpInputRef.current?.click()}
-                        className="w-full bg-blue-500 text-white hover:bg-blue-600"
-                        disabled={creating}
-                      >
-                        {files.photo_ktp ? (
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5" />
-                            {files.photo_ktp.name}
-                            <X
-                              className="h-4 w-4 cursor-pointer bg-blue-500 text-white hover:bg-blue-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeFile("photo_ktp");
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload Foto KTP
-                          </>
-                        )}
-                      </Button>
-                      {previews.photo_ktp && (
-                        <div className="mt-2">
-                          <img
-                            src={previews.photo_ktp}
-                            alt="Preview KTP"
-                            className="max-w-sm h-auto rounded-md"
-                          />
-                        </div>
-                      )}
-                    </div>
+                  <FileDropzone
+                    label="Foto KTP"
+                    required
+                    inputId="photo_ktp"
+                    inputRef={ktpInputRef}
+                    file={files.photo_ktp}
+                    preview={previews.photo_ktp}
+                    disabled={creating}
+                    icon={FileText}
+                    onPick={(f) => readFileAsPreview("photo_ktp", f, setFiles, setPreviews)}
+                    onRemove={() => removeFile("photo_ktp")}
+                  />
 
-                    <div className="flex justify-end gap-3 pt-4">
-                      <Button
-                        type="submit"
-                        disabled={creating}
-                        className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-                      >
-                        {creating ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                            Menyimpan...
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4" />
-                            Tambah Rekening
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
+                  <Button
+                    type="submit"
+                    disabled={creating}
+                    className="h-11 w-full gap-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" aria-hidden />
+                        Simpan Rekening
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </SectionCard>
 
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">
-                    Informasi Penting:
-                  </h3>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>
-                      • Pastikan nama rekening sesuai dengan identitas Anda
-                    </li>
-                    <li>• Nomor rekening harus valid dan aktif</li>
-                    <li>• Upload foto rekening yang jelas dan terbaca</li>
-                    <li>• Upload foto KTP yang sesuai dengan nama rekening</li>
-                    <li>• File gambar maksimal 2MB (JPG, PNG)</li>
-                    <li>
-                      • Rekening akan diverifikasi oleh admin dalam 1-3 hari
-                      kerja
-                    </li>
-                    <li>
-                      • Setelah disetujui, rekening dapat digunakan untuk
-                      penarikan saldo
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
+              <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 md:p-5">
+                <h3 className="mb-2 font-semibold text-blue-900">
+                  Informasi Penting:
+                </h3>
+                <ul className="space-y-1 text-sm text-blue-800">
+                  <li>• Pastikan nama rekening sesuai dengan identitas Anda</li>
+                  <li>• Nomor rekening harus valid dan aktif</li>
+                  <li>• Upload foto rekening yang jelas dan terbaca</li>
+                  <li>• Upload foto KTP yang sesuai dengan nama rekening</li>
+                  <li>• File gambar maksimal 2MB (JPG, PNG)</li>
+                  <li>
+                    • Rekening akan diverifikasi oleh admin dalam 1-3 hari kerja
+                  </li>
+                  <li>
+                    • Mengubah rekening yang sudah disetujui akan membuatnya
+                    perlu diverifikasi ulang
+                  </li>
+                  <li>
+                    • Menghapus rekening perlu persetujuan admin terlebih dahulu
+                  </li>
+                </ul>
+              </div>
             </div>
-          )}
+
+            {/* Daftar rekening */}
+            <div className="min-w-0 lg:col-span-2">
+              <SectionCard
+                icon={Users}
+                title="Daftar Rekening Bank"
+                description={
+                  totalAccounts > 0
+                    ? `${totalAccounts} rekening terdaftar.`
+                    : "Daftar rekening bank yang terdaftar."
+                }
+              >
+                {totalAccounts === 0 ? (
+                  <div className="flex flex-col items-center px-4 py-10 text-center">
+                    <span className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
+                      <Building2 className="h-9 w-9 text-blue-300" aria-hidden />
+                    </span>
+                    <p className="font-semibold text-slate-900">
+                      Belum ada rekening bank
+                    </p>
+                    <p className="mt-1 max-w-xs text-sm text-slate-500">
+                      Tambahkan rekening bank lewat form di sebelah kiri untuk
+                      mulai menarik saldo Anda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {bankAccounts.map((account) => {
+                      const isDeletionPending = Boolean(account.deletion_requested_at);
+                      return (
+                        <div
+                          key={account.id}
+                          className="rounded-2xl border border-slate-100 p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <BankLogo bankName={account.bank_name} />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-900">
+                                  {account.bank_name}
+                                </p>
+                                <p className="text-sm text-slate-500">
+                                  {account.account_name}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void copyAccountNumber(account.account_number)
+                                  }
+                                  className="mt-1 flex items-center gap-1.5 font-mono text-sm text-slate-700 hover:text-blue-600"
+                                  title="Salin nomor rekening"
+                                >
+                                  {maskAccountNumber(account.account_number)}
+                                  <Copy className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-1.5">
+                              {isDeletionPending ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                                  <Trash2 className="h-3 w-3" aria-hidden />
+                                  Menunggu Persetujuan Hapus
+                                </span>
+                              ) : (
+                                <>
+                                  {account.is_default && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                      <Star className="h-3 w-3" aria-hidden />
+                                      Rekening Utama
+                                    </span>
+                                  )}
+                                  {account.status === "approved" ? (
+                                    <StatusBadge status="success" label="Aktif" />
+                                  ) : account.status === "rejected" ? (
+                                    <StatusBadge status="failed" label="Ditolak" />
+                                  ) : (
+                                    <StatusBadge
+                                      status="pending"
+                                      label="Menunggu Verifikasi"
+                                    />
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {account.status === "rejected" && account.rejected_reason && (
+                            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                              <p className="text-xs text-rose-800">
+                                <strong>Alasan Penolakan:</strong>{" "}
+                                {account.rejected_reason}
+                              </p>
+                            </div>
+                          )}
+
+                          {!isDeletionPending && (
+                            <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-9 gap-1.5 rounded-lg border-slate-200 text-slate-700"
+                                onClick={() => openEdit(account)}
+                              >
+                                <Edit className="h-3.5 w-3.5" aria-hidden />
+                                Edit
+                              </Button>
+                              {account.status === "approved" && !account.is_default && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
+                                  disabled={settingDefaultId === account.id}
+                                  onClick={() => void handleSetDefault(account)}
+                                >
+                                  {settingDefaultId === account.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Star className="h-3.5 w-3.5" aria-hidden />
+                                  )}
+                                  Jadikan Utama
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50"
+                                onClick={() => setDeleteTarget(account)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                Hapus
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+            </div>
+          </div>
         </div>
+
+        {/* Edit rekening */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-2xl border-slate-100 p-0 sm:max-w-lg">
+            <DialogHeader className="shrink-0 border-b border-slate-100 p-6 text-left">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Edit className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Edit Rekening</DialogTitle>
+                  <DialogDescription>
+                    Perubahan akan membuat rekening ini perlu diverifikasi ulang
+                    oleh admin.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-4">
+                <div className="space-y-2">
+                  <Label className={labelCls}>
+                    Nama Bank <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={editData.bank_name}
+                    onValueChange={(v) =>
+                      setEditData((prev) => ({ ...prev, bank_name: v }))
+                    }
+                  >
+                    <SelectTrigger className={fieldCls}>
+                      <SelectValue placeholder="Pilih nama bank" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[min(320px,50vh)] overflow-y-auto">
+                      {BANK_LIST.map((bank) => (
+                        <SelectItem key={bank} value={bank}>
+                          {bank}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_account_name" className={labelCls}>
+                    Nama Rekening <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit_account_name"
+                    value={editData.account_name}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, account_name: e.target.value }))
+                    }
+                    required
+                    className={fieldCls}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_account_number" className={labelCls}>
+                    Nomor Rekening <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit_account_number"
+                    value={editData.account_number}
+                    onChange={(e) =>
+                      setEditData((prev) => ({ ...prev, account_number: e.target.value }))
+                    }
+                    required
+                    className={fieldCls}
+                  />
+                </div>
+
+                <FileDropzone
+                  label="Foto Buku Rekening"
+                  hint="Opsional — kosongkan jika tidak diganti"
+                  inputId="edit_photo_rekening"
+                  inputRef={editRekeningInputRef}
+                  file={editFiles.photo_rekening}
+                  preview={editPreviews.photo_rekening}
+                  existingUrl={editTarget?.photo_rekening_url}
+                  disabled={editSubmitting}
+                  icon={ImageIcon}
+                  onPick={(f) =>
+                    readFileAsPreview("photo_rekening", f, setEditFiles, setEditPreviews)
+                  }
+                  onRemove={() => {
+                    readFileAsPreview("photo_rekening", null, setEditFiles, setEditPreviews);
+                    if (editRekeningInputRef.current) editRekeningInputRef.current.value = "";
+                  }}
+                />
+
+                <FileDropzone
+                  label="Foto KTP"
+                  hint="Opsional — kosongkan jika tidak diganti"
+                  inputId="edit_photo_ktp"
+                  inputRef={editKtpInputRef}
+                  file={editFiles.photo_ktp}
+                  preview={editPreviews.photo_ktp}
+                  existingUrl={editTarget?.photo_ktp_url}
+                  disabled={editSubmitting}
+                  icon={FileText}
+                  onPick={(f) =>
+                    readFileAsPreview("photo_ktp", f, setEditFiles, setEditPreviews)
+                  }
+                  onRemove={() => {
+                    readFileAsPreview("photo_ktp", null, setEditFiles, setEditPreviews);
+                    if (editKtpInputRef.current) editKtpInputRef.current.value = "";
+                  }}
+                />
+              </div>
+              <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 p-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-lg border-slate-200"
+                  onClick={() => setEditOpen(false)}
+                  disabled={editSubmitting}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={editSubmitting}
+                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                >
+                  {editSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" aria-hidden />
+                  )}
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Ajukan hapus rekening */}
+        <Dialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+        >
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+            <DialogHeader className="items-center text-center sm:text-center">
+              <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                <AlertTriangle className="h-7 w-7" aria-hidden />
+              </span>
+              <DialogTitle>Ajukan hapus rekening?</DialogTitle>
+              <DialogDescription>
+                Rekening <strong>{deleteTarget?.bank_name}</strong> ·{" "}
+                {deleteTarget ? maskAccountNumber(deleteTarget.account_number) : ""}{" "}
+                akan diajukan untuk dihapus. Rekening baru benar-benar terhapus
+                setelah disetujui admin.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-lg border-slate-200"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteSubmitting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-10 gap-2 rounded-lg"
+                disabled={deleteSubmitting}
+                onClick={() => void confirmDelete()}
+              >
+                {deleteSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Ajukan Hapus
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -3,9 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -18,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
 import { useAuth } from "@/context/AuthContext";
 import { getAgenAccount, updateAgenAccount } from "@/lib/apiClient";
 import type { AgenAccount } from "@/types/agenAkun";
 import { AxiosError } from "axios";
-import { ArrowLeft, Loader2, Pencil, Store } from "lucide-react";
+import { Loader2, Pencil, Save, Store } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +37,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+const rowCls = "flex justify-between gap-4 py-2 text-sm";
 
 export default function AgenAkunDetailPage() {
   const params = useParams();
@@ -158,26 +160,16 @@ export default function AgenAkunDetailPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => router.push("/dashboard/agen/akun")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali
-            </Button>
-            <div>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-                <Store className="h-6 w-6 text-blue-600" />
-                {account?.company_name || account?.name || "Akun Agen"}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                {account?.email}
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Akun Agen", href: "/dashboard/agen/akun" },
+              { label: account?.company_name || account?.name || "Detail" },
+            ]}
+            back={{ href: "/dashboard/agen/akun" }}
+            title={account?.company_name || account?.name || "Akun Agen"}
+            description={account?.email}
+          />
 
           {error ? (
             <div
@@ -187,60 +179,64 @@ export default function AgenAkunDetailPage() {
               {error}
             </div>
           ) : account ? (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Profil</CardTitle>
+            <SectionCard
+              icon={Store}
+              title="Profil"
+              action={
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium capitalize text-blue-700">
                     Agen · Prepaid
-                  </Badge>
+                  </span>
                   {canUpdate && (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="gap-2"
+                      className="h-9 gap-1.5 rounded-lg border-slate-200"
                       onClick={openEdit}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
                       Edit
                     </Button>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nama PIC</span>
-                  <span>{account.pic_name || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">NPWP</span>
-                  <span>{account.npwp || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">No. Legalitas</span>
-                  <span>{account.company_legality_no || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Alamat Penagihan
+              }
+            >
+              <div className="divide-y divide-slate-100">
+                <div className={rowCls}>
+                  <span className="text-slate-500">Nama PIC</span>
+                  <span className="text-slate-900">
+                    {account.pic_name || "—"}
                   </span>
-                  <span className="max-w-[60%] text-right">
+                </div>
+                <div className={rowCls}>
+                  <span className="text-slate-500">NPWP</span>
+                  <span className="text-slate-900">{account.npwp || "—"}</span>
+                </div>
+                <div className={rowCls}>
+                  <span className="text-slate-500">No. Legalitas</span>
+                  <span className="text-slate-900">
+                    {account.company_legality_no || "—"}
+                  </span>
+                </div>
+                <div className={rowCls}>
+                  <span className="text-slate-500">Alamat Penagihan</span>
+                  <span className="max-w-[60%] text-right text-slate-900">
                     {account.billing_address || "—"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
+                <div className={rowCls}>
+                  <span className="text-slate-500">
                     Telepon / Email Penagihan
                   </span>
-                  <span className="max-w-[60%] text-right">
+                  <span className="max-w-[60%] text-right text-slate-900">
                     {account.billing_phone || "—"}
                     {account.billing_email ? ` · ${account.billing_email}` : ""}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rekening Bank</span>
-                  <span className="max-w-[60%] text-right">
+                <div className={rowCls}>
+                  <span className="text-slate-500">Rekening Bank</span>
+                  <span className="max-w-[60%] text-right text-slate-900">
                     {account.billing_bank_name
                       ? `${account.billing_bank_name} · ${
                           account.billing_bank_account_no || "-"
@@ -248,41 +244,47 @@ export default function AgenAkunDetailPage() {
                       : "—"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Kontak Penagihan
-                  </span>
-                  <span className="max-w-[60%] text-right">
+                <div className={rowCls}>
+                  <span className="text-slate-500">Kontak Penagihan</span>
+                  <span className="max-w-[60%] text-right text-slate-900">
                     {account.pic_penagihan_name || "—"}
                     {account.pic_penagihan_phone
                       ? ` (${account.pic_penagihan_phone})`
                       : ""}
                   </span>
                 </div>
-                {account.kerja_sama_notes && (
-                  <div className="rounded-md bg-slate-50 p-2 text-xs text-muted-foreground">
-                    {account.kerja_sama_notes}
-                  </div>
-                )}
-                <div className="rounded-md bg-blue-50 p-2 text-xs text-blue-800">
-                  Akun agen membayar order lewat saldo wallet saja — tidak ada
-                  limit kredit/invoice bulanan.
+              </div>
+              {account.kerja_sama_notes && (
+                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                  {account.kerja_sama_notes}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+              <div className="mt-3 rounded-lg bg-blue-50 p-3 text-xs text-blue-800">
+                Akun agen membayar order lewat saldo wallet saja — tidak ada
+                limit kredit/invoice bulanan.
+              </div>
+            </SectionCard>
           ) : null}
         </div>
 
         {/* Dialog: Edit Profile */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden sm:max-w-2xl">
-            <DialogHeader className="shrink-0 text-left">
-              <DialogTitle>Edit Profil Akun Agen</DialogTitle>
-              <DialogDescription>
-                Data profil bisnis dan penagihan. Tipe akun tetap agen/prepaid.
-              </DialogDescription>
+          <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden rounded-2xl border-slate-100 p-0 sm:max-w-2xl">
+            <DialogHeader className="shrink-0 border-b border-slate-100 p-6 text-left">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Pencil className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Edit Profil Akun Agen</DialogTitle>
+                  <DialogDescription>
+                    Data profil bisnis dan penagihan. Tipe akun tetap
+                    agen/prepaid.
+                  </DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-2">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Nama Perusahaan</Label>
@@ -451,10 +453,11 @@ export default function AgenAkunDetailPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+            <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 p-6">
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 rounded-lg border-slate-200"
                 onClick={() => setEditOpen(false)}
                 disabled={editSaving}
               >
@@ -464,12 +467,15 @@ export default function AgenAkunDetailPage() {
                 type="button"
                 onClick={() => void submitEdit()}
                 disabled={editSaving}
-                className="bg-blue-500 text-white hover:bg-blue-600"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
               >
                 {editSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Simpan"
+                  <>
+                    <Save className="h-4 w-4" aria-hidden />
+                    Simpan
+                  </>
                 )}
               </Button>
             </DialogFooter>
