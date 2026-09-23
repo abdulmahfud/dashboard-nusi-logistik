@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +87,15 @@ interface CalculationResultsProps {
     senderLongitude?: number | null;
   };
   onResetForm?: () => void;
+  /** Tab kategori layanan — dikontrol dari parent supaya tab tetap tampil
+   * walau belum ada hasil pencarian (lihat halaman Kirim Paket Reguler). */
+  activeCategory?: ServiceCategory;
+  /** Dilaporkan ke parent setiap kali layanan yang dipilih (atau harganya,
+   * mis. karena diskon) berubah — dipakai kartu "Ringkasan Pengiriman" di
+   * halaman Kirim Paket Reguler supaya Total Ongkir tidak kosong. */
+  onSelectedOptionChange?: (
+    option: { name: string; price: string } | null
+  ) => void;
 }
 
 type ApiErrorResult = { error: true; message?: string };
@@ -185,7 +193,7 @@ type CombinedApiResult = {
 };
 
 /** Kategori tab "Pilihan Layanan" — Cargo cuma J&T Cargo, sisanya Reguler. */
-type ServiceCategory = "all" | "reguler" | "cargo";
+export type ServiceCategory = "all" | "reguler" | "cargo";
 
 function getServiceCategory(optionId: string): Exclude<ServiceCategory, "all"> {
   return optionId.startsWith("jntcargo") ? "cargo" : "reguler";
@@ -198,10 +206,11 @@ export default function CalculationResults({
   result,
   formData,
   onResetForm,
+  activeCategory = "all",
+  onSelectedOptionChange,
 }: CalculationResultsProps) {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("all");
   const [isInsured, setIsInsured] = useState(false);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
 
@@ -245,7 +254,6 @@ export default function CalculationResults({
   useEffect(() => {
     // Reset all selection states when new data comes in
     setSelectedOption(null);
-    setActiveCategory("all");
     setShowPaymentSection(false);
     setDiscountInfo(null);
     setIsInsured(false);
@@ -756,17 +764,27 @@ export default function CalculationResults({
     (option) => option.id === selectedOption
   );
 
-  const cargoOptionsCount = shippingOptions.filter(
-    (o) => getServiceCategory(o.id) === "cargo"
-  ).length;
-  const regulerOptionsCount = shippingOptions.length - cargoOptionsCount;
-
   const filteredShippingOptions =
     activeCategory === "all"
       ? shippingOptions
       : shippingOptions.filter(
           (o) => getServiceCategory(o.id) === activeCategory
         );
+
+  // Laporkan layanan terpilih (nama + ongkir, sudah memperhitungkan diskon
+  // kalau ada) ke parent — dipakai kartu "Ringkasan Pengiriman" di halaman.
+  useEffect(() => {
+    if (!onSelectedOptionChange) return;
+    if (!selectedShippingOption) {
+      onSelectedOptionChange(null);
+      return;
+    }
+    const price = discountInfo?.has_discount
+      ? `Rp${discountInfo.discounted_price.toLocaleString("id-ID")}`
+      : selectedShippingOption.price;
+    onSelectedOptionChange({ name: selectedShippingOption.name, price });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedShippingOption, discountInfo]);
 
   function isApiErrorResult(obj: unknown): obj is ApiErrorResult {
     return (
@@ -1373,35 +1391,6 @@ export default function CalculationResults({
 
   return (
     <div className="animate-slide-up space-y-4">
-      {/* Tab kategori layanan */}
-      {shippingOptions.length > 0 && (
-        <Tabs
-          value={activeCategory}
-          onValueChange={(v) => setActiveCategory(v as ServiceCategory)}
-        >
-          <TabsList className="h-11 w-full rounded-lg bg-slate-100 p-1">
-            <TabsTrigger
-              value="all"
-              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              Semua Layanan ({shippingOptions.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="reguler"
-              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              Reguler ({regulerOptionsCount})
-            </TabsTrigger>
-            <TabsTrigger
-              value="cargo"
-              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
-            >
-              Cargo ({cargoOptionsCount})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
-
       {shippingOptions.length > 0 && filteredShippingOptions.length === 0 && (
         <p className="py-8 text-center text-sm text-slate-500">
           Tidak ada layanan di kategori ini untuk rute yang dipilih.

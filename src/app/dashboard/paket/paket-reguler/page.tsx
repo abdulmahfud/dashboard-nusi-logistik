@@ -6,11 +6,14 @@ import TopNav from "@/components/top-nav";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Loader2, Package, ShieldCheck, Truck } from "lucide-react";
 import RegularPackageForm from "../../../../components/PaketReguler/RegularPackageForm";
-import CalculationResults from "@/components/PaketReguler/CalculationResults";
+import CalculationResults, {
+  type ServiceCategory,
+} from "@/components/PaketReguler/CalculationResults";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -26,6 +29,11 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 const PaketReguler = () => {
   const [formResetKey, setFormResetKey] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("all");
+  const [selectedShipping, setSelectedShipping] = useState<{
+    name: string;
+    price: string;
+  } | null>(null);
   const [calculationResult, setCalculationResult] = useState<
     Record<string, unknown> | undefined
   >(undefined);
@@ -69,6 +77,15 @@ const PaketReguler = () => {
     (result: Record<string, unknown>) => {
       setCalculationResult(result);
       setIsSearching(false);
+      setActiveCategory("all");
+      setSelectedShipping(null);
+    },
+    []
+  );
+
+  const handleSelectedOptionChange = useCallback(
+    (option: { name: string; price: string } | null) => {
+      setSelectedShipping(option);
     },
     []
   );
@@ -100,6 +117,8 @@ const PaketReguler = () => {
     setFormData({});
     setCalculationResult(undefined);
     setIsSearching(false);
+    setActiveCategory("all");
+    setSelectedShipping(null);
     setFormResetKey((k) => k + 1);
   }, []);
 
@@ -136,8 +155,8 @@ const PaketReguler = () => {
             description="Kirim paket ke seluruh Indonesia dengan mudah dan aman."
           />
 
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-            <div className="min-w-0">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-10">
+            <div className="min-w-0 lg:col-span-7">
               <RegularPackageForm
                 key={formResetKey}
                 onResult={handleCalculationResult}
@@ -146,8 +165,37 @@ const PaketReguler = () => {
               />
             </div>
 
-            <div className="min-w-0 space-y-6">
+            <div className="min-w-0 space-y-6 lg:col-span-3">
               <SectionCard icon={Truck} title="Pilihan Layanan">
+                <Tabs
+                  value={activeCategory}
+                  onValueChange={(v) =>
+                    setActiveCategory(v as ServiceCategory)
+                  }
+                  className="mb-4"
+                >
+                  <TabsList className="h-11 w-full items-stretch rounded-lg bg-slate-100 p-1">
+                    <TabsTrigger
+                      value="all"
+                      className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+                    >
+                      Semua Layanan
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="reguler"
+                      className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+                    >
+                      Reguler
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="cargo"
+                      className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+                    >
+                      Cargo
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
                 <AnimatePresence mode="wait">
                   {isSearching ? (
                     <motion.div
@@ -174,6 +222,8 @@ const PaketReguler = () => {
                         result={calculationResult}
                         formData={formData}
                         onResetForm={handleResetForm}
+                        activeCategory={activeCategory}
+                        onSelectedOptionChange={handleSelectedOptionChange}
                       />
                     </motion.div>
                   ) : (
@@ -204,13 +254,18 @@ const PaketReguler = () => {
                   <SummaryRow label="Berat Paket" value={weightLabel} />
                   <SummaryRow label="Dimensi (P x L x T)" value={dimensionLabel} />
                   <SummaryRow label="Tujuan" value={destinationLabel} />
+                  <SummaryRow
+                    label="Layanan"
+                    value={selectedShipping?.name ?? "-"}
+                  />
                 </div>
                 <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3">
                   <span className="font-semibold text-slate-900">
                     Total Ongkir
                   </span>
                   <span className="text-lg font-bold text-blue-600">
-                    {calculationResult ? "Pilih layanan di atas" : "-"}
+                    {selectedShipping?.price ??
+                      (calculationResult ? "Pilih layanan di atas" : "-")}
                   </span>
                 </div>
               </div>
