@@ -95,26 +95,32 @@ main > div:has(header[data-app-topbar]) {
   body {
     @apply bg-background text-foreground;
   }
-}
 
-body {
-  font-family: var(--font-poppins);
-}
+  body {
+    font-family: var(--font-poppins);
+  }
 
-h1 {
-  font-size: 2.25rem; /* 36px */
-  font-weight: bold;
-  line-height: 1.2;
-}
+  /* Ukuran default kalau heading TIDAK diberi className ukuran teks sendiri.
+     Ditaruh di @layer base (bukan CSS polos) supaya utility Tailwind (mis.
+     `text-lg`) di komponen selalu menang lewat urutan layer normal — CSS
+     polos di luar @layer selalu menang atas SEMUA utility apa pun urutan
+     sourcenya, jadi sebelumnya heading manapun yang sudah diberi className
+     ukuran (SectionCard, PageHeader, dst) tetap dipaksa ke ukuran ini. */
+  h1 {
+    font-size: 2.25rem; /* 36px */
+    font-weight: bold;
+    line-height: 1.2;
+  }
 
-h2 {
-  font-size: 1.875rem; /* 30px */
-  font-weight: bold;
-}
+  h2 {
+    font-size: 1.875rem; /* 30px */
+    font-weight: bold;
+  }
 
-h3 {
-  font-size: 1.5rem; /* 24px */
-  font-weight: bold;
+  h3 {
+    font-size: 1.5rem; /* 24px */
+    font-weight: bold;
+  }
 }
 
 /* Shipping Card Styles */

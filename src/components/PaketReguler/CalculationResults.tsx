@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -140,6 +141,33 @@ type SapApiResult = {
   };
 };
 
+type JntCargoServiceItem = {
+  service_name?: string;
+  service_code?: string;
+  service_type?: string;
+  available?: boolean;
+  error?: string;
+  cost?: number | string;
+  price?: number | string;
+  total_cost?: number | string;
+  shipping_cost?: number | string;
+  final_cost?: number | string;
+  rate?: number | string;
+  etd?: string;
+  sla?: string;
+};
+
+type JntCargoApiResult = {
+  success?: boolean;
+  status: string;
+  message?: string;
+  data?: {
+    vendor?: string;
+    services?: JntCargoServiceItem[];
+  };
+  costs?: JntCargoServiceItem[];
+};
+
 type CombinedApiResult = {
   status: string;
   data: {
@@ -152,8 +180,16 @@ type CombinedApiResult = {
     idexpress: Record<string, unknown> | null;
     anteraja: Record<string, unknown> | null;
     ninja: Record<string, unknown> | null;
+    jntcargo: JntCargoApiResult | null;
   };
 };
+
+/** Kategori tab "Pilihan Layanan" — Cargo cuma J&T Cargo, sisanya Reguler. */
+type ServiceCategory = "all" | "reguler" | "cargo";
+
+function getServiceCategory(optionId: string): Exclude<ServiceCategory, "all"> {
+  return optionId.startsWith("jntcargo") ? "cargo" : "reguler";
+}
 
 type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
 
@@ -165,6 +201,7 @@ export default function CalculationResults({
 }: CalculationResultsProps) {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("all");
   const [isInsured, setIsInsured] = useState(false);
   const [showPaymentSection, setShowPaymentSection] = useState(false);
 
@@ -208,6 +245,7 @@ export default function CalculationResults({
   useEffect(() => {
     // Reset all selection states when new data comes in
     setSelectedOption(null);
+    setActiveCategory("all");
     setShowPaymentSection(false);
     setDiscountInfo(null);
     setIsInsured(false);
@@ -629,6 +667,48 @@ export default function CalculationResults({
           });
         }
       }
+      // Process J&T Cargo results
+      if (combinedData.jntcargo && combinedData.jntcargo.status === "success") {
+        const jntCargoServices =
+          combinedData.jntcargo.costs ??
+          combinedData.jntcargo.data?.services ??
+          [];
+
+        jntCargoServices.forEach((service) => {
+          const serviceLabel =
+            service.service_name || service.service_type || "Reguler";
+          const serviceId = `jntcargo-${(
+            service.service_code ||
+            service.service_type ||
+            "reguler"
+          ).toLowerCase()}`;
+
+          if (!service.available) return;
+
+          const priceValue = Number(
+            service.cost ??
+              service.price ??
+              service.total_cost ??
+              service.shipping_cost ??
+              service.final_cost ??
+              service.rate ??
+              0
+          );
+          if (!priceValue || priceValue <= 0) return;
+
+          options.push({
+            id: serviceId,
+            name: `J&T Cargo ${serviceLabel}`.trim(),
+            logo: "/images/jnt-cargo.png",
+            price: `Rp${priceValue.toLocaleString("id-ID")}`,
+            duration: service.sla || service.etd || "-",
+            available: true,
+            recommended: false,
+            tags: [{ label: "J&T Cargo", type: "info" as const }],
+          });
+        });
+      }
+
       return options;
     }
 
@@ -675,6 +755,18 @@ export default function CalculationResults({
   const selectedShippingOption = shippingOptions.find(
     (option) => option.id === selectedOption
   );
+
+  const cargoOptionsCount = shippingOptions.filter(
+    (o) => getServiceCategory(o.id) === "cargo"
+  ).length;
+  const regulerOptionsCount = shippingOptions.length - cargoOptionsCount;
+
+  const filteredShippingOptions =
+    activeCategory === "all"
+      ? shippingOptions
+      : shippingOptions.filter(
+          (o) => getServiceCategory(o.id) === activeCategory
+        );
 
   function isApiErrorResult(obj: unknown): obj is ApiErrorResult {
     return (
@@ -1281,14 +1373,49 @@ export default function CalculationResults({
 
   return (
     <div className="animate-slide-up space-y-4">
+      {/* Tab kategori layanan */}
+      {shippingOptions.length > 0 && (
+        <Tabs
+          value={activeCategory}
+          onValueChange={(v) => setActiveCategory(v as ServiceCategory)}
+        >
+          <TabsList className="h-11 w-full rounded-lg bg-slate-100 p-1">
+            <TabsTrigger
+              value="all"
+              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+            >
+              Semua Layanan ({shippingOptions.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="reguler"
+              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+            >
+              Reguler ({regulerOptionsCount})
+            </TabsTrigger>
+            <TabsTrigger
+              value="cargo"
+              className="flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+            >
+              Cargo ({cargoOptionsCount})
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+
+      {shippingOptions.length > 0 && filteredShippingOptions.length === 0 && (
+        <p className="py-8 text-center text-sm text-slate-500">
+          Tidak ada layanan di kategori ini untuk rute yang dipilih.
+        </p>
+      )}
+
       {/* Shipping Options List */}
-      {shippingOptions.map((option) => (
+      {filteredShippingOptions.map((option) => (
         <Card
           key={`${option.id}-${selectedOption === option.id ? "selected" : "unselected"}`}
-          className={`cursor-pointer transition-all duration-200 ${
+          className={`cursor-pointer rounded-xl transition-all duration-200 ${
             selectedOption === option.id
               ? "border-blue-500 bg-blue-50"
-              : "border-gray-200 hover:border-gray-300"
+              : "border-slate-200 hover:border-slate-300"
           }`}
           onClick={() => handleShippingSelect(option.id)}
         >

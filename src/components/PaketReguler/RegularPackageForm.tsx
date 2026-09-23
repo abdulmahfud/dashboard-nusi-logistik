@@ -56,6 +56,7 @@ import {
   getIdexpressShipmentCost,
   getAnterajaShipmentCost,
   getNinjaShipmentCost,
+  getJntCargoShipmentCost,
   searchAddressNew,
   getProducts,
 } from "@/lib/apiClient";
@@ -78,7 +79,8 @@ type VendorKey =
   | "jne"
   | "idexpress"
   | "anteraja"
-  | "ninja";
+  | "ninja"
+  | "jntcargo";
 
 interface AddressResult {
   type: "postal_code" | "subdistrict";
@@ -846,7 +848,8 @@ export default function RegularPackageForm({
               key === "jne" ||
               key === "idexpress" ||
               key === "anteraja" ||
-              key === "ninja"
+              key === "ninja" ||
+              key === "jntcargo"
           )
       );
 
@@ -888,6 +891,7 @@ export default function RegularPackageForm({
         idexpressResult,
         anterajaResult,
         ninjaResult,
+        jntCargoResult,
       ] = await Promise.allSettled([
         allowedVendors.has("jntexpress")
           ? getJntExpressShipmentCost(shipmentPayload)
@@ -916,6 +920,9 @@ export default function RegularPackageForm({
         allowedVendors.has("ninja")
           ? getNinjaShipmentCost(shipmentPayload)
           : Promise.resolve(null),
+        allowedVendors.has("jntcargo")
+          ? getJntCargoShipmentCost(shipmentPayload)
+          : Promise.resolve(null),
       ]);
 
       notifyShipmentCost422Rejections([
@@ -928,6 +935,7 @@ export default function RegularPackageForm({
         { label: "ID Express", settled: idexpressResult },
         { label: "Anteraja", settled: anterajaResult },
         { label: "Ninja", settled: ninjaResult },
+        { label: "J&T Cargo", settled: jntCargoResult },
       ]);
 
       // Combine results from all APIs - same format as ShippingForm.tsx
@@ -950,6 +958,8 @@ export default function RegularPackageForm({
           anteraja:
             anterajaResult.status === "fulfilled" ? anterajaResult.value : null,
           ninja: ninjaResult.status === "fulfilled" ? ninjaResult.value : null,
+          jntcargo:
+            jntCargoResult.status === "fulfilled" ? jntCargoResult.value : null,
         },
       };
 
@@ -1740,7 +1750,7 @@ export default function RegularPackageForm({
                 </>
               ) : (
                 <>
-                  Lanjut ke Ringkasan
+                  Pilih Ekspedisi
                   <CircleChevronRight className="w-4 h-4" />
                 </>
               )}

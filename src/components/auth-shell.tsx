@@ -59,7 +59,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
 
           <Image
-            src="/images/login-e.png"
+            src="/images/login-e.jpg"
             alt="Ilustrasi dashboard BhisaKirim dengan truk, paket, dan ekspedisi"
             width={539}
             height={400}
