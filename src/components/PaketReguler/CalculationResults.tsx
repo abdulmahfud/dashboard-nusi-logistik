@@ -1419,7 +1419,9 @@ export default function CalculationResults({
                   className="object-contain"
                 />
                 <div>
-                  <h3 className="font-medium text-gray-900">{option.name}</h3>
+                  <h3 className="text-sm font-medium text-gray-900">
+                    {option.name}
+                  </h3>
                   <div className="flex items-center space-x-2">
                     {/* Show discounted price if available and this option is selected */}
                     {selectedOption === option.id &&

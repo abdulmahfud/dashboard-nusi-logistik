@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,6 +182,7 @@ export default function RegularPackageForm({
   const [open, setOpen] = useState(false);
   const [openRecipient, setOpenRecipient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [senderSearchQuery, setSenderSearchQuery] = useState("");
   const [businessRecipients, setBusinessRecipients] = useState<Receiver[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiverId, setReceiverId] = useState<string | null>(null);
@@ -984,6 +984,12 @@ export default function RegularPackageForm({
     recipient.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredBusinessData = businessData.filter((business) =>
+    business.businessName
+      .toLowerCase()
+      .includes(senderSearchQuery.toLowerCase())
+  );
+
   return (
     <div>
       <form onSubmit={handleSubmit}>
@@ -1085,37 +1091,45 @@ export default function RegularPackageForm({
           title="Data Pengirim"
           className="mb-6"
           action={
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
                 <Button className="h-10 gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700">
                   <PenLine size={16} /> Pilih List Pengirim
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Pilih Alamat</DialogTitle>
-                  <DialogDescription>
-                    Pilih alamat yang tersedia atau tambahkan alamat baru.
-                  </DialogDescription>
-                </DialogHeader>
-
-                {/* List alamat yang tersedia */}
-                <div className="space-y-2">
-                  {businessData.map((business) => (
-                    <div
-                      key={business.id}
-                      className="p-3 border rounded-lg cursor-pointer border-gray-300 hover:border-primary"
-                      onClick={() => handleSelectAddress(business)}
-                    >
-                      <p className="font-medium">{business.businessName}</p>
-                      <p className="text-sm text-gray-500">
-                        {business.address}
-                      </p>
-                    </div>
-                  ))}
+              </PopoverTrigger>
+              <PopoverContent className="w-96 p-4">
+                <Label className="flex items-center gap-2 mb-2">
+                  <Search className="w-4 h-4" />
+                  Cari Pengirim
+                </Label>
+                <Input
+                  placeholder="Cari nama pengirim..."
+                  value={senderSearchQuery}
+                  onChange={(e) => setSenderSearchQuery(e.target.value)}
+                  className="mb-3"
+                />
+                <div className="max-h-40 overflow-y-auto space-y-2">
+                  {filteredBusinessData.length > 0 ? (
+                    filteredBusinessData.map((business) => (
+                      <div
+                        key={business.id}
+                        className="p-3 border rounded-lg cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSelectAddress(business)}
+                      >
+                        <p className="font-medium">{business.businessName}</p>
+                        <p className="text-sm text-gray-500">
+                          {business.address || "No address"}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Tidak ada pengirim ditemukan
+                    </p>
+                  )}
                 </div>
-              </DialogContent>
-            </Dialog>
+              </PopoverContent>
+            </Popover>
           }
         >
           <div className="space-y-4">
