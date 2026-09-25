@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ExportAllPaymentsDialog from "@/components/wallet/export-all-payments-dialog";
 import { useAuth } from "@/context/AuthContext";
 import { getAllPayments, normalizeAllPayments } from "@/lib/apiClient";
 import type { PaymentAllItem, PaymentAllSummary } from "@/types/payment";
@@ -33,6 +34,7 @@ import {
   Clock,
   ClipboardListIcon,
   DollarSign,
+  Download,
   Filter,
   Loader2,
   RefreshCw,
@@ -118,9 +120,11 @@ function extractPagination(payload: unknown): {
   return fallback;
 }
 
-export default function LaporanSemuaMutasiPage() {
+export default function LaporanSemuaPembayaranPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canViewAll = hasPermission("payments.view_all");
+  const canExport = hasPermission("exports.transactions");
+  const [exportOpen, setExportOpen] = useState(false);
 
   /** Isi field yang sedang diketik; baru dikirim saat "Terapkan Filter". */
   const [filters, setFilters] = useState<FilterState>(initialFilters);
@@ -161,9 +165,9 @@ export default function LaporanSemuaMutasiPage() {
     } catch (e) {
       if (e instanceof AxiosError) {
         const msg = (e.response?.data as { message?: string })?.message;
-        setError(msg || "Gagal memuat laporan semua mutasi.");
+        setError(msg || "Gagal memuat laporan semua pembayaran.");
       } else {
-        setError("Gagal memuat laporan semua mutasi.");
+        setError("Gagal memuat laporan semua pembayaran.");
       }
       setRows([]);
       setLastPage(1);
@@ -241,13 +245,26 @@ export default function LaporanSemuaMutasiPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Semua Mutasi" },
+              { label: "Laporan Semua Pembayaran" },
             ]}
             icon={ClipboardListIcon}
-            title="Laporan Semua Mutasi"
+            title="Laporan Semua Pembayaran"
             description="Riwayat semua pembayaran dengan filter admin."
             illustration="/images/report.png"
             illustrationClassName="w-[120px]"
+            actionBelowIllustration
+            action={
+              canExport ? (
+                <Button
+                  type="button"
+                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              ) : undefined
+            }
           />
 
           <SectionCard
@@ -513,7 +530,7 @@ export default function LaporanSemuaMutasiPage() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">
-              Data Mutasi ({total})
+              Data Pembayaran ({total})
             </h2>
 
             {error ? (
@@ -610,6 +627,18 @@ export default function LaporanSemuaMutasiPage() {
             )}
           </section>
         </div>
+
+        {canExport && (
+          <ExportAllPaymentsDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialStatus={applied.status}
+            initialPaymentMethod={applied.payment_method}
+            initialSearch={applied.search}
+            initialDateFrom={applied.date_from}
+            initialDateTo={applied.date_to}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

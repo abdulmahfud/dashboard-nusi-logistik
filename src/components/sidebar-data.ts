@@ -174,14 +174,14 @@ export const sidebarData = {
   ],
   report: [
     {
-      title: "Laporan Mutasi Saldo",
-      url: "/dashboard/laporan/laporan-mutasi-saldo",
+      title: "Laporan Pembayaran Paket",
+      url: "/dashboard/laporan/laporan-pembayaran-paket",
       icon: ClipboardListIcon,
       permission: "wallet.view",
     },
     {
-      title: "Laporan Semua Mutasi",
-      url: "/dashboard/laporan/laporan-semua-mutasi",
+      title: "Laporan Semua Pembayaran",
+      url: "/dashboard/laporan/laporan-semua-pembayaran",
       icon: History,
       permission: "payments.view_all",
     },
@@ -193,13 +193,13 @@ export const sidebarData = {
     },
     {
       title: "Aktivitas Pengiriman",
-      url: "/dashboard/laporan/laporan-aktivitas-pengiriman",
+      url: "/dashboard/laporan/aktivitas-pengiriman",
       icon: Activity,
       permission: "reports.shipping.view",
     },
     {
       title: "Ringkasan Pengiriman",
-      url: "/dashboard/akun/laporan-pengiriman",
+      url: "/dashboard/laporan/ringkasan-pengiriman",
       icon: Activity,
       permission: "users.index",
     },

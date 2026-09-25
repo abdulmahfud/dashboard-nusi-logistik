@@ -7,7 +7,7 @@ import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import { AccessDeniedCard } from "@/components/wallet/access-denied-card";
-import ExportTransactionsDialog from "@/components/wallet/export-transactions-dialog";
+import ExportWalletTransactionsDialog from "@/components/wallet/export-wallet-transactions-dialog";
 import { WalletTransactionTable } from "@/components/wallet/wallet-transaction-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,7 +67,7 @@ const labelCls = "text-sm font-medium text-slate-700";
 export default function WalletAllTransactionsPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
   const canViewAll = hasPermission("wallet.transactions.view_all");
-  const canExport = hasPermission("exports.transactions");
+  const canExport = hasPermission("exports.wallet-transactions");
   const [exportOpen, setExportOpen] = useState(false);
 
   const [page, setPage] = useState(1);
@@ -487,9 +487,16 @@ export default function WalletAllTransactionsPage() {
         </div>
 
         {canExport && (
-          <ExportTransactionsDialog
+          <ExportWalletTransactionsDialog
             open={exportOpen}
             onOpenChange={setExportOpen}
+            initialType={typeFilter}
+            initialStatus={statusFilter}
+            initialUserId={userId}
+            initialAmountMin={amountMin}
+            initialAmountMax={amountMax}
+            initialDateFrom={dateFrom}
+            initialDateTo={dateTo}
           />
         )}
       </SidebarInset>

@@ -12,7 +12,9 @@ export type ExportType =
   | "withdraws"
   | "kerja-sama-ledger"
   | "transactions"
-  | "wallet-history";
+  | "wallet-history"
+  | "payment-history"
+  | "wallet-transactions";
 
 export type ExportStatus =
   | "pending"
@@ -46,15 +48,18 @@ export interface CreateExportPayload {
   end_date?: string;
   /** shipping-activity / shipping-summary (khusus yang boleh melihat semua akun): batasi ke satu akun. */
   user_id?: number;
-  /** bank-accounts: pending/approved/rejected. support-tickets: awaiting_support/awaiting_customer/resolved/closed. kerja-sama-invoices: draft/issued/partially_paid/paid/overdue/void. withdraws: pending/approved/rejected. kerja-sama-ledger: pending/confirmed/invoiced/voided. transactions: pending/paid/expired/failed. wallet-history: pending/success/failed. */
+  /** bank-accounts: pending/approved/rejected. support-tickets: awaiting_support/awaiting_customer/resolved/closed. kerja-sama-invoices: draft/issued/partially_paid/paid/overdue/void. withdraws: pending/approved/rejected. kerja-sama-ledger: pending/confirmed/invoiced/voided. transactions / payment-history: pending/paid/expired/failed. wallet-history / wallet-transactions: pending/success/failed. */
   status?: string;
   /** Hanya untuk support-tickets: kode departemen. */
   department?: string;
-  /** kerja-sama-ledger: charge/payment/adjustment/write_off. transactions: order/topup/cod_income. wallet-history: topup/payment/withdraw/cod_income. (bukan `type`) */
+  /** kerja-sama-ledger: charge/payment/adjustment/write_off. transactions / payment-history: order/topup/cod_income. wallet-history / wallet-transactions: topup/payment/withdraw/cod_income. (bukan `type`) */
   transaction_type?: string;
-  /** Hanya untuk wallet-history: kata pencarian (keterangan / nomor referensi), maks. 255. */
+  /** Hanya untuk wallet-transactions: rentang nominal (angka >= 0). */
+  amount_min?: number;
+  amount_max?: number;
+  /** wallet-history / payment-history / transactions / wallet-transactions: kata pencarian, maks. 255. */
   search?: string;
-  /** Hanya untuk transactions: wallet/cod/xendit. */
+  /** transactions / payment-history: wallet/cod/xendit. */
   payment_method?: string;
   /** Hanya untuk feedbacks: 1 sampai 5. */
   rating?: number;

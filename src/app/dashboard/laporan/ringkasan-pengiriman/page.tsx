@@ -67,7 +67,7 @@ const accountTypeLabel: Record<string, string> = {
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";
 
-export default function LaporanPengirimanSayaPage() {
+export default function RingkasanPengirimanPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
   const router = useRouter();
   const canExport = hasPermission("orders.index");
@@ -183,10 +183,10 @@ export default function LaporanPengirimanSayaPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Laporan Pengiriman Saya" },
+              { label: "Ringkasan Pengiriman" },
             ]}
             icon={Activity}
-            title="Laporan Pengiriman Saya"
+            title="Ringkasan Pengiriman"
             description="Ringkasan pengiriman akun Anda — total pengiriman, total ongkir, breakdown per vendor."
             action={
               <div className="flex flex-wrap items-center gap-2">

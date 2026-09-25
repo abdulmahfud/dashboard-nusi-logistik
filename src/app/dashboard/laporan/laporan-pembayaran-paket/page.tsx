@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   ClipboardListIcon,
   Clock,
+  Download,
   Filter,
   Loader2,
   RefreshCw,
@@ -48,6 +49,8 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { AxiosError } from "axios";
+import ExportPaymentHistoryDialog from "@/components/wallet/export-payment-history-dialog";
+import { useAuth } from "@/context/AuthContext";
 import { getPaymentHistory } from "@/lib/apiClient";
 import { formatDateTimeId } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
@@ -119,7 +122,10 @@ function DateCell({ value }: { value: string | undefined }) {
   );
 }
 
-const LaporanMutasiSaldo = () => {
+const LaporanPembayaranPaket = () => {
+  const { hasPermission } = useAuth();
+  const canExport = hasPermission("payments.view");
+  const [exportOpen, setExportOpen] = useState(false);
   // Isi field yang sedang diketik; baru dikirim saat "Terapkan Filter".
   const [searchInput, setSearchInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusValue>("all");
@@ -225,10 +231,10 @@ const LaporanMutasiSaldo = () => {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Laporan Mutasi Saldo" },
+              { label: "Laporan Pembayaran Paket" },
             ]}
             icon={ClipboardListIcon}
-            title="Laporan Mutasi Saldo"
+            title="Laporan Pembayaran Paket"
             description="Riwayat pembayaran (saldo wallet, transfer, dan COD) dengan filter admin."
             illustration="/images/business-report.png"
             illustrationClassName="w-[120px]"
@@ -397,6 +403,16 @@ const LaporanMutasiSaldo = () => {
                   />
                   Muat Ulang
                 </Button>
+                {canExport && (
+                  <Button
+                    type="button"
+                    onClick={() => setExportOpen(true)}
+                    className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Export
+                  </Button>
+                )}
               </div>
             </form>
           </SectionCard>
@@ -526,9 +542,20 @@ const LaporanMutasiSaldo = () => {
             )}
           </section>
         </div>
+
+        {canExport && (
+          <ExportPaymentHistoryDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialStatus={applied.status}
+            initialSearch={applied.search}
+            initialDateFrom={applied.dateFrom}
+            initialDateTo={applied.dateTo}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
 };
 
-export default LaporanMutasiSaldo;
+export default LaporanPembayaranPaket;

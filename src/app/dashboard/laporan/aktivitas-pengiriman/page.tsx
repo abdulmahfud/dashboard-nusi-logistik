@@ -61,7 +61,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";
 
-export default function LaporanAktivitasPengirimanPage() {
+export default function AktivitasPengirimanPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -242,10 +242,10 @@ export default function LaporanAktivitasPengirimanPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Aktivitas Pengiriman per Akun" },
+              { label: "Aktivitas Pengiriman" },
             ]}
             icon={Activity}
-            title="Aktivitas Pengiriman per Akun"
+            title="Aktivitas Pengiriman"
             description="Ringkasan pengiriman satu akun dalam satu periode — total pengiriman, total ongkir, dan breakdown per vendor."
             action={
               <Button

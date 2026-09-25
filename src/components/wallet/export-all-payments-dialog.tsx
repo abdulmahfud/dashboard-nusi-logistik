@@ -34,6 +34,13 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Nilai awal mengikuti filter yang sedang diterapkan di halaman ("all" / kosong = semua). */
+  initialStatus?: string;
+  initialPaymentMethod?: string;
+  initialSearch?: string;
+  /** Format YYYY-MM-DD, seperti filter halaman. */
+  initialDateFrom?: string;
+  initialDateTo?: string;
 }
 
 const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
@@ -57,37 +64,68 @@ const STATUSES = [
   { value: "failed", label: "Gagal" },
 ];
 
+/** "2026-09-25" -> Date lokal (tanpa geser zona waktu). */
+function parseApiDate(value: string | undefined): Date | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!m) return undefined;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function pick(
+  options: { value: string }[],
+  value: string | undefined
+): string {
+  return options.some((o) => o.value === value) ? (value as string) : "all";
+}
+
 /**
- * Export Semua Transaksi (docs/be-fe/export-semua-transaksi.md).
- * Isinya catatan pembayaran (payments), bukan mutasi saldo wallet.
- * Tanggal = tanggal pembayaran dibuat.
+ * Export Laporan Semua Pembayaran, semua akun
+ * (docs/be-fe/export-laporan-mutasi-saldo-semua.md). Isinya catatan
+ * pembayaran (payments), bukan mutasi saldo wallet. Tipe export BE: `transactions`.
  */
-export default function ExportTransactionsDialog({
+export default function ExportAllPaymentsDialog({
   open,
   onOpenChange,
+  initialStatus,
+  initialPaymentMethod,
+  initialSearch = "",
+  initialDateFrom,
+  initialDateTo,
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [transactionType, setTransactionType] = useState("all");
   const [paymentMethod, setPaymentMethod] = useState("all");
   const [status, setStatus] = useState("all");
+  const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<User[]>([]);
   const [searching, setSearching] = useState(false);
   const [account, setAccount] = useState<User | null>(null);
 
-  // Reset isian setiap dialog dibuka.
+  // Isi awal dari filter halaman setiap dialog dibuka.
   useEffect(() => {
     if (!open) return;
-    setRange(undefined);
+    const from = parseApiDate(initialDateFrom);
+    setRange(
+      from ? { from, to: parseApiDate(initialDateTo) ?? from } : undefined
+    );
     setTransactionType("all");
-    setPaymentMethod("all");
-    setStatus("all");
+    setPaymentMethod(pick(PAYMENT_METHODS, initialPaymentMethod));
+    setStatus(pick(STATUSES, initialStatus));
+    setSearch(initialSearch);
     setAccount(null);
     setQuery("");
     setResults([]);
-  }, [open]);
+  }, [
+    open,
+    initialStatus,
+    initialPaymentMethod,
+    initialSearch,
+    initialDateFrom,
+    initialDateTo,
+  ]);
 
   useEffect(() => {
     if (!open || account) return;
@@ -115,6 +153,7 @@ export default function ExportTransactionsDialog({
           transactionType !== "all" ? transactionType : undefined,
         payment_method: paymentMethod !== "all" ? paymentMethod : undefined,
         status: status !== "all" ? status : undefined,
+        search: search.trim() || undefined,
         start_date: range?.from ? toApiDate(range.from) : undefined,
         end_date: range?.to
           ? toApiDate(range.to)
@@ -151,7 +190,7 @@ export default function ExportTransactionsDialog({
               <Download className="h-5 w-5" aria-hidden />
             </span>
             <div className="text-left">
-              <DialogTitle>Export Semua Transaksi</DialogTitle>
+              <DialogTitle>Export Laporan Semua Pembayaran</DialogTitle>
               <DialogDescription>
                 Catatan pembayaran semua pengguna: ongkir order, top up, dan
                 pendapatan COD. Kosongkan filter untuk semua data.
@@ -224,6 +263,23 @@ export default function ExportTransactionsDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="export-all-payments-search"
+            className="text-sm font-medium text-slate-700"
+          >
+            Pencarian (opsional)
+          </Label>
+          <Input
+            id="export-all-payments-search"
+            value={search}
+            maxLength={255}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Referensi, invoice, metode, nama, atau email"
+            className={fieldCls}
           />
         </div>
 
