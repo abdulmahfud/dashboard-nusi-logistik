@@ -1,0 +1,222 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DateRangeField,
+  toApiDate,
+} from "@/components/redesign/date-range-field";
+import { createExport, getRoles } from "@/lib/apiClient";
+import type { Role } from "@/types/roles";
+import { AxiosError } from "axios";
+import { Download, Loader2, ShieldAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { DateRange } from "react-day-picker";
+import { toast } from "sonner";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+
+const ACCOUNT_TYPES = [
+  { value: "personal", label: "Personal" },
+  { value: "corporate", label: "Corporate" },
+  { value: "agen", label: "Agen" },
+] as const;
+
+/** "customer-service" → "Customer Service"; role "user" ditampilkan sebagai Customer. */
+function roleLabel(name: string): string {
+  if (name === "user") return "Customer";
+  return name
+    .split(/[-_\s]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Export List User (docs/be-fe/export-list-user.md). Tanggal = tanggal daftar. */
+export default function ExportUsersDialog({ open, onOpenChange }: Props) {
+  const router = useRouter();
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const [role, setRole] = useState("all");
+  const [accountType, setAccountType] = useState("all");
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [exporting, setExporting] = useState(false);
+
+  // Filter tipe akun hanya berlaku untuk customer (role "user").
+  const accountTypeApplicable = role === "all" || role === "user";
+
+  useEffect(() => {
+    if (!open) return;
+    setRange(undefined);
+    setRole("all");
+    setAccountType("all");
+    let cancelled = false;
+    getRoles()
+      .then((res) => {
+        if (!cancelled) setRoles(res.data.data);
+      })
+      .catch(() => {
+        if (!cancelled) setRoles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await createExport({
+        type: "users",
+        role: role !== "all" ? role : undefined,
+        account_type:
+          accountTypeApplicable && accountType !== "all"
+            ? (accountType as "personal" | "corporate" | "agen")
+            : undefined,
+        start_date: range?.from ? toApiDate(range.from) : undefined,
+        end_date: range?.to
+          ? toApiDate(range.to)
+          : range?.from
+            ? toApiDate(range.from)
+            : undefined,
+      });
+      toast.success("Export sedang diproses.", {
+        description: "Unduh filenya di halaman Download Report.",
+      });
+      onOpenChange(false);
+      router.push("/dashboard/download-report");
+    } catch (err) {
+      const data =
+        err instanceof AxiosError
+          ? (err.response?.data as
+              | { message?: string; errors?: Record<string, string[]> }
+              | undefined)
+          : undefined;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      toast.error(first || data?.message || "Gagal membuat export.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Download className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="text-left">
+              <DialogTitle>Export List User</DialogTitle>
+              <DialogDescription>
+                Pilih jenis user dan rentang tanggal daftar. Kosongkan untuk
+                semua user.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-slate-700">
+            Jenis user (role)
+          </Label>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger className={fieldCls}>
+              <SelectValue placeholder="Semua role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Role</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r.id} value={r.name}>
+                  {roleLabel(r.name)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {accountTypeApplicable && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-700">
+              Tipe akun (khusus customer)
+            </Label>
+            <Select value={accountType} onValueChange={setAccountType}>
+              <SelectTrigger className={fieldCls}>
+                <SelectValue placeholder="Semua tipe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tipe</SelectItem>
+                {ACCOUNT_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-slate-700">
+            Tanggal daftar
+          </Label>
+          <DateRangeField
+            value={range}
+            onChange={setRange}
+            placeholder="Semua waktu"
+          />
+        </div>
+
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            File berisi data pribadi pengguna. Jangan dibagikan tanpa
+            pengamanan. File dibuat di latar belakang dan bisa diunduh di
+            halaman Download Report.
+          </p>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-lg border-slate-200"
+            onClick={() => onOpenChange(false)}
+            disabled={exporting}
+          >
+            Batal
+          </Button>
+          <Button
+            type="button"
+            className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+            onClick={() => void handleExport()}
+            disabled={exporting}
+          >
+            {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Buat Export
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

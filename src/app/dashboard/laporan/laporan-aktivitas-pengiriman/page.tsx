@@ -4,6 +4,15 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -24,11 +33,20 @@ import {
 } from "@/components/redesign/date-range-field";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
-import { getUserShippingReport, getUsers } from "@/lib/apiClient";
+import { createExport, getUserShippingReport, getUsers } from "@/lib/apiClient";
+import { toast } from "sonner";
 import type { ShippingActivityReport } from "@/types/laporanAktivitasPengiriman";
 import type { User } from "@/types/users";
 import { AxiosError } from "axios";
-import { Activity, Loader2, Package, Search, Truck, Wallet } from "lucide-react";
+import {
+  Activity,
+  Download,
+  Loader2,
+  Package,
+  Search,
+  Truck,
+  Wallet,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
@@ -59,6 +77,13 @@ export default function LaporanAktivitasPengirimanPage() {
   const searchSeqRef = useRef(0);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportRange, setExportRange] = useState<DateRange | undefined>(
+    undefined
+  );
+  const [exportOnlySelected, setExportOnlySelected] = useState(true);
 
   const [report, setReport] = useState<ShippingActivityReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -139,6 +164,40 @@ export default function LaporanAktivitasPengirimanPage() {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await createExport({
+        type: "shipping-activity",
+        start_date: exportRange?.from ? toApiDate(exportRange.from) : undefined,
+        end_date: exportRange?.to
+          ? toApiDate(exportRange.to)
+          : exportRange?.from
+            ? toApiDate(exportRange.from)
+            : undefined,
+        user_id:
+          selectedUser && exportOnlySelected ? selectedUser.id : undefined,
+      });
+      toast.success("Export sedang diproses.", {
+        description: "Unduh filenya di halaman Download Report.",
+      });
+      setExportOpen(false);
+      router.push("/dashboard/download-report");
+    } catch (err) {
+      const data =
+        err instanceof AxiosError
+          ? (err.response?.data as {
+              message?: string;
+              errors?: Record<string, string[]>;
+            })
+          : undefined;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      toast.error(first || data?.message || "Gagal membuat export.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedUser) {
       void fetchReport(selectedUser.id, dateRange);
@@ -188,6 +247,20 @@ export default function LaporanAktivitasPengirimanPage() {
             icon={Activity}
             title="Aktivitas Pengiriman per Akun"
             description="Ringkasan pengiriman satu akun dalam satu periode — total pengiriman, total ongkir, dan breakdown per vendor."
+            action={
+              <Button
+                type="button"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setExportRange(dateRange);
+                  setExportOnlySelected(true);
+                  setExportOpen(true);
+                }}
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Export
+              </Button>
+            }
           />
 
           <SectionCard icon={Search} title="Pilih Akun & Periode">
@@ -407,6 +480,70 @@ export default function LaporanAktivitasPengirimanPage() {
             </p>
           )}
         </div>
+        <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Download className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Export Aktivitas Pengiriman</DialogTitle>
+                  <DialogDescription>
+                    Pilih rentang tanggal order dibuat. Kosongkan untuk semua
+                    data.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <DateRangeField
+              value={exportRange}
+              onChange={setExportRange}
+              placeholder="Semua data"
+            />
+            {selectedUser ? (
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                <Checkbox
+                  checked={exportOnlySelected}
+                  onCheckedChange={(v) => setExportOnlySelected(v === true)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Hanya akun <strong>{selectedUser.name}</strong> (
+                  {selectedUser.email}). Hilangkan centang untuk semua akun.
+                </span>
+              </label>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Tidak ada akun dipilih, jadi export mencakup semua akun.
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              File dibuat di latar belakang lalu bisa diunduh di halaman
+              Download Report.
+            </p>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-lg border-slate-200"
+                onClick={() => setExportOpen(false)}
+                disabled={exporting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                onClick={() => void handleExport()}
+                disabled={exporting}
+              >
+                {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Buat Export
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

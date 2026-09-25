@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Download,
   Eye,
   FileText,
   Filter,
@@ -28,6 +29,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
+import ExportSupportTicketsDialog from "@/components/support/ExportSupportTicketsDialog";
 import {
   TicketStatusIcon,
   TicketStatusPill,
@@ -127,6 +129,8 @@ export default function SupportTicketsListPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canManage = hasPermission("support.tickets.manage");
   const canAccessPage = canManage;
+  const canExport = hasPermission("exports.support-tickets");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +299,18 @@ export default function SupportTicketsListPage() {
             icon={Headphones}
             title="Tiket Masuk"
             description="Kelola semua tiket yang masuk dari pengguna."
+            action={
+              canExport ? (
+                <Button
+                  type="button"
+                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              ) : undefined
+            }
           />
 
           {canManage && (
@@ -619,6 +635,15 @@ export default function SupportTicketsListPage() {
             )}
           </SectionCard>
         </div>
+
+        {canExport && (
+          <ExportSupportTicketsDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialStatus={filterStatus}
+            initialDepartment={filterDepartment}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

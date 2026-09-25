@@ -13,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import {
@@ -44,7 +52,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
-import { getOrders } from "@/lib/apiClient";
+import { createExport, getOrders } from "@/lib/apiClient";
+import { AxiosError } from "axios";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
   Order,
   DeliveryReport,
@@ -106,47 +117,6 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
     vendor: order.vendor,
   };
 };
-
-function exportDeliveryReportCsv(rows: DeliveryReport[]) {
-  const headers = [
-    "No Resi/AWB",
-    "Jenis Paket",
-    "Penerima",
-    "Ekspedisi/Layanan",
-    "Harga",
-    "Metode Pengiriman",
-    "Tipe Layanan",
-    "Status",
-    "Tanggal Dibuat",
-  ];
-  const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [headers.join(",")];
-  rows.forEach((r) => {
-    lines.push(
-      [
-        r.shipmentNo,
-        r.packageType,
-        r.recipient,
-        r.courierService,
-        r.totalShipment,
-        r.shippingMethod,
-        r.service,
-        r.status,
-        r.createdAt,
-      ]
-        .map(escape)
-        .join(",")
-    );
-  });
-  const csv = "﻿" + lines.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `laporan-pengiriman-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 type Tone = "blue" | "violet" | "green" | "orange" | "amber" | "slate" | "rose";
 
@@ -291,7 +261,47 @@ const LaporanPengiriman = () => {
   const [dataReport, setDataReport] = useState<DeliveryReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportRange, setExportRange] = useState<DateRange | undefined>(
+    undefined
+  );
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // Export dibuat di server (antrian); filter tabel (cari/status/jenis
+      // paket) tidak ikut terkirim, hanya rentang tanggal.
+      await createExport({
+        type: "shipping-report",
+        start_date: exportRange?.from ? toApiDate(exportRange.from) : undefined,
+        end_date: exportRange?.to
+          ? toApiDate(exportRange.to)
+          : exportRange?.from
+            ? toApiDate(exportRange.from)
+            : undefined,
+      });
+      toast.success("Export sedang diproses.", {
+        description: "Unduh filenya di halaman Download Report.",
+      });
+      setExportOpen(false);
+      router.push("/dashboard/download-report");
+    } catch (err) {
+      const data =
+        err instanceof AxiosError
+          ? (err.response?.data as {
+              message?: string;
+              errors?: Record<string, string[]>;
+            })
+          : undefined;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      toast.error(first || data?.message || "Gagal membuat export.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchOrders = useCallback(
     async (isRefresh = false) => {
@@ -453,8 +463,10 @@ const LaporanPengiriman = () => {
                 <Button
                   type="button"
                   className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-                  disabled={filteredData.length === 0}
-                  onClick={() => exportDeliveryReportCsv(filteredData)}
+                  onClick={() => {
+                    setExportRange(periode);
+                    setExportOpen(true);
+                  }}
                 >
                   <Download className="h-4 w-4" aria-hidden />
                   Export
@@ -621,6 +633,53 @@ const LaporanPengiriman = () => {
             </>
           )}
         </div>
+        <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Download className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <DialogTitle>Export Laporan Pengiriman</DialogTitle>
+                  <DialogDescription>
+                    Pilih rentang tanggal order dibuat. Kosongkan untuk semua
+                    data.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <DateRangeField
+              value={exportRange}
+              onChange={setExportRange}
+              placeholder="Semua data"
+            />
+            <p className="text-xs text-slate-400">
+              File dibuat di latar belakang lalu bisa diunduh di halaman
+              Download Report.
+            </p>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-lg border-slate-200"
+                onClick={() => setExportOpen(false)}
+                disabled={exporting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                onClick={() => void handleExport()}
+                disabled={exporting}
+              >
+                {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Buat Export
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

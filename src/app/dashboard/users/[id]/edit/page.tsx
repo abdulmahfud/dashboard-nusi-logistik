@@ -51,6 +51,7 @@ export default function EditUserPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
@@ -113,6 +114,12 @@ export default function EditUserPage() {
       ...prev,
       [field]: value,
     }));
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const validateForm = () => {
@@ -165,6 +172,7 @@ export default function EditUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
 
     if (!validateForm()) {
       return;
@@ -193,27 +201,51 @@ export default function EditUserPage() {
     } catch (error: unknown) {
       console.error("Error updating user:", error);
 
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as {
+      const res = (
+        error as {
           response?: {
+            status?: number;
             data?: { errors?: Record<string, string[]>; message?: string };
           };
-        };
-        if (axiosError.response?.data?.errors) {
-          const errors = axiosError.response.data.errors;
-          Object.keys(errors).forEach((key) => {
-            errors[key].forEach((message: string) => {
-              toast.error(`${key}: ${message}`);
-            });
-          });
-        } else {
-          toast.error(
-            axiosError.response?.data?.message ||
-              "Gagal memperbarui data pengguna"
-          );
         }
+      )?.response;
+      const data = res?.data;
+      const taken = /taken|already|sudah|duplicate|unique|exists/i;
+      const fieldLabel: Record<string, string> = {
+        whatsapp: "Nomor WhatsApp",
+        email: "Email",
+        name: "Nama",
+        password: "Password",
+        role: "Role",
+      };
+      const nextErrors: Record<string, string> = {};
+
+      if (data?.errors) {
+        Object.entries(data.errors).forEach(([key, messages]) => {
+          const label = fieldLabel[key] ?? key;
+          const msg = messages[0] ?? "";
+          nextErrors[key] = taken.test(msg)
+            ? `${label} sudah digunakan pengguna lain.`
+            : msg;
+        });
+      } else if (data?.message && taken.test(data.message)) {
+        // Mis. error unique dari DB (409/500) tanpa detail field.
+        const key = /whatsapp/i.test(data.message)
+          ? "whatsapp"
+          : /email/i.test(data.message)
+            ? "email"
+            : null;
+        if (key) {
+          nextErrors[key] = `${fieldLabel[key]} sudah digunakan pengguna lain.`;
+        }
+      }
+
+      setFieldErrors(nextErrors);
+      const messages = Object.values(nextErrors);
+      if (messages.length > 0) {
+        messages.forEach((m) => toast.error(m));
       } else {
-        toast.error("Gagal memperbarui data pengguna");
+        toast.error(data?.message || "Gagal memperbarui data pengguna");
       }
     } finally {
       setSaving(false);
@@ -331,9 +363,19 @@ export default function EditUserPage() {
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       placeholder="contoh@email.com"
                       required
-                      className="h-11 rounded-lg border-slate-200 bg-white pl-10"
+                      aria-invalid={Boolean(fieldErrors.email)}
+                      className={`h-11 rounded-lg bg-white pl-10 ${
+                        fieldErrors.email
+                          ? "border-red-500"
+                          : "border-slate-200"
+                      }`}
                     />
                   </div>
+                  {fieldErrors.email && (
+                    <p className="text-xs text-red-600" role="alert">
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -352,12 +394,23 @@ export default function EditUserPage() {
                     }
                     placeholder="08xxxxxxxxx atau +62xxxxxxxxx"
                     required
-                    className="h-11 rounded-lg border-slate-200 bg-white pl-10"
+                    aria-invalid={Boolean(fieldErrors.whatsapp)}
+                    className={`h-11 rounded-lg bg-white pl-10 ${
+                      fieldErrors.whatsapp
+                        ? "border-red-500"
+                        : "border-slate-200"
+                    }`}
                   />
                 </div>
-                <p className="text-xs text-slate-500">
-                  Format: 08xxxxxxxxx atau +62xxxxxxxxx
-                </p>
+                {fieldErrors.whatsapp ? (
+                  <p className="text-xs text-red-600" role="alert">
+                    {fieldErrors.whatsapp}
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Format: 08xxxxxxxxx atau +62xxxxxxxxx
+                  </p>
+                )}
               </div>
 
               {isSuperAdmin ? (

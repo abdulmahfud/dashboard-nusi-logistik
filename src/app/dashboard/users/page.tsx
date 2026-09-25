@@ -36,7 +36,9 @@ import {
   Search,
   Users,
   Loader2,
+  Download,
 } from "lucide-react";
+import ExportUsersDialog from "@/components/Data/ExportUsersDialog";
 import { toast } from "sonner";
 import { getUsers, deleteUser } from "@/lib/apiClient";
 import { User } from "@/types/users";
@@ -70,6 +72,7 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { hasPermission, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -219,6 +222,16 @@ export default function UsersPage() {
                 />
                 Refresh
               </Button>
+              {hasPermission("exports.users") && (
+                <Button
+                  variant="outline"
+                  onClick={() => setExportOpen(true)}
+                  className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              )}
             </div>
           </div>
 
@@ -374,6 +387,10 @@ export default function UsersPage() {
           </section>
         </div>
       </SidebarInset>
+
+      {hasPermission("exports.users") && (
+        <ExportUsersDialog open={exportOpen} onOpenChange={setExportOpen} />
+      )}
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">

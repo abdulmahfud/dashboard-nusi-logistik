@@ -7,6 +7,7 @@ import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import { AccessDeniedCard } from "@/components/wallet/access-denied-card";
+import ExportTransactionsDialog from "@/components/wallet/export-transactions-dialog";
 import { WalletTransactionTable } from "@/components/wallet/wallet-transaction-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import { AxiosError } from "axios";
 import {
   AlertCircle,
   Calendar,
+  Download,
   Filter,
   Globe,
   Loader2,
@@ -65,6 +67,8 @@ const labelCls = "text-sm font-medium text-slate-700";
 export default function WalletAllTransactionsPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
   const canViewAll = hasPermission("wallet.transactions.view_all");
+  const canExport = hasPermission("exports.transactions");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<number>(20);
@@ -249,6 +253,19 @@ export default function WalletAllTransactionsPage() {
             title="Semua Transaksi Wallet"
             description="Tampilan administrator untuk seluruh pengguna, bukan riwayat pribadi."
             illustration="/images/wallet2.png"
+            actionBelowIllustration
+            action={
+              canExport ? (
+                <Button
+                  type="button"
+                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              ) : undefined
+            }
           />
 
           {forbidden && (
@@ -468,6 +485,13 @@ export default function WalletAllTransactionsPage() {
             )}
           </SectionCard>
         </div>
+
+        {canExport && (
+          <ExportTransactionsDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

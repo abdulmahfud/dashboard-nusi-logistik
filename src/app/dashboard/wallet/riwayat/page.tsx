@@ -12,6 +12,7 @@ import {
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { StatCard } from "@/components/redesign/stat-card";
 import { AccessDeniedCard } from "@/components/wallet/access-denied-card";
+import ExportWalletHistoryDialog from "@/components/wallet/export-wallet-history-dialog";
 import { WalletTransactionTable } from "@/components/wallet/wallet-transaction-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
   AlertCircle,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Download,
   FileText,
   Filter,
   History,
@@ -83,6 +85,7 @@ const NO_FILTERS: AppliedFilters = { search: "" };
 export default function WalletRiwayatPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
   const canView = hasPermission("wallet.view");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -376,19 +379,31 @@ export default function WalletRiwayatPage() {
                 Reset
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              className="ml-auto h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-              onClick={reload}
-              disabled={loading}
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                aria-hidden
-              />
-              Muat ulang
-            </Button>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                onClick={reload}
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                  aria-hidden
+                />
+                Muat ulang
+              </Button>
+              {canView && (
+                <Button
+                  type="button"
+                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Export
+                </Button>
+              )}
+            </div>
           </form>
 
           <SectionCard
@@ -433,6 +448,15 @@ export default function WalletRiwayatPage() {
             )}
           </SectionCard>
         </div>
+
+        <ExportWalletHistoryDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          initialType={filters.type}
+          initialSearch={filters.search}
+          initialDateFrom={filters.dateFrom}
+          initialDateTo={filters.dateTo}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

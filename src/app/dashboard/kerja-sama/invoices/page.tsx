@@ -44,6 +44,7 @@ import {
 import type { KerjaSamaAccount, KerjaSamaInvoice } from "@/types/kerjaSama";
 import { AxiosError } from "axios";
 import {
+  Download,
   Eye,
   Loader2,
   Plus,
@@ -54,6 +55,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import ExportInvoicesDialog from "./export-invoices-dialog";
 import { InvoiceStatusBadge } from "./status-badge";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -93,6 +95,8 @@ export default function KerjaSamaInvoicesPage() {
   const accountInputRef = useRef<HTMLDivElement>(null);
 
   const canGenerate = hasPermission("kerja-sama.invoices.generate");
+  const canExport = hasPermission("exports.kerja-sama-invoices");
+  const [exportOpen, setExportOpen] = useState(false);
   // "Belum Lunas" = gabungan issued + partially_paid + overdue — API tidak
   // dukung filter multi-status sekaligus, jadi FE panggil 3x lalu digabung.
   // Lihat docs/be-fe/tracking-invoice-overdue-corporate.md §2.
@@ -262,15 +266,30 @@ export default function KerjaSamaInvoicesPage() {
             title="Invoice Kerja Sama"
             description="Tagihan bulanan untuk akun postpaid, dari transaksi confirmed yang belum ditagih."
             action={
-              canGenerate ? (
-                <Button
-                  type="button"
-                  className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-                  onClick={() => setGenOpen(true)}
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Generate Invoice
-                </Button>
+              canGenerate || canExport ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {canExport && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 gap-2 rounded-lg border-blue-200 bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                      onClick={() => setExportOpen(true)}
+                    >
+                      <Download className="h-4 w-4" aria-hidden />
+                      Export
+                    </Button>
+                  )}
+                  {canGenerate && (
+                    <Button
+                      type="button"
+                      className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setGenOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                      Generate Invoice
+                    </Button>
+                  )}
+                </div>
               ) : undefined
             }
           />
@@ -553,6 +572,14 @@ export default function KerjaSamaInvoicesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {canExport && (
+          <ExportInvoicesDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialStatus={statusFilter}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

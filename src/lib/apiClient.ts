@@ -37,6 +37,12 @@ import type {
 } from "@/types/order";
 import type { AddressSearchResponse } from "@/types/addressSearch";
 import type {
+  CreateExportPayload,
+  ExportListQuery,
+  ExportListResponse,
+  ExportRequestItem,
+} from "@/types/exportRequest";
+import type {
   GetUsersQueryParams,
   UserListResponse,
   UserDetailResponse,
@@ -2141,6 +2147,61 @@ export const deleteFlatShippingRate = async (
   id: number
 ): Promise<{ status?: string; message?: string }> => {
   const res = await apiClient.delete(`/admin/flat-shipping-rates/${id}`);
+  return res.data;
+};
+
+// ── Export (antrian) — docs/be-fe/export-laporan-pengiriman.md ──────────────
+
+/** POST /admin/exports — 202, diproses di antrian. */
+export const createExport = async (
+  payload: CreateExportPayload
+): Promise<{ success: boolean; message: string; data: ExportRequestItem }> => {
+  const res = await apiClient.post("/admin/exports", payload);
+  return res.data;
+};
+
+/** GET /admin/exports — daftar export milik user login. */
+export const getExports = async (
+  params?: ExportListQuery
+): Promise<ExportListResponse> => {
+  const res = await apiClient.get("/admin/exports", { params });
+  return res.data;
+};
+
+/** GET /admin/exports/{id}/download — file .xlsx (butuh token, jadi lewat blob). */
+export const downloadExport = async (
+  id: number
+): Promise<{ blob: Blob; filename: string }> => {
+  try {
+    const res = await apiClient.get(`/admin/exports/${id}/download`, {
+      responseType: "blob",
+    });
+    const disposition = String(res.headers["content-disposition"] ?? "");
+    const filename =
+      /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? "export.xlsx";
+    return { blob: res.data, filename };
+  } catch (error: unknown) {
+    // Error dari BE berbentuk JSON tapi diterima sebagai blob.
+    if (error instanceof AxiosError && error.response?.data instanceof Blob) {
+      const text = await error.response.data.text();
+      try {
+        throw new Error(
+          (JSON.parse(text) as { message?: string }).message ||
+            "Gagal mengunduh file."
+        );
+      } catch (parseErr) {
+        if (parseErr instanceof Error) throw parseErr;
+      }
+    }
+    throw error;
+  }
+};
+
+/** DELETE /admin/exports/{id} — hapus export beserta filenya. */
+export const deleteExport = async (
+  id: number
+): Promise<{ success: boolean; message: string }> => {
+  const res = await apiClient.delete(`/admin/exports/${id}`);
   return res.data;
 };
 

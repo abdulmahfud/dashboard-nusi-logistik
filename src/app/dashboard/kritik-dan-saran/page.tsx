@@ -5,6 +5,7 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import {
   CheckCircle2,
+  Download,
   HelpCircle,
   Loader2,
   MessageCircle,
@@ -22,6 +23,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import TopNav from "@/components/top-nav";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
+import ExportFeedbacksDialog from "@/components/support/ExportFeedbacksDialog";
 import { SectionCard } from "@/components/redesign/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,6 +144,8 @@ export default function KritikDanSaranPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canCreate = hasPermission("feedbacks.create");
   const canIndex = hasPermission("feedbacks.index");
+  const canExport = hasPermission("exports.feedbacks");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [rating, setRating] = useState<FeedbackRating | null>(null);
   const [comment, setComment] = useState("");
@@ -486,20 +490,33 @@ export default function KritikDanSaranPage() {
                     : "Belum ada data"
               }
               action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                  onClick={() => void loadList()}
-                  disabled={listLoading}
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${listLoading ? "animate-spin" : ""}`}
-                    aria-hidden
-                  />
-                  Muat ulang
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    onClick={() => void loadList()}
+                    disabled={listLoading}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${listLoading ? "animate-spin" : ""}`}
+                      aria-hidden
+                    />
+                    Muat ulang
+                  </Button>
+                  {canExport && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-2 bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setExportOpen(true)}
+                    >
+                      <Download className="h-4 w-4" aria-hidden />
+                      Export
+                    </Button>
+                  )}
+                </div>
               }
             >
               <div className="space-y-4">
@@ -701,6 +718,14 @@ export default function KritikDanSaranPage() {
             </SectionCard>
           ) : null}
         </div>
+
+        {canIndex && canExport && (
+          <ExportFeedbacksDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialRating={filterRating}
+          />
+        )}
 
         <Dialog
           open={successDialogOpen}

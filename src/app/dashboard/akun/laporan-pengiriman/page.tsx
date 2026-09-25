@@ -3,6 +3,17 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   Table,
@@ -21,11 +32,23 @@ import {
 } from "@/components/redesign/date-range-field";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
-import { getUserShippingReport } from "@/lib/apiClient";
+import { createExport, getUserShippingReport, getUsers } from "@/lib/apiClient";
 import type { ShippingActivityReport } from "@/types/laporanAktivitasPengiriman";
+import type { User } from "@/types/users";
 import { AxiosError } from "axios";
-import { Activity, Loader2, Package, Truck, Wallet } from "lucide-react";
+import {
+  Activity,
+  Download,
+  Loader2,
+  Package,
+  Search,
+  Truck,
+  Wallet,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { DateRange } from "react-day-picker";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -45,9 +68,22 @@ const accountTypeLabel: Record<string, string> = {
 const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 export default function LaporanPengirimanSayaPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasPermission } = useAuth();
+  const router = useRouter();
+  const canExport = hasPermission("orders.index");
+  // Yang boleh melihat semua akun boleh membatasi export ke satu akun.
+  const canPickAccount = hasPermission("orders.view_all");
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportRange, setExportRange] = useState<DateRange | undefined>(
+    undefined
+  );
+  const [accountQuery, setAccountQuery] = useState("");
+  const [accountResults, setAccountResults] = useState<User[]>([]);
+  const [searchingAccount, setSearchingAccount] = useState(false);
+  const [exportAccount, setExportAccount] = useState<User | null>(null);
   const [report, setReport] = useState<ShippingActivityReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +103,56 @@ export default function LaporanPengirimanSayaPage() {
       })
       .finally(() => setLoading(false));
   }, [user, dateRange]);
+
+  useEffect(() => {
+    if (!exportOpen || !canPickAccount || exportAccount) return;
+    const q = accountQuery.trim();
+    if (q.length < 3) {
+      setAccountResults([]);
+      return;
+    }
+    setSearchingAccount(true);
+    const t = setTimeout(() => {
+      getUsers({ search: q, per_page: 8 })
+        .then((res) => setAccountResults(res.data.data))
+        .catch(() => setAccountResults([]))
+        .finally(() => setSearchingAccount(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [accountQuery, exportAccount, exportOpen, canPickAccount]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await createExport({
+        type: "shipping-summary",
+        start_date: exportRange?.from ? toApiDate(exportRange.from) : undefined,
+        end_date: exportRange?.to
+          ? toApiDate(exportRange.to)
+          : exportRange?.from
+            ? toApiDate(exportRange.from)
+            : undefined,
+        // Customer tidak boleh mengirim user_id (dibalas 422).
+        user_id: canPickAccount && exportAccount ? exportAccount.id : undefined,
+      });
+      toast.success("Export sedang diproses.", {
+        description: "Unduh filenya di halaman Download Report.",
+      });
+      setExportOpen(false);
+      router.push("/dashboard/download-report");
+    } catch (err) {
+      const data =
+        err instanceof AxiosError
+          ? (err.response?.data as
+              | { message?: string; errors?: Record<string, string[]> }
+              | undefined)
+          : undefined;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      toast.error(first || data?.message || "Gagal membuat export.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (authLoading) {
     return (
@@ -103,12 +189,30 @@ export default function LaporanPengirimanSayaPage() {
             title="Laporan Pengiriman Saya"
             description="Ringkasan pengiriman akun Anda — total pengiriman, total ongkir, breakdown per vendor."
             action={
-              <DateRangeField
-                value={dateRange}
-                onChange={setDateRange}
-                placeholder="Semua periode"
-                className="w-[240px]"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <DateRangeField
+                  value={dateRange}
+                  onChange={setDateRange}
+                  placeholder="Semua periode"
+                  className="w-[240px]"
+                />
+                {canExport && (
+                  <Button
+                    type="button"
+                    className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                    onClick={() => {
+                      setExportRange(dateRange);
+                      setExportAccount(null);
+                      setAccountQuery("");
+                      setAccountResults([]);
+                      setExportOpen(true);
+                    }}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Export
+                  </Button>
+                )}
+              </div>
             }
           />
 
@@ -236,6 +340,120 @@ export default function LaporanPengirimanSayaPage() {
             </>
           ) : null}
         </div>
+
+        <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+          <DialogContent className="rounded-2xl border-slate-100 sm:max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <Download className="h-5 w-5" aria-hidden />
+                </span>
+                <div className="text-left">
+                  <DialogTitle>Export Ringkasan Pengiriman</DialogTitle>
+                  <DialogDescription>
+                    Pilih rentang tanggal order dibuat. Kosongkan untuk semua
+                    waktu.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <DateRangeField
+              value={exportRange}
+              onChange={setExportRange}
+              placeholder="Semua waktu"
+            />
+            {canPickAccount ? (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700">
+                  Akun (opsional)
+                </Label>
+                {exportAccount ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <span className="truncate">
+                      {exportAccount.name} ({exportAccount.email})
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Hapus pilihan akun"
+                      className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-slate-200"
+                      onClick={() => {
+                        setExportAccount(null);
+                        setAccountQuery("");
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      placeholder="Cari nama/email (min. 3 huruf), kosong = semua akun"
+                      value={accountQuery}
+                      onChange={(e) => setAccountQuery(e.target.value)}
+                      autoComplete="off"
+                      className="h-11 rounded-lg border-slate-200 bg-white pr-9"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      {searchingAccount ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
+                    </div>
+                    {accountResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                        {accountResults.map((u) => (
+                          <button
+                            type="button"
+                            key={u.id}
+                            className="block w-full border-b border-slate-100 p-3 text-left last:border-b-0 hover:bg-blue-50"
+                            onClick={() => {
+                              setExportAccount(u);
+                              setAccountResults([]);
+                            }}
+                          >
+                            <p className="text-sm font-medium text-slate-900">
+                              {u.name}
+                            </p>
+                            <p className="text-xs text-slate-500">{u.email}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Export berisi ringkasan order akun Anda sendiri.
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              File dibuat di latar belakang, lalu bisa diunduh di halaman
+              Download Report.
+            </p>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-lg border-slate-200"
+                onClick={() => setExportOpen(false)}
+                disabled={exporting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                onClick={() => void handleExport()}
+                disabled={exporting}
+              >
+                {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Buat Export
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

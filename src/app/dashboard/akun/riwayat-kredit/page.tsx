@@ -3,9 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -22,6 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { PageHeader } from "@/components/redesign/page-header";
+import { SectionCard } from "@/components/redesign/section-card";
+import { StatCard } from "@/components/redesign/stat-card";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateIdLong } from "@/lib/date";
 import { formatRupiah } from "@/lib/currency";
@@ -33,14 +36,15 @@ import {
 } from "@/types/kerjaSama";
 import { AxiosError } from "axios";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   CreditCard,
+  Download,
   Loader2,
+  ReceiptText,
+  RefreshCw,
+  Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import ExportLedgerDialog from "./export-ledger-dialog";
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof AxiosError) {
@@ -50,8 +54,32 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
+
+/** Status ledger → StatusBadge: voided = gagal, confirmed = sukses, sisanya sesuai maknanya. */
+function ledgerStatusBadge(status: string) {
+  const label =
+    KERJA_SAMA_LEDGER_STATUS_LABEL[
+      status as keyof typeof KERJA_SAMA_LEDGER_STATUS_LABEL
+    ] ?? status;
+  const tone =
+    status === "confirmed"
+      ? "success"
+      : status === "pending"
+        ? "pending"
+        : status === "voided"
+          ? "failed"
+          : "neutral";
+  return <StatusBadge status={tone} label={label} />;
+}
+
 export default function RiwayatKreditSayaPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasPermission } = useAuth();
+  // Boleh export bila punya salah satu; pemilihan akun hanya untuk pemegang `.view`.
+  const canPickAccount = hasPermission("kerja-sama.accounts.view");
+  const canExport =
+    canPickAccount || hasPermission("kerja-sama.accounts.view-own");
 
   const [ledger, setLedger] = useState<KerjaSamaLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +91,7 @@ export default function RiwayatKreditSayaPage() {
   const [type, setType] = useState("all");
   const [status, setStatus] = useState("all");
   const [outstanding, setOutstanding] = useState<number | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchLedger = useCallback(
     async (targetPage = 1) => {
@@ -90,10 +119,6 @@ export default function RiwayatKreditSayaPage() {
     },
     [user, type, status, perPage]
   );
-
-  const handlePerPageChange = (value: string) => {
-    setPerPage(Number(value));
-  };
 
   useEffect(() => {
     void fetchLedger(1);
@@ -126,205 +151,187 @@ export default function RiwayatKreditSayaPage() {
         </div>
 
         <div className="flex flex-1 flex-col gap-6 bg-blue-50/80 p-4 pb-10 md:p-6">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-              <CreditCard className="h-7 w-7 text-blue-600" />
-              Riwayat Transaksi Kredit Saya
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Khusus akun kerja sama (corporate) — riwayat tagihan dan
-              pembayaran yang memengaruhi limit kredit Anda.
-            </p>
-          </div>
+          <PageHeader
+            breadcrumb={[
+              { label: "Beranda", href: "/dashboard" },
+              { label: "Riwayat Transaksi Kredit Saya" },
+            ]}
+            icon={CreditCard}
+            title="Riwayat Transaksi Kredit Saya"
+            description="Khusus akun kerja sama (corporate) — riwayat tagihan dan pembayaran yang memengaruhi limit kredit Anda."
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
+                  onClick={() => void fetchLedger(page)}
+                  disabled={loading}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                    aria-hidden
+                  />
+                  Muat Ulang
+                </Button>
+                {canExport && (
+                  <Button
+                    type="button"
+                    className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setExportOpen(true)}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Export
+                  </Button>
+                )}
+              </div>
+            }
+          />
 
           {outstanding != null && (
-            <Card className="border-blue-100 shadow-sm">
-              <CardContent className="pt-6">
-                <p className="text-xs text-muted-foreground">
-                  Outstanding Saat Ini
-                </p>
-                <p className="text-2xl font-semibold text-blue-700">
-                  {formatRupiah(outstanding)}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                icon={Wallet}
+                tone="blue"
+                title="Outstanding Saat Ini"
+                value={formatRupiah(outstanding)}
+                hint="Tagihan kredit yang belum dilunasi"
+              />
+            </div>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Riwayat Transaksi</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Tipe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Tipe</SelectItem>
-                    <SelectItem value="charge">Tagihan</SelectItem>
-                    <SelectItem value="adjustment">Penyesuaian</SelectItem>
-                    <SelectItem value="payment">Pembayaran</SelectItem>
-                    <SelectItem value="write_off">Hapus Buku</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="pending">Belum Sampai</SelectItem>
-                    <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
-                    <SelectItem value="invoiced">Sudah Ditagih</SelectItem>
-                    <SelectItem value="voided">Dibatalkan</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Memuat…
-                </div>
-              ) : error ? (
-                <div
-                  className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
-                  role="alert"
+          <SectionCard
+            icon={ReceiptText}
+            title="Riwayat Transaksi"
+            description={
+              !loading && !error ? `${total} transaksi ditemukan` : undefined
+            }
+          >
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger
+                  aria-label="Filter tipe"
+                  className={`w-full sm:w-[200px] ${fieldCls}`}
                 >
-                  {error}
-                </div>
-              ) : ledger.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  Belum ada transaksi kredit.
-                </p>
-              ) : (
-                <>
-                  <div className="overflow-x-auto rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tanggal</TableHead>
-                          <TableHead>Tipe</TableHead>
-                          <TableHead>Deskripsi</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Nominal</TableHead>
+                  <SelectValue placeholder="Tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Tipe</SelectItem>
+                  <SelectItem value="charge">Tagihan</SelectItem>
+                  <SelectItem value="adjustment">Penyesuaian</SelectItem>
+                  <SelectItem value="payment">Pembayaran</SelectItem>
+                  <SelectItem value="write_off">Hapus Buku</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger
+                  aria-label="Filter status"
+                  className={`w-full sm:w-[200px] ${fieldCls}`}
+                >
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="pending">Belum Sampai</SelectItem>
+                  <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
+                  <SelectItem value="invoiced">Sudah Ditagih</SelectItem>
+                  <SelectItem value="voided">Dibatalkan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-slate-500">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                Memuat…
+              </div>
+            ) : error ? (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+                role="alert"
+              >
+                {error}
+              </div>
+            ) : ledger.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">
+                Belum ada transaksi kredit.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-100 hover:bg-transparent">
+                      <TableHead className={headCls}>Tanggal</TableHead>
+                      <TableHead className={headCls}>Tipe</TableHead>
+                      <TableHead className={headCls}>Deskripsi</TableHead>
+                      <TableHead className={headCls}>Status</TableHead>
+                      <TableHead className={`${headCls} text-right`}>
+                        Nominal
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ledger.map((entry) => {
+                      const amount = Number(entry.amount);
+                      const isNegative = amount < 0;
+                      return (
+                        <TableRow
+                          key={entry.id}
+                          className="border-slate-100 hover:bg-slate-50/60"
+                        >
+                          <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
+                            {formatDateIdLong(entry.created_at)}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                              {KERJA_SAMA_LEDGER_TYPE_LABEL[entry.type] ??
+                                entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-[280px] truncate py-4 text-sm text-slate-700">
+                            {entry.description || "—"}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            {ledgerStatusBadge(entry.status)}
+                          </TableCell>
+                          <TableCell
+                            className={`py-4 text-right text-sm font-semibold tabular-nums ${
+                              isNegative ? "text-emerald-700" : "text-rose-700"
+                            }`}
+                          >
+                            {isNegative ? "-" : "+"}
+                            {formatRupiah(Math.abs(amount))}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {ledger.map((entry) => {
-                          const amount = Number(entry.amount);
-                          const isNegative = amount < 0;
-                          return (
-                            <TableRow key={entry.id}>
-                              <TableCell className="whitespace-nowrap text-sm">
-                                {formatDateIdLong(entry.created_at)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {KERJA_SAMA_LEDGER_TYPE_LABEL[entry.type] ??
-                                    entry.type}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="max-w-[280px] truncate text-sm">
-                                {entry.description || "—"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {KERJA_SAMA_LEDGER_STATUS_LABEL[
-                                    entry.status
-                                  ] ?? entry.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell
-                                className={`text-right font-medium tabular-nums ${
-                                  isNegative ? "text-green-700" : "text-red-700"
-                                }`}
-                              >
-                                {isNegative ? "-" : "+"}
-                                {formatRupiah(Math.abs(amount))}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-sm text-muted-foreground">
-                      Total {total} transaksi
-                    </span>
-                    <div className="flex items-center space-x-6 lg:space-x-8">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium">Baris per halaman</p>
-                        <Select
-                          value={`${perPage}`}
-                          onValueChange={handlePerPageChange}
-                        >
-                          <SelectTrigger className="h-8 w-[70px]">
-                            <SelectValue placeholder={perPage} />
-                          </SelectTrigger>
-                          <SelectContent side="top">
-                            {[10, 20, 30, 40, 50].map((size) => (
-                              <SelectItem key={size} value={`${size}`}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                        Halaman {page} dari {lastPage}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="hidden h-8 w-8 p-0 lg:flex"
-                          onClick={() => fetchLedger(1)}
-                          disabled={page <= 1 || loading}
-                        >
-                          <span className="sr-only">Go to first page</span>
-                          <ChevronsLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-8 w-8 p-0"
-                          onClick={() => fetchLedger(page - 1)}
-                          disabled={page <= 1 || loading}
-                        >
-                          <span className="sr-only">Go to previous page</span>
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-8 w-8 p-0"
-                          onClick={() => fetchLedger(page + 1)}
-                          disabled={page >= lastPage || loading}
-                        >
-                          <span className="sr-only">Go to next page</span>
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="hidden h-8 w-8 p-0 lg:flex"
-                          onClick={() => fetchLedger(lastPage)}
-                          disabled={page >= lastPage || loading}
-                        >
-                          <span className="sr-only">Go to last page</span>
-                          <ChevronsRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                <NumberedPagination
+                  className="mt-2"
+                  page={page}
+                  lastPage={lastPage}
+                  total={total}
+                  perPage={perPage}
+                  disabled={loading}
+                  onPageChange={(p) => void fetchLedger(p)}
+                  onPerPageChange={setPerPage}
+                />
+              </div>
+            )}
+          </SectionCard>
         </div>
+
+        {canExport && (
+          <ExportLedgerDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            canPickAccount={canPickAccount}
+            initialType={type}
+            initialStatus={status}
+          />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

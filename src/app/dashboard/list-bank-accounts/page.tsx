@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
+import ExportBankAccountsDialog from "@/components/Data/ExportBankAccountsDialog";
 import { BankLogo } from "@/components/redesign/bank-logo";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
@@ -56,6 +57,7 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  Download,
   Eye,
   FileText,
   Image as ImageIcon,
@@ -137,6 +139,8 @@ function ListBankAccountsInner() {
   const urlStatusParam = searchParams.get("status") ?? "";
   const canApprove = hasPermission("bank-accounts.approve");
   const canReject = hasPermission("bank-accounts.reject");
+  const canExport = hasPermission("exports.bank-accounts");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("pending");
   const [searchDraft, setSearchDraft] = useState("");
@@ -485,21 +489,35 @@ function ListBankAccountsInner() {
             description="Kelola pengajuan rekening baru, edit, dan penghapusan dari seluruh pengguna."
             illustration="/images/credit-cards.png"
             illustrationClassName="w-[120px]"
+            actionBelowIllustration
             action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
-                disabled={loading}
-                onClick={refreshAll}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                  aria-hidden
-                />
-                Muat Ulang
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
+                  disabled={loading}
+                  onClick={refreshAll}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                    aria-hidden
+                  />
+                  Muat Ulang
+                </Button>
+                {canExport && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-10 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setExportOpen(true)}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Export
+                  </Button>
+                )}
+              </>
             }
           />
 
@@ -848,6 +866,20 @@ function ListBankAccountsInner() {
             )}
           </section>
         </div>
+
+        {canExport && (
+          <ExportBankAccountsDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            initialStatus={
+              quickFilter === "pending" || quickFilter === "approved"
+                ? quickFilter
+                : quickFilter === "all"
+                  ? status
+                  : "all"
+            }
+          />
+        )}
 
         {/* Detail */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>

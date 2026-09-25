@@ -25,6 +25,8 @@ type PageHeaderProps = {
   back?: { href: string; label?: string };
   /** Slot aksi di kanan judul (mis. tombol Refresh), sebelum ilustrasi. */
   action?: React.ReactNode;
+  /** Letakkan `action` di bawah ilustrasi (kolom kanan atas) alih-alih di samping judul. */
+  actionBelowIllustration?: boolean;
   title: string;
   description?: string;
   /** Path gambar di /public, mis. "/images/wallet2.png". Disembunyikan di mobile. */
@@ -39,11 +41,27 @@ export function PageHeader({
   iconSrc,
   back,
   action,
+  actionBelowIllustration,
   title,
   description,
   illustration,
   illustrationClassName,
 }: PageHeaderProps) {
+  const stacked = Boolean(actionBelowIllustration && illustration && action);
+  const illustrationEl = illustration ? (
+    <Image
+      src={illustration}
+      alt=""
+      width={200}
+      height={114}
+      priority
+      className={cn(
+        "pointer-events-none hidden h-auto w-[180px] shrink-0 select-none md:block",
+        illustrationClassName
+      )}
+    />
+  ) : null;
+
   return (
     <div className="space-y-4">
       {breadcrumb && breadcrumb.length > 0 && (
@@ -107,20 +125,16 @@ export function PageHeader({
           </div>
         </div>
 
-        {action && <div className="shrink-0">{action}</div>}
-
-        {illustration && (
-          <Image
-            src={illustration}
-            alt=""
-            width={200}
-            height={114}
-            priority
-            className={cn(
-              "pointer-events-none hidden h-auto w-[180px] shrink-0 select-none md:block",
-              illustrationClassName
-            )}
-          />
+        {stacked ? (
+          <div className="flex shrink-0 flex-col items-end gap-3">
+            {illustrationEl}
+            <div className="flex flex-wrap justify-end gap-2">{action}</div>
+          </div>
+        ) : (
+          <>
+            {action && <div className="shrink-0">{action}</div>}
+            {illustrationEl}
+          </>
         )}
       </div>
     </div>

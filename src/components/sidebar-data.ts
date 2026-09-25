@@ -29,6 +29,7 @@ import {
   Store,
   Activity,
   CreditCard,
+  Download,
 } from "lucide-react";
 
 /**
@@ -179,7 +180,7 @@ export const sidebarData = {
       permission: "wallet.view",
     },
     {
-      title: "Semua Mutasi",
+      title: "Laporan Semua Mutasi",
       url: "/dashboard/laporan/laporan-semua-mutasi",
       icon: History,
       permission: "payments.view_all",
@@ -201,6 +202,15 @@ export const sidebarData = {
       url: "/dashboard/akun/laporan-pengiriman",
       icon: Activity,
       permission: "users.index",
+    },
+  ],
+  downloadReport: [
+    {
+      title: "Daftar Download",
+      url: "/dashboard/download-report",
+      icon: Download,
+      matchPrefix: true,
+      permission: "orders.index",
     },
   ],
   kerjaSama: [
@@ -311,6 +321,7 @@ export const sidebarGroupOrder: { key: SidebarNavGroupKey; label: string }[] = [
   { key: "sendPackage", label: "Paket" },
   { key: "wallet", label: "Saldo" },
   { key: "report", label: "Laporan" },
+  { key: "downloadReport", label: "Download Report" },
   { key: "data", label: "Data Alamat" },
   { key: "kerjaSama", label: "Kerja Sama" },
   { key: "agen", label: "Agen" },

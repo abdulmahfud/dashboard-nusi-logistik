@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { NavAccount } from "@/components/nav-account";
 import { NavData } from "@/components/nav-data";
+import { NavDownloadReport } from "@/components/nav-download-report";
 import { NavKerjaSama } from "@/components/nav-kerja-sama";
 import { NavAgen } from "@/components/nav-agen";
 import { NavManagementUser } from "@/components/nav-management-user";
@@ -71,6 +72,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasPermission,
     authLoading
   );
+  const filteredDownloadReport = filterSidebarByPermission(
+    sidebarData.downloadReport,
+    hasPermission,
+    authLoading
+  );
   const filteredData = filterSidebarByPermission(
     sidebarData.data,
     hasPermission,
@@ -129,6 +135,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <NavWallet items={walletItemsForSidebar} />
         )}
         {filteredReport.length > 0 && <NavReport items={filteredReport} />}
+        {filteredDownloadReport.length > 0 && (
+          <NavDownloadReport items={filteredDownloadReport} />
+        )}
         {filteredData.length > 0 && <NavData items={filteredData} />}
         {filteredKerjaSama.length > 0 && (
           <NavKerjaSama items={filteredKerjaSama} />
