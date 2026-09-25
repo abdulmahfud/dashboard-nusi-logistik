@@ -1078,7 +1078,7 @@ export default function RegularPackageForm({
                 <div>
                   <div className="font-medium text-slate-900">Non-COD</div>
                   <div className="text-sm text-slate-500">
-                    Pembayaran dilakukan sebelum paket dikirim
+                    Pembayaran diawal
                   </div>
                 </div>
               </label>
