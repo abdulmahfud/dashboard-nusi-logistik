@@ -118,12 +118,6 @@ import type {
   KerjaSamaAccount,
   KerjaSamaInvoice,
 } from "@/types/kerjaSama";
-import type {
-  AgenAccountListResponse,
-  AgenAccountDetailResponse,
-  CreateAgenAccountPayload,
-  UpdateAgenAccountPayload,
-} from "@/types/agenAkun";
 import type { ShippingActivityReportResponse } from "@/types/laporanAktivitasPengiriman";
 import type {
   ProductListResponse,
@@ -284,6 +278,7 @@ export const getJntExpressShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -292,6 +287,8 @@ export const getJntExpressShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -302,6 +299,7 @@ export const getJntExpressShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -323,6 +321,7 @@ export const getPaxelShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -331,6 +330,8 @@ export const getPaxelShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   const requestPayload = {
     origin_province,
@@ -340,6 +341,7 @@ export const getPaxelShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -361,6 +363,7 @@ export const getLionShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -369,6 +372,8 @@ export const getLionShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -379,6 +384,7 @@ export const getLionShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -400,6 +406,7 @@ export const getSapShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -408,6 +415,8 @@ export const getSapShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   // Pastikan format string (hilangkan trailing zero jika ada, misalnya "2.0" -> "2")
@@ -428,6 +437,7 @@ export const getSapShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: cleanWeight,
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -449,6 +459,7 @@ export const getPosIndonesiaShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -457,6 +468,8 @@ export const getPosIndonesiaShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -467,6 +480,7 @@ export const getPosIndonesiaShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -488,6 +502,7 @@ export const getJneShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -496,6 +511,8 @@ export const getJneShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -506,6 +523,7 @@ export const getJneShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -527,6 +545,7 @@ export const getIdexpressShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -535,6 +554,8 @@ export const getIdexpressShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -545,6 +566,7 @@ export const getIdexpressShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -566,6 +588,7 @@ export const getAnterajaShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -574,6 +597,8 @@ export const getAnterajaShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -584,6 +609,7 @@ export const getAnterajaShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -605,6 +631,7 @@ export const getNinjaShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -613,6 +640,8 @@ export const getNinjaShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -623,6 +652,7 @@ export const getNinjaShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -644,6 +674,7 @@ export const getJntCargoShipmentCost = async ({
   destination_regencie,
   destination_district,
   weight,
+  is_cod,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -652,6 +683,8 @@ export const getJntCargoShipmentCost = async ({
   destination_regencie: string;
   destination_district: string;
   weight: string | number;
+  /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
+  is_cod?: boolean;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -662,6 +695,7 @@ export const getJntCargoShipmentCost = async ({
     destination_regencie,
     destination_district,
     weight: weight.toString(),
+    ...(is_cod ? { is_cod: true } : {}),
   };
 
   const res = await apiClient.post(
@@ -1518,7 +1552,7 @@ export const getExpeditionDiscounts = async (params?: {
   search?: string;
   vendor?: string;
   is_active?: 0 | 1;
-  user_type?: "personal" | "corporate" | "agen";
+  user_type?: "personal" | "corporate";
 }): Promise<{
   status: string;
   success?: boolean;
@@ -1768,6 +1802,8 @@ export const getSupportTickets = async (params?: {
   user_id?: number;
   status?: string;
   department?: string;
+  /** Integer 1–5. Lihat docs/be-fe/update-prioritas-tiket-bantuan.md */
+  priority?: number;
   search?: string;
   per_page?: number;
   page?: number;
@@ -1957,49 +1993,6 @@ export const getKerjaSamaInvoice = async (
 ): Promise<KerjaSamaInvoiceDetailResponse> => {
   const res = await apiClient.get<KerjaSamaInvoiceDetailResponse>(
     `/admin/kerja-sama/invoices/${id}`
-  );
-  return res.data;
-};
-
-// ✅ Akun Agen (prepaid, bayar via saldo wallet)
-export const getAgenAccounts = async (params?: {
-  search?: string;
-  per_page?: number;
-  page?: number;
-}): Promise<AgenAccountListResponse> => {
-  const res = await apiClient.get<AgenAccountListResponse>(
-    "/admin/agen/accounts",
-    { params }
-  );
-  return res.data;
-};
-
-export const createAgenAccount = async (
-  payload: CreateAgenAccountPayload
-): Promise<AgenAccountDetailResponse> => {
-  const res = await apiClient.post<AgenAccountDetailResponse>(
-    "/admin/agen/accounts",
-    payload
-  );
-  return res.data;
-};
-
-export const getAgenAccount = async (
-  userId: number
-): Promise<AgenAccountDetailResponse> => {
-  const res = await apiClient.get<AgenAccountDetailResponse>(
-    `/admin/agen/accounts/${userId}`
-  );
-  return res.data;
-};
-
-export const updateAgenAccount = async (
-  userId: number,
-  payload: UpdateAgenAccountPayload
-): Promise<AgenAccountDetailResponse> => {
-  const res = await apiClient.put<AgenAccountDetailResponse>(
-    `/admin/agen/accounts/${userId}`,
-    payload
   );
   return res.data;
 };

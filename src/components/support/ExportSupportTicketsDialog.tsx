@@ -25,6 +25,7 @@ import {
 import { createExport, getUsers } from "@/lib/apiClient";
 import {
   SUPPORT_DEPARTMENT_OPTIONS,
+  SUPPORT_PRIORITY_OPTIONS,
   SUPPORT_STATUS_OPTIONS,
 } from "@/lib/supportTicketUi";
 import type { User } from "@/types/users";
@@ -41,6 +42,7 @@ interface Props {
   /** Nilai awal mengikuti filter yang aktif di halaman ("all" = semua). */
   initialStatus?: string;
   initialDepartment?: string;
+  initialPriority?: string;
 }
 
 const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
@@ -51,11 +53,13 @@ export default function ExportSupportTicketsDialog({
   onOpenChange,
   initialStatus = "all",
   initialDepartment = "all",
+  initialPriority = "all",
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [status, setStatus] = useState("all");
   const [department, setDepartment] = useState("all");
+  const [priority, setPriority] = useState("all");
   const [exporting, setExporting] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<User[]>([]);
@@ -68,10 +72,11 @@ export default function ExportSupportTicketsDialog({
     setRange(undefined);
     setStatus(initialStatus);
     setDepartment(initialDepartment);
+    setPriority(initialPriority);
     setReporter(null);
     setQuery("");
     setResults([]);
-  }, [open, initialStatus, initialDepartment]);
+  }, [open, initialStatus, initialDepartment, initialPriority]);
 
   useEffect(() => {
     if (!open || reporter) return;
@@ -97,6 +102,7 @@ export default function ExportSupportTicketsDialog({
         type: "support-tickets",
         status: status !== "all" ? status : undefined,
         department: department !== "all" ? department : undefined,
+        priority: priority !== "all" ? Number(priority) : undefined,
         start_date: range?.from ? toApiDate(range.from) : undefined,
         end_date: range?.to
           ? toApiDate(range.to)
@@ -177,6 +183,25 @@ export default function ExportSupportTicketsDialog({
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium text-slate-700">
+            Prioritas
+          </Label>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger className={fieldCls}>
+              <SelectValue placeholder="Prioritas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua prioritas</SelectItem>
+              {SUPPORT_PRIORITY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

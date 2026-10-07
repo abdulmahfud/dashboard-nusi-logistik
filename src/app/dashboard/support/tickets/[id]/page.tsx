@@ -57,8 +57,12 @@ import {
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { unwrapSupportTicketDetail } from "@/lib/supportTickets";
 import {
+  DEFAULT_SUPPORT_TICKET_PRIORITY,
+  SUPPORT_PRIORITY_OPTIONS,
   SUPPORT_STATUS_OPTIONS,
   formatTicketDateTime,
+  supportTicketPriorityBadgeClassName,
+  supportTicketPriorityLabel,
 } from "@/lib/supportTicketUi";
 import type {
   SupportTicketDetail,
@@ -153,6 +157,9 @@ export default function SupportTicketDetailPage() {
 
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<string>("");
+  const [adminPriority, setAdminPriority] = useState<string>(
+    String(DEFAULT_SUPPORT_TICKET_PRIORITY)
+  );
   const [adminAssign, setAdminAssign] = useState("");
   const [assigneeOptions, setAssigneeOptions] = useState<AssigneeOption[]>([]);
   const [assigneesLoading, setAssigneesLoading] = useState(false);
@@ -228,6 +235,9 @@ export default function SupportTicketDetailPage() {
       }
       setTicket(t);
       setAdminStatus(String(t.status));
+      setAdminPriority(
+        String(t.priority ?? DEFAULT_SUPPORT_TICKET_PRIORITY)
+      );
       setAdminAssign(
         t.assigned_to != null && t.assigned_to !== undefined
           ? String(t.assigned_to)
@@ -316,9 +326,16 @@ export default function SupportTicketDetailPage() {
       const body: {
         status?: SupportTicketStatus | string;
         assigned_to?: number | null;
+        priority?: number;
       } = {};
       if (adminStatus && adminStatus !== String(ticket.status)) {
         body.status = adminStatus;
+      }
+      const currentPriority =
+        ticket.priority ?? DEFAULT_SUPPORT_TICKET_PRIORITY;
+      const nextPriority = Number(adminPriority);
+      if (Number.isFinite(nextPriority) && nextPriority !== currentPriority) {
+        body.priority = nextPriority;
       }
       const trimmed = adminAssign.trim();
       if (trimmed === "") {
@@ -429,6 +446,19 @@ export default function SupportTicketDetailPage() {
                     >
                       {ticket.status_label ?? ticket.status}
                     </SupportTicketStatusBadge>
+                    <span
+                      role="status"
+                      className={cn(
+                        "inline-flex max-w-[min(100%,14rem)] items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold leading-tight",
+                        supportTicketPriorityBadgeClassName(ticket.priority)
+                      )}
+                    >
+                      Prioritas:{" "}
+                      {supportTicketPriorityLabel(
+                        ticket.priority,
+                        ticket.priority_label
+                      )}
+                    </span>
                   </div>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {ticket.department_label ?? ticket.department} · #
@@ -457,6 +487,11 @@ export default function SupportTicketDetailPage() {
                       setAdminOpen(open);
                       if (open && ticket) {
                         setAdminStatus(String(ticket.status));
+                        setAdminPriority(
+                          String(
+                            ticket.priority ?? DEFAULT_SUPPORT_TICKET_PRIORITY
+                          )
+                        );
                         setAdminAssign(
                           ticket.assigned_to != null &&
                             ticket.assigned_to !== undefined
@@ -496,6 +531,24 @@ export default function SupportTicketDetailPage() {
                             </SelectTrigger>
                             <SelectContent>
                               {SUPPORT_STATUS_OPTIONS.map((o) => (
+                                <SelectItem key={o.value} value={o.value}>
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="adm-priority">Prioritas</Label>
+                          <Select
+                            value={adminPriority}
+                            onValueChange={setAdminPriority}
+                          >
+                            <SelectTrigger id="adm-priority">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SUPPORT_PRIORITY_OPTIONS.map((o) => (
                                 <SelectItem key={o.value} value={o.value}>
                                   {o.label}
                                 </SelectItem>

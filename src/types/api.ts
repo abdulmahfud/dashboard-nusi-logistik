@@ -17,7 +17,7 @@ export interface UserData {
   /** Saldo dompet (string dari API), jika dikirim di GET /admin/me */
   balance?: string | number;
   /** Lihat docs/be-fe/update-deteksi-tipe-akun-me.md */
-  account_type?: "personal" | "corporate" | "agen";
+  account_type?: "personal" | "corporate";
   billing_mode?: "prepaid" | "postpaid";
   /** Hanya muncul kalau account_type === "corporate". */
   credit?: {

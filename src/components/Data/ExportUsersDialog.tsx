@@ -40,7 +40,6 @@ const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
 const ACCOUNT_TYPES = [
   { value: "personal", label: "Personal" },
   { value: "corporate", label: "Corporate" },
-  { value: "agen", label: "Agen" },
 ] as const;
 
 /** "customer-service" → "Customer Service"; role "user" ditampilkan sebagai Customer. */
@@ -90,7 +89,7 @@ export default function ExportUsersDialog({ open, onOpenChange }: Props) {
         role: role !== "all" ? role : undefined,
         account_type:
           accountTypeApplicable && accountType !== "all"
-            ? (accountType as "personal" | "corporate" | "agen")
+            ? (accountType as "personal" | "corporate")
             : undefined,
         start_date: range?.from ? toApiDate(range.from) : undefined,
         end_date: range?.to

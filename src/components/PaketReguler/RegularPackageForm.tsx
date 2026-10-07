@@ -870,6 +870,8 @@ export default function RegularPackageForm({
       }
 
       // Prepare common payload for all APIs
+      // is_cod: lapis pengaman kedua di BE kalau vendor settings di FE basi —
+      // lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2
       const shipmentPayload = {
         origin_province: originProvince.toUpperCase(),
         origin_regencie: originRegency.toUpperCase(),
@@ -878,6 +880,7 @@ export default function RegularPackageForm({
         destination_regencie: destRegency.toUpperCase(),
         destination_district: destDistrict.toUpperCase(),
         weight: weightInKg,
+        is_cod: isCodOrder,
       };
 
       // Call all vendor APIs in parallel - same as ShippingForm.tsx for consistency

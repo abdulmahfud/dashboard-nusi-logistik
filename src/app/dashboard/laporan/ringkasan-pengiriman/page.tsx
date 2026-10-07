@@ -62,7 +62,6 @@ function getErrorMessage(err: unknown, fallback: string): string {
 const accountTypeLabel: Record<string, string> = {
   personal: "Personal",
   corporate: "Corporate",
-  agen: "Agen",
 };
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";

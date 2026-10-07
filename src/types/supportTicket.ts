@@ -24,6 +24,9 @@ export interface SupportTicketSummary {
   department_label?: string;
   status: SupportTicketStatus | string;
   status_label?: string;
+  /** 1 (tertinggi) sampai 5 (terendah); diisi staf lewat PATCH, default 3. */
+  priority?: number;
+  priority_label?: string;
   user?: SupportTicketUserRef;
   assigned_to?: number | null;
   assignee?: SupportTicketUserRef | null;
@@ -84,4 +87,6 @@ export interface SupportTicketDetailResponse {
 export interface SupportTicketPatchBody {
   status?: SupportTicketStatus | string;
   assigned_to?: number | null;
+  /** Integer 1–5; hanya staf (support.tickets.manage) yang boleh mengubah. */
+  priority?: number;
 }

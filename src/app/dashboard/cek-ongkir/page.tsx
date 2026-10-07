@@ -9,13 +9,32 @@ import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const CekOngkir = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [calculationResult, setCalculationResult] = useState<
     Record<string, unknown> | undefined
   >(undefined);
+  // Default di ShippingForm adalah "cod" — samakan di sini supaya perubahan
+  // pertama kali ikut terdeteksi.
+  const lastPaymentMethodRef = useRef<"cod" | "non-cod" | undefined>("cod");
+
+  // Metode pembayaran COD/Non-COD menentukan ekspedisi mana yang boleh
+  // tampil (lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md), jadi hasil
+  // lama harus dihapus saat metode berganti agar user cek ongkir ulang.
+  const handlePaymentMethodChange = (method: "cod" | "non-cod") => {
+    const previousMethod = lastPaymentMethodRef.current;
+    if (
+      calculationResult &&
+      previousMethod &&
+      previousMethod !== method
+    ) {
+      setCalculationResult(undefined);
+      setIsSearching(false);
+    }
+    lastPaymentMethodRef.current = method;
+  };
 
   // Initialize the 'framer-motion' module for animations
   useEffect(() => {
@@ -56,6 +75,7 @@ const CekOngkir = () => {
               setIsSearching(false);
             }}
             setIsSearching={setIsSearching}
+            onPaymentMethodChange={handlePaymentMethodChange}
           />
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">

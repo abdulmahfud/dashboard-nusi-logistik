@@ -96,7 +96,6 @@ export function DiscountList({
   const USER_TYPE_LABEL: Record<string, string> = {
     personal: "Personal",
     corporate: "Corporate",
-    agen: "Agen",
   };
 
   const handleDeleteClick = (discount: ExpeditionDiscount) => {

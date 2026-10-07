@@ -224,7 +224,6 @@ export default function AktivitasPengirimanPage() {
   const accountTypeLabel: Record<string, string> = {
     personal: "Personal",
     corporate: "Corporate",
-    agen: "Agen",
   };
 
   return (

@@ -14,6 +14,83 @@ export const SUPPORT_STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 /**
+ * Skala prioritas tiket bantuan — sama persis dengan Diskon Pengiriman &
+ * Flat Ongkir (lihat src/lib/priorityScale.ts). Angka lebih kecil = lebih
+ * tinggi. Hanya staf (support.tickets.manage) yang bisa mengubahnya; default
+ * tiket baru selalu 3 (Sedang). Lihat docs/be-fe/update-prioritas-tiket-bantuan.md
+ */
+export const SUPPORT_PRIORITY_OPTIONS: { value: string; label: string }[] = [
+  { value: "1", label: "1 — Tertinggi" },
+  { value: "2", label: "2 — Tinggi" },
+  { value: "3", label: "3 — Sedang" },
+  { value: "4", label: "4 — Rendah" },
+  { value: "5", label: "5 — Terendah" },
+];
+
+export const DEFAULT_SUPPORT_TICKET_PRIORITY = 3;
+
+const SUPPORT_PRIORITY_LABEL: Record<number, string> = {
+  1: "Tertinggi",
+  2: "Tinggi",
+  3: "Sedang",
+  4: "Rendah",
+  5: "Terendah",
+};
+
+/** Label Indonesia untuk angka prioritas; pakai label dari API kalau ada. */
+export function supportTicketPriorityLabel(
+  priority: number | string | null | undefined,
+  priorityLabel?: string | null
+): string {
+  if (priorityLabel) return priorityLabel;
+  const n =
+    typeof priority === "number" ? priority : Number(priority ?? NaN);
+  return SUPPORT_PRIORITY_LABEL[n] ?? "—";
+}
+
+/** Class Tailwind badge prioritas: 1–2 merah/oranye, 3 kuning/netral, 4–5 hijau/abu. */
+export function supportTicketPriorityBadgeClassName(
+  priority: number | string | null | undefined
+): string {
+  const n =
+    typeof priority === "number" ? priority : Number(priority ?? NaN);
+  switch (n) {
+    case 1:
+      return [
+        "border-rose-400/50",
+        "bg-gradient-to-r from-rose-200/90 via-rose-100 to-red-100",
+        "!text-rose-950",
+        "shadow-sm ring-1 ring-rose-400/30",
+      ].join(" ");
+    case 2:
+      return [
+        "border-orange-400/50",
+        "bg-gradient-to-r from-orange-200/90 via-orange-100 to-amber-100",
+        "!text-orange-950",
+        "shadow-sm ring-1 ring-orange-400/30",
+      ].join(" ");
+    case 4:
+      return [
+        "border-emerald-400/45",
+        "bg-gradient-to-r from-emerald-200/70 to-green-100",
+        "!text-emerald-950",
+        "shadow-sm ring-1 ring-emerald-400/25",
+      ].join(" ");
+    case 5:
+      return [
+        "border-slate-400/50",
+        "bg-gradient-to-r from-slate-300/80 to-slate-200/70",
+        "!text-slate-900",
+        "shadow-sm",
+      ].join(" ");
+    case 3:
+      return "border-amber-300/60 bg-amber-50 !text-amber-900 shadow-sm";
+    default:
+      return "border-slate-200 bg-slate-100 !text-slate-800";
+  }
+}
+
+/**
  * Normalisasi ke kode status internal (backend bisa kirim snake_case, label ID, dll.).
  */
 export function resolveSupportTicketStatusKind(

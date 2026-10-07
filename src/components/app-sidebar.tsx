@@ -7,7 +7,6 @@ import { NavAccount } from "@/components/nav-account";
 import { NavData } from "@/components/nav-data";
 import { NavDownloadReport } from "@/components/nav-download-report";
 import { NavKerjaSama } from "@/components/nav-kerja-sama";
-import { NavAgen } from "@/components/nav-agen";
 import { NavManagementUser } from "@/components/nav-management-user";
 import { NavMain } from "@/components/nav-main";
 import { NavReport } from "@/components/nav-report";
@@ -92,11 +91,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     hasPermission,
     authLoading
   );
-  const filteredAgen = filterSidebarByPermission(
-    sidebarData.agen,
-    hasPermission,
-    authLoading
-  );
   const filteredNavSecondary = filterSidebarByPermission(
     sidebarData.navSecondary,
     hasPermission,
@@ -142,7 +136,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {filteredKerjaSama.length > 0 && (
           <NavKerjaSama items={filteredKerjaSama} />
         )}
-        {filteredAgen.length > 0 && <NavAgen items={filteredAgen} />}
         {filteredAccount.length > 0 && (
           <NavAccount items={filteredAccount} />
         )}

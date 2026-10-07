@@ -25,7 +25,7 @@ export interface ShippingReportCredit {
 export interface ShippingReportUser {
   id: number;
   name: string;
-  account_type: "personal" | "corporate" | "agen";
+  account_type: "personal" | "corporate";
 }
 
 export interface ShippingActivityReport {

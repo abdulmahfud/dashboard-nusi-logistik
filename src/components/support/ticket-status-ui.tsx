@@ -7,7 +7,11 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { resolveSupportTicketStatusKind } from "@/lib/supportTicketUi";
+import {
+  resolveSupportTicketStatusKind,
+  supportTicketPriorityBadgeClassName,
+  supportTicketPriorityLabel,
+} from "@/lib/supportTicketUi";
 import { cn } from "@/lib/utils";
 import type { SupportTicketSummary } from "@/types/supportTicket";
 
@@ -71,6 +75,28 @@ export function TicketStatusPill({
       )}
     >
       {ticket.status_label ?? ticket.status}
+    </span>
+  );
+}
+
+/** Badge skala prioritas (1 tertinggi — 5 terendah). Lihat docs/be-fe/update-prioritas-tiket-bantuan.md */
+export function TicketPriorityPill({
+  ticket,
+  className,
+}: {
+  ticket: SupportTicketSummary;
+  className?: string;
+}) {
+  return (
+    <span
+      role="status"
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold leading-tight",
+        supportTicketPriorityBadgeClassName(ticket.priority),
+        className
+      )}
+    >
+      {supportTicketPriorityLabel(ticket.priority, ticket.priority_label)}
     </span>
   );
 }

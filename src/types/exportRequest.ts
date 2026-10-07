@@ -63,10 +63,12 @@ export interface CreateExportPayload {
   payment_method?: string;
   /** Hanya untuk feedbacks: 1 sampai 5. */
   rating?: number;
+  /** Hanya untuk support-tickets: integer 1–5 (skala prioritas tiket). */
+  priority?: number;
   /** Hanya untuk users: nama role. */
   role?: string;
   /** Hanya untuk users: tipe akun customer. */
-  account_type?: "personal" | "corporate" | "agen";
+  account_type?: "personal" | "corporate";
 }
 
 export interface ExportListQuery {

@@ -26,7 +26,6 @@ import {
   ReceiptText,
   Boxes,
   Tag,
-  Store,
   Activity,
   CreditCard,
   Download,
@@ -229,15 +228,6 @@ export const sidebarData = {
       permission: "kerja-sama.invoices.view",
     },
   ],
-  agen: [
-    {
-      title: "Akun Agen",
-      url: "/dashboard/agen/akun",
-      icon: Store,
-      matchPrefix: true,
-      permission: "agen-accounts.view",
-    },
-  ],
   account: [
     {
       title: "Profil",
@@ -324,7 +314,6 @@ export const sidebarGroupOrder: { key: SidebarNavGroupKey; label: string }[] = [
   { key: "downloadReport", label: "Download Report" },
   { key: "data", label: "Data Alamat" },
   { key: "kerjaSama", label: "Kerja Sama" },
-  { key: "agen", label: "Agen" },
   { key: "account", label: "Data Akun" },
   { key: "managementUser", label: "Management" },
   { key: "navSecondary", label: "Lainnya" },

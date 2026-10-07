@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import React, { useState, useEffect, useRef } from "react";
-import { Search, Loader2, MapPin, X, Box, Info } from "lucide-react";
+import { Search, Loader2, MapPin, X, Box, Info, CreditCard } from "lucide-react";
 import {
   getExpeditionVendorSettings,
   getJntExpressShipmentCost,
@@ -22,6 +23,8 @@ import { notifyShipmentCost422Rejections } from "@/lib/shipment-cost-errors";
 interface ShippingFormProps {
   onResult?: (result: Record<string, unknown>) => void;
   setIsSearching?: (isSearching: boolean) => void;
+  /** Dipanggil setiap metode pembayaran berganti, supaya parent bisa menghapus hasil cek ongkir lama. */
+  onPaymentMethodChange?: (method: "cod" | "non-cod") => void;
 }
 
 interface AddressResult {
@@ -43,6 +46,7 @@ interface AddressResult {
 export default function ShippingForm({
   onResult,
   setIsSearching,
+  onPaymentMethodChange,
 }: ShippingFormProps) {
   const [originQuery, setOriginQuery] = useState("");
   const [destQuery, setDestQuery] = useState("");
@@ -64,6 +68,17 @@ export default function ShippingForm({
     height: "",
     useInsurance: false,
   });
+  // Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md — menentukan vendor
+  // mana yang boleh tampil dan dikirim sebagai `is_cod` ke cek ongkir.
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "non-cod">(
+    "cod"
+  );
+
+  const handlePaymentMethodChange = (value: string) => {
+    const method = value === "non-cod" ? "non-cod" : "cod";
+    setPaymentMethod(method);
+    onPaymentMethodChange?.(method);
+  };
 
   const originInputRef = useRef<HTMLDivElement>(null);
   const destInputRef = useRef<HTMLDivElement>(null);
@@ -205,17 +220,22 @@ export default function ShippingForm({
       const vendorSettings = Array.isArray(vendorSettingsResponse.data)
         ? vendorSettingsResponse.data
         : [];
+      const isCodOrder = paymentMethod === "cod";
 
       const allowedVendors = new Set(
         vendorSettings
-          .filter((item) => item.is_active)
+          .filter(
+            (item) => item.is_active && (!isCodOrder || item.is_cod_active)
+          )
           .map((item) => normalizeVendorKey(item.vendor))
       );
 
       if (allowedVendors.size === 0) {
         onResult?.({
           error: true,
-          message: "Saat ini tidak ada ekspedisi yang aktif.",
+          message: isCodOrder
+            ? "Saat ini tidak ada ekspedisi yang mendukung COD."
+            : "Saat ini tidak ada ekspedisi yang aktif.",
         });
         if (setIsSearching) setIsSearching(false);
         return;
@@ -234,6 +254,7 @@ export default function ShippingForm({
         destination_regencie: selectedDest.regency.toUpperCase(),
         destination_district: selectedDest.district.toUpperCase(),
         weight: weightInKg,
+        is_cod: isCodOrder,
       };
 
       // Call all vendor APIs in parallel
@@ -507,6 +528,60 @@ export default function ShippingForm({
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          <Label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+            <CreditCard className="h-4 w-4 text-slate-500" aria-hidden />
+            Metode Pembayaran
+          </Label>
+          <RadioGroup
+            value={paymentMethod}
+            onValueChange={handlePaymentMethodChange}
+            className="grid grid-cols-1 gap-3 sm:max-w-lg sm:grid-cols-2"
+          >
+            <label
+              htmlFor="cek-ongkir-cod"
+              className={`flex items-start gap-3 rounded-xl border-2 p-3 cursor-pointer transition-colors ${
+                paymentMethod === "cod"
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <RadioGroupItem value="cod" id="cek-ongkir-cod" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  COD
+                </div>
+                <div className="text-xs text-slate-500">
+                  Hanya ekspedisi yang mendukung COD
+                </div>
+              </div>
+            </label>
+
+            <label
+              htmlFor="cek-ongkir-non-cod"
+              className={`flex items-start gap-3 rounded-xl border-2 p-3 cursor-pointer transition-colors ${
+                paymentMethod === "non-cod"
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <RadioGroupItem
+                value="non-cod"
+                id="cek-ongkir-non-cod"
+                className="mt-0.5"
+              />
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  Non-COD
+                </div>
+                <div className="text-xs text-slate-500">
+                  Pembayaran diawal
+                </div>
+              </div>
+            </label>
+          </RadioGroup>
         </div>
 
         <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

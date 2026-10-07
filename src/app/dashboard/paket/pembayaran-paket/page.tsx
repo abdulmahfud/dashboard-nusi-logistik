@@ -34,18 +34,11 @@ import {
   ReceiptText,
   RefreshCw,
   RotateCcw,
-  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getOrdersPage,
-  createPayment,
-  getWalletBalance,
-} from "@/lib/apiClient";
+import { getOrdersPage, createPayment } from "@/lib/apiClient";
 import { formatRupiah } from "@/lib/currency";
 import { formatDateTimeId } from "@/lib/date";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { DateRange } from "react-day-picker";
 
@@ -68,12 +61,6 @@ const headCls = "h-11 text-xs font-semibold text-slate-500";
 type AppliedRange = { start?: string; end?: string };
 
 export default function PembayaranPaketPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-  // Akun agen prepaid-only: cuma boleh bayar via saldo wallet, tidak pernah
-  // Xendit. Lihat docs/be-fe/akun-agen.md §2 & update-deteksi-tipe-akun-me.md
-  const isAgen = user?.account_type === "agen";
-
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   /** Pilihan lintas halaman, disimpan lengkap agar total tetap benar saat ganti halaman. */
   const [selected, setSelected] = useState<Record<number, PendingOrder>>({});
@@ -84,21 +71,10 @@ export default function PembayaranPaketPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletLoading, setWalletLoading] = useState(false);
 
   const [rangeInput, setRangeInput] = useState<DateRange | undefined>();
   const [appliedRange, setAppliedRange] = useState<AppliedRange>({});
   const hasFilter = Boolean(appliedRange.start || appliedRange.end);
-
-  useEffect(() => {
-    if (!isAgen) return;
-    setWalletLoading(true);
-    getWalletBalance()
-      .then((res) => setWalletBalance(Number(res.data?.balance) || 0))
-      .catch(() => setWalletBalance(0))
-      .finally(() => setWalletLoading(false));
-  }, [isAgen]);
 
   const fetchPendingOrders = useCallback(async () => {
     try {
@@ -199,13 +175,6 @@ export default function PembayaranPaketPage() {
       return;
     }
 
-    if (isAgen && walletBalance < getTotalAmount()) {
-      toast.error(
-        "Saldo tidak cukup. Akun agen hanya bisa membayar via saldo wallet — silakan topup dulu."
-      );
-      return;
-    }
-
     try {
       setPaymentLoading(true);
 
@@ -229,7 +198,6 @@ export default function PembayaranPaketPage() {
       const paymentResponse = await createPayment({
         shipping_data: bulkShippingData,
         amount: getTotalAmount(),
-        payment_method: isAgen ? "wallet" : undefined,
       });
 
       if (paymentResponse.success && paymentResponse.data) {
@@ -565,41 +533,24 @@ export default function PembayaranPaketPage() {
                     {formatRupiah(getTotalAmount())}
                   </span>
                 </p>
-                {isAgen && (
-                  <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
-                    <Wallet className="h-4 w-4 text-slate-400" aria-hidden />
-                    Saldo wallet:{" "}
-                    {walletLoading ? "Memuat..." : formatRupiah(walletBalance)}
-                  </p>
-                )}
               </div>
-              {isAgen && !walletLoading && walletBalance < getTotalAmount() ? (
-                <Button
-                  onClick={() => router.push("/dashboard/wallet")}
-                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
-                >
-                  <Wallet className="h-4 w-4" aria-hidden />
-                  Topup Saldo
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleBulkPayment}
-                  disabled={paymentLoading || walletLoading}
-                  className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
-                >
-                  {paymentLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Membuat Invoice...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-4 w-4" />
-                      Bayar Sekarang
-                    </>
-                  )}
-                </Button>
-              )}
+              <Button
+                onClick={handleBulkPayment}
+                disabled={paymentLoading}
+                className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+              >
+                {paymentLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Membuat Invoice...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-4 w-4" />
+                    Bayar Sekarang
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </div>

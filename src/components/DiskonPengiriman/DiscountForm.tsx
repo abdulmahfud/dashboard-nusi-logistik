@@ -36,7 +36,6 @@ const USER_TYPES = [
   { value: "all", label: "Semua Tipe Akun" },
   { value: "personal", label: "Personal" },
   { value: "corporate", label: "Corporate" },
-  { value: "agen", label: "Agen" },
 ];
 
 const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
@@ -201,7 +200,6 @@ export function DiscountForm({
         user_type: (submitUserType ?? undefined) as
           | "personal"
           | "corporate"
-          | "agen"
           | undefined,
       });
       const conflict = existing.data.data.find(

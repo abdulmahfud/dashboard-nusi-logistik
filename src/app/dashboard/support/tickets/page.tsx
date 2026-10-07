@@ -31,6 +31,7 @@ import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import ExportSupportTicketsDialog from "@/components/support/ExportSupportTicketsDialog";
 import {
+  TicketPriorityPill,
   TicketStatusIcon,
   TicketStatusPill,
 } from "@/components/support/ticket-status-ui";
@@ -56,6 +57,7 @@ import { getAxiosErrorMessage } from "@/lib/apiError";
 import { normalizeSupportTicketsList } from "@/lib/supportTickets";
 import {
   SUPPORT_DEPARTMENT_OPTIONS,
+  SUPPORT_PRIORITY_OPTIONS,
   SUPPORT_STATUS_OPTIONS,
   formatTicketDateTime,
 } from "@/lib/supportTicketUi";
@@ -142,6 +144,7 @@ export default function SupportTicketsListPage() {
 
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
 
   const [counts, setCounts] = useState<StatusCounts | null>(null);
   const [countsLoading, setCountsLoading] = useState(false);
@@ -151,6 +154,7 @@ export default function SupportTicketsListPage() {
       targetPage?: number;
       status?: string;
       department?: string;
+      priority?: string;
     }) => {
       if (!canAccessPage) return;
       setLoading(true);
@@ -161,6 +165,8 @@ export default function SupportTicketsListPage() {
           opts?.status !== undefined ? opts.status : filterStatus;
         const department =
           opts?.department !== undefined ? opts.department : filterDepartment;
+        const priority =
+          opts?.priority !== undefined ? opts.priority : filterPriority;
         const params: Record<string, string | number> = {
           page: pageToUse,
           per_page: perPage,
@@ -168,6 +174,7 @@ export default function SupportTicketsListPage() {
         if (canManage) {
           if (status !== "all") params.status = status;
           if (department !== "all") params.department = department;
+          if (priority !== "all") params.priority = Number(priority);
         }
         const raw = await getSupportTickets(params);
         const n = normalizeSupportTicketsList(raw);
@@ -186,7 +193,15 @@ export default function SupportTicketsListPage() {
         setLoading(false);
       }
     },
-    [canAccessPage, canManage, page, perPage, filterStatus, filterDepartment]
+    [
+      canAccessPage,
+      canManage,
+      page,
+      perPage,
+      filterStatus,
+      filterDepartment,
+      filterPriority,
+    ]
   );
 
   /**
@@ -253,6 +268,7 @@ export default function SupportTicketsListPage() {
       targetPage: 1,
       status: filterStatus,
       department: filterDepartment,
+      priority: filterPriority,
     });
   };
 
@@ -375,7 +391,7 @@ export default function SupportTicketsListPage() {
               description="Saring tiket berdasarkan status dan departemen."
             >
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Select
                     value={filterStatus}
                     onValueChange={setFilterStatus}
@@ -414,6 +430,25 @@ export default function SupportTicketsListPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={filterPriority}
+                    onValueChange={setFilterPriority}
+                  >
+                    <SelectTrigger
+                      aria-label="Filter prioritas"
+                      className="h-11 rounded-lg border-slate-200 bg-white"
+                    >
+                      <SelectValue placeholder="Prioritas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua prioritas</SelectItem>
+                      {SUPPORT_PRIORITY_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -431,11 +466,13 @@ export default function SupportTicketsListPage() {
                     onClick={() => {
                       setFilterStatus("all");
                       setFilterDepartment("all");
+                      setFilterPriority("all");
                       setPage(1);
                       void load({
                         targetPage: 1,
                         status: "all",
                         department: "all",
+                        priority: "all",
                       });
                     }}
                   >
@@ -502,6 +539,7 @@ export default function SupportTicketsListPage() {
                         <TableHead className={headCls}>Pengguna</TableHead>
                         <TableHead className={headCls}>Departemen</TableHead>
                         <TableHead className={headCls}>Status</TableHead>
+                        <TableHead className={headCls}>Prioritas</TableHead>
                         <TableHead className={headCls}>
                           Terakhir Diperbarui
                         </TableHead>
@@ -547,6 +585,9 @@ export default function SupportTicketsListPage() {
                           </TableCell>
                           <TableCell className="py-4">
                             <TicketStatusPill ticket={t} />
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <TicketPriorityPill ticket={t} />
                           </TableCell>
                           <TableCell className="whitespace-nowrap py-4 text-sm text-slate-600">
                             {formatTicketDateTime(t.updated_at ?? t.created_at)}
@@ -594,10 +635,15 @@ export default function SupportTicketsListPage() {
                                 {t.user.name}
                               </p>
                             ) : null}
-                            <p className="mt-2 text-xs text-slate-500">
-                              {t.department_label ?? t.department} ·{" "}
-                              {formatTicketDateTime(t.updated_at ?? t.created_at)}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <TicketPriorityPill ticket={t} />
+                              <p className="text-xs text-slate-500">
+                                {t.department_label ?? t.department} ·{" "}
+                                {formatTicketDateTime(
+                                  t.updated_at ?? t.created_at
+                                )}
+                              </p>
+                            </div>
                           </div>
                         </div>
                         <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
@@ -642,6 +688,7 @@ export default function SupportTicketsListPage() {
             onOpenChange={setExportOpen}
             initialStatus={filterStatus}
             initialDepartment={filterDepartment}
+            initialPriority={filterPriority}
           />
         )}
       </SidebarInset>

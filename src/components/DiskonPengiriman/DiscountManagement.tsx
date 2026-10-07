@@ -43,7 +43,6 @@ const USER_TYPE_FILTERS = [
   { value: "all", label: "Semua Tipe Akun" },
   { value: "personal", label: "Personal" },
   { value: "corporate", label: "Corporate" },
-  { value: "agen", label: "Agen" },
 ];
 
 interface DiscountStatistics {
@@ -111,7 +110,7 @@ export function DiscountManagement() {
           user_type:
             userTypeFilter === "all"
               ? undefined
-              : (userTypeFilter as "personal" | "corporate" | "agen"),
+              : (userTypeFilter as "personal" | "corporate"),
         });
 
         if (response.status === "success" || response.success) {
