@@ -4,6 +4,8 @@ export interface FlatShippingRate {
   id: number;
   name: string;
   vendor: string | null;
+  /** null = berlaku semua tipe akun. Lihat docs/be-fe/update-user-type-flat-ongkir.md */
+  user_type: "personal" | "corporate" | null;
   flat_price: string | number;
   covered_provinces: string[];
   /** BE selalu paksa null sekarang — "jenis layanan" tidak dibedakan lagi. */
@@ -45,6 +47,8 @@ export interface FlatShippingRateDetailResponse {
 export interface FlatShippingRatePayload {
   name: string;
   vendor?: string | null;
+  /** Kosongkan/null untuk berlaku semua tipe akun. */
+  user_type?: "personal" | "corporate" | null;
   flat_price: number;
   covered_provinces: string[];
   service_types?: string[];

@@ -38,13 +38,18 @@ import {
   Boxes,
   Truck,
   CreditCard,
+  Lock,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicker";
+import { useAuth } from "@/context/AuthContext";
+import type { BankAccount } from "@/types/bankAccount";
 import {
   getShippers,
   getReceivers,
+  getBankAccounts,
   getExpeditionVendorSettings,
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
@@ -272,6 +277,54 @@ export default function RegularPackageForm({
   });
 
   // Loading state sekarang dikontrol parent
+
+  // Akun Personal butuh minimal satu rekening bank approved & tidak sedang
+  // diajukan hapus sebelum boleh pakai COD. Corporate tidak kena aturan ini.
+  // Lihat docs/be-fe/update-cod-butuh-rekening-bank-personal.md
+  const { user } = useAuth();
+  const isPersonalAccount = user?.account_type === "personal";
+  const codEligible = !isPersonalAccount || user?.cod_eligible !== false;
+  const [myBankAccounts, setMyBankAccounts] = useState<BankAccount[] | null>(
+    null
+  );
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
+
+  useEffect(() => {
+    if (!isPersonalAccount || codEligible) return;
+    setLoadingBankAccounts(true);
+    getBankAccounts()
+      .then((res) => setMyBankAccounts(res.data))
+      .catch(() => setMyBankAccounts([]))
+      .finally(() => setLoadingBankAccounts(false));
+  }, [isPersonalAccount, codEligible]);
+
+  // Jangan biarkan user "terjebak" di COD yang sebenarnya terkunci —
+  // alihkan otomatis ke Non-COD kalau belum eligible.
+  useEffect(() => {
+    if (!codEligible && formData.paymentMethod === "cod") {
+      handleChange("paymentMethod", "non-cod");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codEligible]);
+
+  /** Pesan spesifik alasan COD terkunci, dibaca dari status rekening bank sendiri. */
+  const codLockedReason = (): string => {
+    if (loadingBankAccounts) return "Memeriksa status rekening bank…";
+    if (!myBankAccounts || myBankAccounts.length === 0) {
+      return "Belum ada rekening bank terdaftar.";
+    }
+    if (myBankAccounts.some((b) => b.status === "pending")) {
+      return "Rekening bank Anda sedang menunggu persetujuan admin.";
+    }
+    if (
+      myBankAccounts.some(
+        (b) => b.status === "approved" && b.deletion_requested_at
+      )
+    ) {
+      return "Rekening bank Anda sedang menunggu proses penghapusan.";
+    }
+    return "Rekening bank Anda ditolak admin. Perbaiki data dan ajukan ulang.";
+  };
 
   useEffect(() => {
     getShippers().then((res) => {
@@ -1051,20 +1104,46 @@ export default function RegularPackageForm({
               {/* COD Option */}
               <label
                 htmlFor="cod"
-                className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
-                  formData.paymentMethod === "cod"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
+                className={`flex items-start gap-3 rounded-xl border-2 p-4 transition-colors ${
+                  !codEligible
+                    ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-70"
+                    : formData.paymentMethod === "cod"
+                      ? "cursor-pointer border-blue-500 bg-blue-50"
+                      : "cursor-pointer border-slate-200 bg-white hover:border-slate-300"
                 }`}
               >
-                <RadioGroupItem value="cod" id="cod" className="mt-0.5" />
+                <RadioGroupItem
+                  value="cod"
+                  id="cod"
+                  className="mt-0.5"
+                  disabled={!codEligible}
+                />
                 <div>
-                  <div className="font-medium text-slate-900">
+                  <div className="flex items-center gap-1.5 font-medium text-slate-900">
                     COD (Cash on Delivery)
+                    {!codEligible && (
+                      <Lock className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                    )}
                   </div>
                   <div className="text-sm text-slate-500">
                     Nilai barang + ongkir dibayar penerima saat paket sampai
                   </div>
+                  {!codEligible && (
+                    <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
+                      <p>
+                        COD belum bisa dipakai — {codLockedReason()} Tambahkan
+                        rekening bank dan tunggu persetujuan admin terlebih
+                        dahulu.
+                      </p>
+                      <Link
+                        href="/dashboard/akun/rekening"
+                        className="mt-1 inline-flex items-center font-medium text-blue-600 underline hover:text-blue-700"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Kelola rekening bank →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </label>
 

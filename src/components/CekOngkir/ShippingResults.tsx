@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
-import { Check, Clock, ThumbsUp } from "lucide-react";
+import { Check, Clock, Tag, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import {
@@ -49,6 +49,8 @@ type JntApiResult = {
     productType: string;
     original_cost?: number;
     final_cost?: number;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
     discount_info?: {
       has_discount: boolean;
       discount_applied: boolean;
@@ -102,6 +104,8 @@ type PaxelApiResult = {
       fixed_price_type: string;
       fixed_short_size: string;
       fixed_size: string;
+      flat_rate_applied?: boolean;
+      flat_rate_name?: string | null;
     };
   };
   shipping_costs_with_discount: Array<unknown>;
@@ -115,6 +119,8 @@ type LionApiResult = {
     service_type?: string;
     product?: string;
     message?: string;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
   };
 };
 
@@ -142,6 +148,8 @@ type SapApiResult = {
       surcharge: number;
       sla: string;
       markup_percentage: string;
+      flat_rate_applied?: boolean;
+      flat_rate_name?: string | null;
     }>;
   };
 };
@@ -229,7 +237,16 @@ type JneApiResult = {
       times: string;
     }>;
   };
-  shipping_costs_with_discount?: Array<unknown>;
+  // Array terpisah, sejajar dengan `data` (bukan di dalamnya) — urutannya
+  // paralel dengan data.price. Di sinilah flat_rate_applied/final_cost yang
+  // sebenarnya berada untuk JNE. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2
+  // (koreksi 2026-10-08).
+  shipping_costs_with_discount?: Array<{
+    final_cost?: number;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
+    discount_info?: { final_cost?: number };
+  }>;
 };
 
 type IdexpressApiResult = {
@@ -273,12 +290,16 @@ type IdexpressApiResult = {
     };
     final_cost?: number;
     service_code?: string;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
   }>;
 };
 
 type AnterajaApiResult = {
   status: string;
   cost?: number;
+  flat_rate_applied?: boolean;
+  flat_rate_name?: string | null;
   response?: {
     status: number;
     info: string;
@@ -305,6 +326,8 @@ type NinjaApiResult = {
     final_cost: number;
     discount_applied: boolean;
     discount_amount: number;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
     vendor_response?: {
       data?: {
         total_fee: number;
@@ -328,6 +351,8 @@ type JntCargoServiceItem = {
   rate?: number | string;
   etd?: string;
   sla?: string;
+  flat_rate_applied?: boolean;
+  flat_rate_name?: string | null;
 };
 
 type JntCargoApiResult = {
@@ -423,6 +448,8 @@ export default function ShippingResults({
               available: true,
               recommended: index === 0,
               tags: [{ label: "Potensi retur Rendah", type: "info" }],
+              flatRateApplied: item.flat_rate_applied,
+              flatRateName: item.flat_rate_name,
             });
           });
         }
@@ -456,6 +483,11 @@ export default function ShippingResults({
       }
 
       // Process Paxel results
+      // Catatan: diskon & flat ongkir belum benar-benar berfungsi untuk Paxel
+      // (bug BE, bukan FE) — BE membaca price/cost/rate yang tidak dipakai
+      // response Paxel (yang sebenarnya fixed_price/small_price/dst), jadi
+      // flat_rate_applied di sini kemungkinan selalu undefined untuk saat
+      // ini. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 (koreksi 2026-10-08).
       if (combinedData.paxel && combinedData.paxel.status === "success") {
         const paxelData = combinedData.paxel.data?.data;
         if (paxelData) {
@@ -470,6 +502,8 @@ export default function ShippingResults({
               available: true,
               recommended: false,
               tags: [{ label: "Fast Delivery", type: "info" }],
+              flatRateApplied: paxelData.flat_rate_applied,
+              flatRateName: paxelData.flat_rate_name,
             });
           }
         }
@@ -492,6 +526,8 @@ export default function ShippingResults({
             available: true,
             recommended: false,
             tags: [{ label: "Reliable Service", type: "info" }],
+            flatRateApplied: lionData.flat_rate_applied,
+            flatRateName: lionData.flat_rate_name,
           });
         }
       }
@@ -515,6 +551,8 @@ export default function ShippingResults({
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "Pengiriman Cepat", type: "info" }],
+                flatRateApplied: service.flat_rate_applied,
+                flatRateName: service.flat_rate_name,
               });
             }
           });
@@ -540,6 +578,8 @@ export default function ShippingResults({
             ...(pos.posIndonesiaPosting
               ? { posIndonesiaPosting: pos.posIndonesiaPosting }
               : {}),
+            flatRateApplied: pos.flatRateApplied,
+            flatRateName: pos.flatRateName,
           });
         }
       }
@@ -552,8 +592,18 @@ export default function ShippingResults({
           Array.isArray(jneData.price) &&
           jneData.price.length > 0
         ) {
+          const jneDiscArr = combinedData.jne.shipping_costs_with_discount;
           jneData.price.forEach((item, index) => {
             if (item.price && Number(item.price) > 0) {
+              // flat_rate_applied/final_cost JNE ada di array terpisah ini,
+              // sejajar dengan `data`, bukan di dalam item data.price.
+              const discItem = Array.isArray(jneDiscArr)
+                ? jneDiscArr[index]
+                : undefined;
+              const priceValue =
+                discItem?.final_cost ??
+                discItem?.discount_info?.final_cost ??
+                Number(item.price);
               const etdFrom = item.etd_from || "2";
               const etdThru = item.etd_thru || "3";
               const duration = `${etdFrom}-${etdThru} Hari`;
@@ -562,11 +612,13 @@ export default function ShippingResults({
                 id: `jne-${item.service_code.toLowerCase()}`,
                 name: `JNE ${item.service_display}`,
                 logo: "/images/jne.png",
-                price: `Rp${Number(item.price).toLocaleString("id-ID")}`,
+                price: `Rp${priceValue.toLocaleString("id-ID")}`,
                 duration: duration,
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "JNE Express", type: "info" }],
+                flatRateApplied: discItem?.flat_rate_applied,
+                flatRateName: discItem?.flat_rate_name,
               });
             }
           });
@@ -609,6 +661,8 @@ export default function ShippingResults({
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "ID Express", type: "info" }],
+                flatRateApplied: item.flat_rate_applied,
+                flatRateName: item.flat_rate_name,
               });
             }
           });
@@ -672,6 +726,8 @@ export default function ShippingResults({
             available: true,
             recommended: false,
             tags: [{ label: "Anteraja", type: "info" }],
+            flatRateApplied: anterajaData.flat_rate_applied,
+            flatRateName: anterajaData.flat_rate_name,
           });
         }
       }
@@ -689,6 +745,8 @@ export default function ShippingResults({
             available: true,
             recommended: false,
             tags: [{ label: "Ninja Express", type: "info" }],
+            flatRateApplied: ninjaData.flat_rate_applied,
+            flatRateName: ninjaData.flat_rate_name,
           });
         }
       }
@@ -751,6 +809,8 @@ export default function ShippingResults({
             available: true,
             recommended: false,
             tags: [{ label: "J&T Cargo", type: "info" }],
+            flatRateApplied: service.flat_rate_applied,
+            flatRateName: service.flat_rate_name,
           });
         });
       }
@@ -822,6 +882,13 @@ export default function ShippingResults({
 
   // Function to fetch discount for a specific option
   const fetchDiscountForOption = async (option: ShippingOption) => {
+    // Flat rate menang mutlak atas diskon — diskon diabaikan total kalau
+    // match flat rate, jadi tidak perlu dicek sama sekali.
+    // Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 & §3.
+    if (option.flatRateApplied) {
+      setDiscountInfo((prev) => ({ ...prev, [option.id]: null }));
+      return;
+    }
     try {
       setIsLoadingDiscounts((prev) => ({ ...prev, [option.id]: true }));
 
@@ -1099,7 +1166,20 @@ export default function ShippingResults({
                     </span>
                   </TableCell>
                   <TableCell className="py-4">
-                    {loadingDisc ? (
+                    {option.flatRateApplied ? (
+                      <div>
+                        <span className="text-sm font-bold text-blue-600">
+                          {option.price}
+                        </span>
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                            <Tag className="h-3 w-3" aria-hidden />
+                            Flat Ongkir
+                            {option.flatRateName ? `: ${option.flatRateName}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    ) : loadingDisc ? (
                       <div className="flex items-center gap-2">
                         <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
                         <span className="text-xs text-slate-500">

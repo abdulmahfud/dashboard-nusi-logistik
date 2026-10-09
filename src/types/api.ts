@@ -18,6 +18,12 @@ export interface UserData {
   balance?: string | number;
   /** Lihat docs/be-fe/update-deteksi-tipe-akun-me.md */
   account_type?: "personal" | "corporate";
+  /**
+   * Boleh membuat order COD sekarang. Personal: perlu rekening bank
+   * approved & tidak sedang diajukan hapus. Corporate: selalu true.
+   * Lihat docs/be-fe/update-cod-butuh-rekening-bank-personal.md
+   */
+  cod_eligible?: boolean;
   billing_mode?: "prepaid" | "postpaid";
   /** Hanya muncul kalau account_type === "corporate". */
   credit?: {

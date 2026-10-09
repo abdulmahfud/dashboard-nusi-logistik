@@ -130,6 +130,9 @@ export interface ShippingOption {
     insuranceTax: number;
     totalFee: number;
   };
+  /** Harga ini hasil program Flat Ongkir (bukan hitungan vendor) — diskon diabaikan total kalau true. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */
+  flatRateApplied?: boolean;
+  flatRateName?: string | null;
 }
 
 // Service types for tabs

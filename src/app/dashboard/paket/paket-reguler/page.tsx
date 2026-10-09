@@ -12,8 +12,11 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Loader2, Package, ShieldCheck, Truck } from "lucide-react";
 import RegularPackageForm from "../../../../components/PaketReguler/RegularPackageForm";
 import CalculationResults, {
+  SERVICE_CATEGORY_UNGROUPED,
   type ServiceCategory,
 } from "@/components/PaketReguler/CalculationResults";
+import { getExpeditionGroups } from "@/lib/apiClient";
+import type { ExpeditionGroup } from "@/types/expeditionGroup";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -30,6 +33,7 @@ const PaketReguler = () => {
   const [formResetKey, setFormResetKey] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("all");
+  const [groups, setGroups] = useState<ExpeditionGroup[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<{
     name: string;
     price: string;
@@ -92,6 +96,15 @@ const PaketReguler = () => {
 
   const handleFormDataChange = useCallback((data: typeof formData) => {
     setFormData(data);
+  }, []);
+
+  // Tab "Pilihan Layanan" (Reguler & COD / Cargo / dst) tidak hardcode —
+  // diambil dari grup ekspedisi yang dikelola admin. Lihat
+  // docs/be-fe/expedition-groups.md
+  useEffect(() => {
+    getExpeditionGroups()
+      .then((res) => setGroups(res.data))
+      .catch(() => setGroups([]));
   }, []);
 
   useEffect(() => {
@@ -181,17 +194,21 @@ const PaketReguler = () => {
                     >
                       Semua Layanan
                     </TabsTrigger>
+                    {groups.map((group) => (
+                      <TabsTrigger
+                        key={group.slug}
+                        value={group.slug}
+                        className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+                      >
+                        {group.name}
+                      </TabsTrigger>
+                    ))}
+                    {/* Fallback untuk vendor yang belum/tidak lagi punya grup (lihat docs/be-fe/expedition-groups.md §4) */}
                     <TabsTrigger
-                      value="reguler"
+                      value={SERVICE_CATEGORY_UNGROUPED}
                       className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
                     >
-                      Reguler
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="cargo"
-                      className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
-                    >
-                      Cargo
+                      Lainnya
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -220,6 +237,7 @@ const PaketReguler = () => {
                       <CalculationResults
                         isSearching={isSearching}
                         result={calculationResult}
+                        groups={groups}
                         formData={formData}
                         onResetForm={handleResetForm}
                         activeCategory={activeCategory}

@@ -44,10 +44,14 @@ import {
 import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { useAuth } from "@/context/AuthContext";
+import type { ExpeditionGroup } from "@/types/expeditionGroup";
 
 interface CalculationResultsProps {
   isSearching: boolean;
   result?: Record<string, unknown>;
+  /** Dari GET /admin/expedition-groups — menggantikan kategori Reguler/Cargo
+   * yang sebelumnya hardcode. Lihat docs/be-fe/expedition-groups.md */
+  groups?: ExpeditionGroup[];
   formData?: {
     itemValue?: string;
     paymentMethod?: string;
@@ -123,6 +127,8 @@ type PaxelApiResult = {
         time_delivery_start: string;
         time_delivery_end: string;
       }>;
+      flat_rate_applied?: boolean;
+      flat_rate_name?: string | null;
     };
   };
   shipping_costs_with_discount?: Array<unknown>;
@@ -136,6 +142,8 @@ type LionApiResult = {
     service_type?: string;
     product?: string;
     message?: string;
+    flat_rate_applied?: boolean;
+    flat_rate_name?: string | null;
   };
 };
 
@@ -163,6 +171,8 @@ type JntCargoServiceItem = {
   rate?: number | string;
   etd?: string;
   sla?: string;
+  flat_rate_applied?: boolean;
+  flat_rate_name?: string | null;
 };
 
 type JntCargoApiResult = {
@@ -192,11 +202,49 @@ type CombinedApiResult = {
   };
 };
 
-/** Kategori tab "Pilihan Layanan" — Cargo cuma J&T Cargo, sisanya Reguler. */
-export type ServiceCategory = "all" | "reguler" | "cargo";
+/**
+ * Kategori tab "Pilihan Layanan" — slug grup dari GET /admin/expedition-groups
+ * ("all" = semua, atau SERVICE_CATEGORY_UNGROUPED untuk vendor tanpa grup).
+ * Lihat docs/be-fe/expedition-groups.md
+ */
+export type ServiceCategory = string;
 
-function getServiceCategory(optionId: string): Exclude<ServiceCategory, "all"> {
-  return optionId.startsWith("jntcargo") ? "cargo" : "reguler";
+/** Tab fallback untuk vendor yang belum/tidak lagi punya grup (grup dihapus admin). */
+export const SERVICE_CATEGORY_UNGROUPED = "lainnya";
+
+/**
+ * id opsi dibentuk dari prefix vendor (mis. `jne-reg`, `jntcargo-ez`), tapi
+ * JNT Express sengaja memakai singkatan "jnt" sedangkan kunci vendor
+ * sebenarnya (dipakai expedition-groups/vendor-settings) adalah "jntexpress".
+ */
+const OPTION_ID_VENDOR_OVERRIDES: Record<string, string> = {
+  jnt: "jntexpress",
+};
+
+function vendorKeyFromOptionId(optionId: string): string {
+  const prefix = optionId.split("-")[0] ?? "";
+  return OPTION_ID_VENDOR_OVERRIDES[prefix] ?? prefix;
+}
+
+/** Peta vendor (lowercase) -> slug grup, dari field `vendors` tiap grup. */
+function buildVendorGroupMap(
+  groups: ExpeditionGroup[]
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const group of groups) {
+    for (const vendor of group.vendors ?? []) {
+      map[vendor.toLowerCase()] = group.slug;
+    }
+  }
+  return map;
+}
+
+function getServiceCategory(
+  optionId: string,
+  vendorGroupMap: Record<string, string>
+): string {
+  const vendorKey = vendorKeyFromOptionId(optionId);
+  return vendorGroupMap[vendorKey] ?? SERVICE_CATEGORY_UNGROUPED;
 }
 
 type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
@@ -204,11 +252,13 @@ type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
 export default function CalculationResults({
   isSearching,
   result,
+  groups = [],
   formData,
   onResetForm,
   activeCategory = "all",
   onSelectedOptionChange,
 }: CalculationResultsProps) {
+  const vendorGroupMap = useMemo(() => buildVendorGroupMap(groups), [groups]);
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isInsured, setIsInsured] = useState(false);
@@ -319,6 +369,8 @@ export default function CalculationResults({
               cost: string;
               name: string;
               productType: string;
+              flat_rate_applied?: boolean;
+              flat_rate_name?: string | null;
             }>;
 
             if (Array.isArray(contentArr) && contentArr.length > 0) {
@@ -334,6 +386,8 @@ export default function CalculationResults({
                   tags: [
                     { label: "Potensi retur Rendah", type: "success" as const },
                   ],
+                  flatRateApplied: item.flat_rate_applied,
+                  flatRateName: item.flat_rate_name,
                 });
               });
             }
@@ -344,10 +398,19 @@ export default function CalculationResults({
       }
 
       // Process Paxel results
+      // Catatan: diskon & flat ongkir belum benar-benar berfungsi untuk Paxel
+      // (bug BE, bukan FE) — BE membaca price/cost/rate yang tidak dipakai
+      // response Paxel (yang sebenarnya fixed_price/small_price/dst), jadi
+      // flat_rate_applied di sini kemungkinan selalu undefined untuk saat
+      // ini. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 (koreksi 2026-10-08).
       if (combinedData.paxel && combinedData.paxel.status === "success") {
         const paxelData = combinedData.paxel.data?.data;
         if (paxelData?.fixed_price) {
           const fixedPrice = paxelData.fixed_price;
+          const paxelFlat = {
+            flatRateApplied: paxelData.flat_rate_applied,
+            flatRateName: paxelData.flat_rate_name,
+          };
 
           // Add same-day service if available
           if (
@@ -364,6 +427,7 @@ export default function CalculationResults({
               available: true,
               recommended: true,
               tags: [{ label: "Same Day Delivery", type: "success" as const }],
+              ...paxelFlat,
             });
           }
 
@@ -382,6 +446,7 @@ export default function CalculationResults({
               available: true,
               recommended: false,
               tags: [{ label: "Pengiriman Cepat", type: "success" as const }],
+              ...paxelFlat,
             });
           }
 
@@ -401,6 +466,7 @@ export default function CalculationResults({
               available: true,
               recommended: true,
               tags: [{ label: "Fast Delivery", type: "success" as const }],
+              ...paxelFlat,
             });
           }
         }
@@ -426,6 +492,8 @@ export default function CalculationResults({
               { label: "Pengiriman Terjangkau", type: "success" as const },
               { label: productName, type: "info" as const },
             ],
+            flatRateApplied: lionData.flat_rate_applied,
+            flatRateName: lionData.flat_rate_name,
           });
         }
       }
@@ -452,6 +520,13 @@ export default function CalculationResults({
                   tags: [
                     { label: "Pengiriman Cepat", type: "success" as const },
                   ],
+                  flatRateApplied: service.flat_rate_applied as
+                    | boolean
+                    | undefined,
+                  flatRateName: service.flat_rate_name as
+                    | string
+                    | null
+                    | undefined,
                 });
               }
             }
@@ -500,13 +575,23 @@ export default function CalculationResults({
             ...(pos.posIndonesiaPosting
               ? { posIndonesiaPosting: pos.posIndonesiaPosting }
               : {}),
+            flatRateApplied: pos.flatRateApplied,
+            flatRateName: pos.flatRateName,
           });
         }
       }
 
       // Process JNE results
       if (combinedData.jne && combinedData.jne.status === "success") {
-        const jneData = combinedData.jne.data as Record<string, unknown>;
+        const jneResult = combinedData.jne as Record<string, unknown>;
+        const jneData = jneResult.data as Record<string, unknown>;
+        // flat_rate_applied/final_cost JNE ada di array terpisah ini,
+        // sejajar dengan `data` (bukan di dalamnya), urutan paralel dengan
+        // data.price. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 (koreksi
+        // 2026-10-08).
+        const jneDiscArr = jneResult.shipping_costs_with_discount as
+          | Array<Record<string, unknown>>
+          | undefined;
         if (
           jneData?.price &&
           Array.isArray(jneData.price) &&
@@ -515,6 +600,16 @@ export default function CalculationResults({
           jneData.price.forEach(
             (item: Record<string, unknown>, index: number) => {
               if (item.price && Number(item.price) > 0) {
+                const discItem = Array.isArray(jneDiscArr)
+                  ? jneDiscArr[index]
+                  : undefined;
+                const priceValue =
+                  Number(discItem?.final_cost) ||
+                  Number(
+                    (discItem?.discount_info as Record<string, unknown>)
+                      ?.final_cost
+                  ) ||
+                  Number(item.price);
                 const etdFrom = String(item.etd_from || "2");
                 const etdThru = String(item.etd_thru || "3");
                 const duration = `${etdFrom}-${etdThru} Hari`;
@@ -523,11 +618,18 @@ export default function CalculationResults({
                   id: `jne-${String(item.service_code || "regular").toLowerCase()}`,
                   name: `JNE ${String(item.service_display || "REG")}`,
                   logo: "/images/jne.png",
-                  price: `Rp${Number(item.price).toLocaleString("id-ID")}`,
+                  price: `Rp${priceValue.toLocaleString("id-ID")}`,
                   duration: duration,
                   available: true,
                   recommended: index === 0,
                   tags: [{ label: "JNE Express", type: "info" as const }],
+                  flatRateApplied: discItem?.flat_rate_applied as
+                    | boolean
+                    | undefined,
+                  flatRateName: discItem?.flat_rate_name as
+                    | string
+                    | null
+                    | undefined,
                 });
               }
             }
@@ -573,6 +675,13 @@ export default function CalculationResults({
                   available: true,
                   recommended: index === 0,
                   tags: [{ label: "ID Express", type: "info" as const }],
+                  flatRateApplied: item.flat_rate_applied as
+                    | boolean
+                    | undefined,
+                  flatRateName: item.flat_rate_name as
+                    | string
+                    | null
+                    | undefined,
                 });
               }
             }
@@ -652,6 +761,13 @@ export default function CalculationResults({
             available: true,
             recommended: false,
             tags: [{ label: "Anteraja", type: "info" as const }],
+            flatRateApplied: anterajaData.flat_rate_applied as
+              | boolean
+              | undefined,
+            flatRateName: anterajaData.flat_rate_name as
+              | string
+              | null
+              | undefined,
           });
         }
       }
@@ -669,6 +785,13 @@ export default function CalculationResults({
             available: true,
             recommended: false,
             tags: [{ label: "Ninja Express", type: "info" as const }],
+            flatRateApplied: ninjaData.flat_rate_applied as
+              | boolean
+              | undefined,
+            flatRateName: ninjaData.flat_rate_name as
+              | string
+              | null
+              | undefined,
           });
         }
       }
@@ -710,6 +833,8 @@ export default function CalculationResults({
             available: true,
             recommended: false,
             tags: [{ label: "J&T Cargo", type: "info" as const }],
+            flatRateApplied: service.flat_rate_applied,
+            flatRateName: service.flat_rate_name,
           });
         });
       }
@@ -765,7 +890,7 @@ export default function CalculationResults({
     activeCategory === "all"
       ? shippingOptions
       : shippingOptions.filter(
-          (o) => getServiceCategory(o.id) === activeCategory
+          (o) => getServiceCategory(o.id, vendorGroupMap) === activeCategory
         );
 
   // Laporkan layanan terpilih (nama + ongkir, sudah memperhitungkan diskon
@@ -903,6 +1028,14 @@ export default function CalculationResults({
   const calculateDiscount = async (optionId: string) => {
     const option = shippingOptions.find((opt) => opt.id === optionId);
     if (!option) return;
+
+    // Flat rate menang mutlak atas diskon — diabaikan total kalau match
+    // flat rate, jadi tidak perlu dicek. Lihat
+    // docs/be-fe/flat-ongkir-jawa-bali.md §2 & §3.
+    if (option.flatRateApplied) {
+      setDiscountInfo(null);
+      return;
+    }
 
     try {
       setIsLoadingDiscount(true);
@@ -1325,11 +1458,13 @@ export default function CalculationResults({
         if (
           lower.includes("limit kredit") ||
           lower.includes("kerja sama") ||
-          (lower.includes("akun") && lower.includes("nonaktif"))
+          (lower.includes("akun") && lower.includes("nonaktif")) ||
+          // Personal tanpa rekening bank approved coba order COD — lihat
+          // docs/be-fe/update-cod-butuh-rekening-bank-personal.md
+          (lower.includes("cod") && lower.includes("rekening"))
         ) {
-          // Akun corporate (kerja sama) ditolak karena suspend/limit kredit
-          // tidak cukup — order memang tidak dibuat sama sekali (doc §4),
-          // jadi tidak ada jalur "bayar sekarang"/ganti metode bayar di sini.
+          // Order memang tidak dibuat sama sekali untuk kasus-kasus ini —
+          // tidak ada jalur "bayar sekarang"/ganti metode bayar di sini.
           // Cukup tampilkan pesan dari BE apa adanya, lebih lama biar terbaca.
           toast.error(message, { duration: 8000 });
         } else if (
@@ -1446,6 +1581,17 @@ export default function CalculationResults({
                         </span>
                       )}
                   </div>
+
+                  {/* Flat ongkir menang mutlak atas diskon — lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */}
+                  {option.flatRateApplied && (
+                    <div className="mt-1">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                        <Tag className="h-3 w-3" aria-hidden />
+                        Flat Ongkir
+                        {option.flatRateName ? `: ${option.flatRateName}` : ""}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Show discount badge if available and this option is selected */}
                   {selectedOption === option.id &&
@@ -1716,7 +1862,15 @@ export default function CalculationResults({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Pengiriman</span>
+                  <span>
+                    Pengiriman
+                    {selectedShippingOption.flatRateApplied && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
+                        <Tag className="h-3 w-3" aria-hidden />
+                        Flat Ongkir
+                      </span>
+                    )}
+                  </span>
                   <div className="text-right">
                     {discountInfo?.has_discount ? (
                       <div className="space-y-1">

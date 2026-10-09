@@ -25,15 +25,27 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import {
   getExpeditionVendorSettings,
   patchExpeditionVendorSettings,
+  getExpeditionGroups,
 } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import type { ExpeditionVendorSetting } from "@/types/expeditionVendorSettings";
+import type { ExpeditionGroup } from "@/types/expeditionGroup";
 import { formatDateIdLong } from "@/lib/date";
 import { cn } from "@/lib/utils";
+
+/** Value Select untuk "tanpa grup" — Radix Select tidak boleh value kosong. */
+const NO_GROUP = "__none__";
 
 /** Logo per vendor (kunci = `vendor` lowercase). Vendor tanpa logo memakai ikon truk. */
 const VENDOR_LOGO: Record<string, string> = {
@@ -83,6 +95,8 @@ type DraftRow = {
   is_active: boolean;
   is_cod_active: boolean;
   note: string;
+  /** Id grup, atau NO_GROUP kalau tanpa grup. Lihat docs/be-fe/expedition-groups.md §3 */
+  expedition_group_id: string;
 };
 
 function toDraft(row: ExpeditionVendorSetting): DraftRow {
@@ -90,14 +104,21 @@ function toDraft(row: ExpeditionVendorSetting): DraftRow {
     is_active: row.is_active,
     is_cod_active: row.is_cod_active,
     note: row.note ?? "",
+    expedition_group_id:
+      row.expedition_group_id != null
+        ? String(row.expedition_group_id)
+        : NO_GROUP,
   };
 }
 
 function draftDirty(row: ExpeditionVendorSetting, draft: DraftRow): boolean {
+  const currentGroup =
+    row.expedition_group_id != null ? String(row.expedition_group_id) : NO_GROUP;
   return (
     row.is_active !== draft.is_active ||
     row.is_cod_active !== draft.is_cod_active ||
-    (row.note ?? "") !== draft.note
+    (row.note ?? "") !== draft.note ||
+    currentGroup !== draft.expedition_group_id
   );
 }
 
@@ -114,13 +135,19 @@ export default function ExpeditionVendorSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
+  /** Untuk dropdown "Grup" per baris — lihat docs/be-fe/expedition-groups.md */
+  const [groups, setGroups] = useState<ExpeditionGroup[]>([]);
 
   const load = useCallback(async () => {
     if (!canUpdate) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await getExpeditionVendorSettings();
+      const [res, groupsRes] = await Promise.all([
+        getExpeditionVendorSettings(),
+        getExpeditionGroups().catch(() => ({ data: [] as ExpeditionGroup[] })),
+      ]);
+      setGroups(groupsRes.data);
       const list = Array.isArray(res.data) ? [...res.data] : [];
 
       // Pastikan vendor SAP muncul pada list pengaturan.
@@ -188,11 +215,20 @@ export default function ExpeditionVendorSettingsPage() {
       is_active?: boolean;
       is_cod_active?: boolean;
       note?: string | null;
+      expedition_group_id?: number | null;
     } = {};
     if (row.is_active !== draft.is_active) body.is_active = draft.is_active;
     if (row.is_cod_active !== draft.is_cod_active)
       body.is_cod_active = draft.is_cod_active;
     if ((row.note ?? "") !== draft.note) body.note = draft.note || null;
+    const currentGroup =
+      row.expedition_group_id != null ? String(row.expedition_group_id) : NO_GROUP;
+    if (currentGroup !== draft.expedition_group_id) {
+      body.expedition_group_id =
+        draft.expedition_group_id === NO_GROUP
+          ? null
+          : Number(draft.expedition_group_id);
+    }
 
     if (Object.keys(body).length === 0) {
       toast.info("Tidak ada perubahan.");
@@ -303,6 +339,9 @@ export default function ExpeditionVendorSettingsPage() {
                     <TableHeader className="bg-slate-50/60">
                       <TableRow className="border-slate-100 hover:bg-transparent">
                         <TableHead className={headCls}>Vendor</TableHead>
+                        <TableHead className={`${headCls} min-w-[160px]`}>
+                          Grup
+                        </TableHead>
                         <TableHead className={`${headCls} whitespace-nowrap`}>
                           Aktif
                         </TableHead>
@@ -337,6 +376,39 @@ export default function ExpeditionVendorSettingsPage() {
                             >
                               <TableCell className="py-4">
                                 <VendorCell vendor={row.vendor} />
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <Select
+                                  value={
+                                    draft?.expedition_group_id ?? NO_GROUP
+                                  }
+                                  onValueChange={(v) =>
+                                    updateDraft(row.id, {
+                                      expedition_group_id: v,
+                                    })
+                                  }
+                                  disabled={disabled}
+                                >
+                                  <SelectTrigger
+                                    aria-label="Grup ekspedisi"
+                                    className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm"
+                                  >
+                                    <SelectValue placeholder="Tanpa grup" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={NO_GROUP}>
+                                      Tanpa grup
+                                    </SelectItem>
+                                    {groups.map((g) => (
+                                      <SelectItem
+                                        key={g.id}
+                                        value={String(g.id)}
+                                      >
+                                        {g.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </TableCell>
                               <TableCell className="py-4">
                                 <Switch

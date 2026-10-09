@@ -29,6 +29,7 @@ import {
   Activity,
   CreditCard,
   Download,
+  Layers,
 } from "lucide-react";
 
 /**
@@ -262,6 +263,12 @@ export const sidebarData = {
       url: "/dashboard/expedition/vendor-settings",
       icon: Truck,
       permission: "expedition.settings.update",
+    },
+    {
+      title: "Grup Ekspedisi",
+      url: "/dashboard/expedition/groups",
+      icon: Layers,
+      permission: "expedition-groups.view",
     },
     {
       title: "Semua Rekening Bank",

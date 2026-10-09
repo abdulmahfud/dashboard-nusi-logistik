@@ -30,7 +30,22 @@ export type PosIndonesiaMappedOption = {
   originalPrice?: string;
   duration: string;
   posIndonesiaPosting?: PosIndonesiaPostingSnapshot;
+  /** Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */
+  flatRateApplied?: boolean;
+  flatRateName?: string | null;
 };
+
+function extractFlatRateFields(row: Record<string, unknown>): {
+  flatRateApplied?: boolean;
+  flatRateName?: string | null;
+} {
+  if (row.flat_rate_applied !== true) return {};
+  return {
+    flatRateApplied: true,
+    flatRateName:
+      typeof row.flat_rate_name === "string" ? row.flat_rate_name : null,
+  };
+}
 
 export function isPosIndonesiaApiSuccess(
   result: { status?: string; success?: boolean } | null | undefined
@@ -183,18 +198,21 @@ function mapRowToOption(
   const originalCost = Number(row.original_cost);
   const estimation = String(row.estimation ?? "2-4 Hari");
   const posting = extractPosIndonesiaPostingSnapshot(row);
+  const flat = extractFlatRateFields(row);
 
   return {
     id: `posindonesia-${serviceCode}`,
     name: POS_INDONESIA_DISPLAY_NAME,
     price: `Rp${finalCost.toLocaleString("id-ID")}`,
-    ...(Number.isFinite(originalCost) &&
+    ...(!flat.flatRateApplied &&
+    Number.isFinite(originalCost) &&
     originalCost > finalCost &&
     row.discount_applied === true
       ? { originalPrice: `Rp${originalCost.toLocaleString("id-ID")}` }
       : {}),
     duration: estimation,
     ...(posting ? { posIndonesiaPosting: posting } : {}),
+    ...flat,
   };
 }
 
@@ -217,7 +235,10 @@ function mapNormalizedBeResponse(
       (o.discount_info as Record<string, unknown> | undefined)?.final_cost ??
       row.totalFee
   );
-  return mapRowToOption({ ...row, ...o, final_cost: finalCost }, finalCost);
+  return mapRowToOption(
+    { ...row, ...o, final_cost: finalCost },
+    finalCost
+  );
 }
 
 function mapLegacyPosRegulerObject(

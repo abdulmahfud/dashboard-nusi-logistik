@@ -43,6 +43,11 @@ import { getVendorBadgeClass } from "@/lib/pricingVendors";
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";
 
+const USER_TYPE_LABEL: Record<string, string> = {
+  personal: "Personal",
+  corporate: "Corporate",
+};
+
 interface FlatRateListProps {
   rates: FlatShippingRate[];
   isLoading: boolean;
@@ -148,6 +153,7 @@ export function FlatRateList({
               <TableHead className={headCls}>Vendor</TableHead>
               <TableHead className={headCls}>Harga Flat</TableHead>
               <TableHead className={headCls}>Cakupan Provinsi</TableHead>
+              <TableHead className={headCls}>Tipe Akun</TableHead>
               <TableHead className={headCls}>Maks. Berat</TableHead>
               <TableHead className={headCls}>Prioritas</TableHead>
               <TableHead className={headCls}>Status</TableHead>
@@ -182,6 +188,15 @@ export function FlatRateList({
                   title={rate.covered_provinces?.join(", ")}
                 >
                   {formatProvinces(rate)}
+                </TableCell>
+                <TableCell className="py-4">
+                  {rate.user_type ? (
+                    <Badge variant="secondary">
+                      {USER_TYPE_LABEL[rate.user_type] ?? rate.user_type}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-slate-500">Semua</span>
+                  )}
                 </TableCell>
                 <TableCell className="py-4 text-sm text-slate-700">
                   {rate.max_weight} kg

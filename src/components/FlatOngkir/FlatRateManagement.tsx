@@ -3,6 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SectionCard } from "@/components/redesign/section-card";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { Plus, Search } from "lucide-react";
@@ -22,6 +29,12 @@ import {
   toggleFlatShippingRateStatus,
 } from "@/lib/apiClient";
 import { AxiosError } from "axios";
+
+const USER_TYPE_FILTERS = [
+  { value: "all", label: "Semua Tipe Akun" },
+  { value: "personal", label: "Personal" },
+  { value: "corporate", label: "Corporate" },
+];
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof AxiosError) {
@@ -47,17 +60,27 @@ export function FlatRateManagement() {
     null
   );
   const [search, setSearch] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
   const loadRates = useCallback(
-    async (searchQuery = "", targetPage = 1, perPageOverride = perPage) => {
+    async (
+      searchQuery = "",
+      targetPage = 1,
+      perPageOverride = perPage,
+      userType = userTypeFilter
+    ) => {
       try {
         setIsLoading(true);
         const response = await getFlatShippingRates({
           search: searchQuery || undefined,
+          user_type:
+            userType === "all"
+              ? undefined
+              : (userType as "personal" | "corporate"),
           page: targetPage,
           per_page: perPageOverride,
         });
@@ -73,16 +96,16 @@ export function FlatRateManagement() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [perPage]
+    [perPage, userTypeFilter]
   );
 
   useEffect(() => {
-    loadRates(search, 1, perPage);
+    loadRates(search, 1, perPage, userTypeFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [perPage]);
+  }, [perPage, userTypeFilter]);
 
   const handleSearch = () => {
-    loadRates(search, 1, perPage);
+    loadRates(search, 1, perPage, userTypeFilter);
   };
 
   const handlePerPageChange = (value: number) => {
@@ -177,7 +200,7 @@ export function FlatRateManagement() {
         ) : undefined
       }
     >
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative max-w-sm flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -191,6 +214,18 @@ export function FlatRateManagement() {
             className="h-11 rounded-lg border-slate-200 bg-white pl-9"
           />
         </div>
+        <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
+          <SelectTrigger className="h-11 w-full rounded-lg border-slate-200 bg-white lg:w-[170px]">
+            <SelectValue placeholder="Tipe Akun" />
+          </SelectTrigger>
+          <SelectContent>
+            {USER_TYPE_FILTERS.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button
           type="button"
           variant="outline"

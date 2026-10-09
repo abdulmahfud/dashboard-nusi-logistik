@@ -99,6 +99,12 @@ import type {
   ExpeditionVendorSettingPatchBody,
   ExpeditionVendorSettingPatchResponse,
 } from "@/types/expeditionVendorSettings";
+import type {
+  ExpeditionGroupListResponse,
+  ExpeditionGroupDetailResponse,
+  ExpeditionGroupPayload,
+  UpdateExpeditionGroupPayload,
+} from "@/types/expeditionGroup";
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
 import type {
   KerjaSamaAccountListResponse,
@@ -1534,6 +1540,47 @@ export const patchExpeditionVendorSettings = async (
   return res.data;
 };
 
+// ✅ Grup Ekspedisi — docs/be-fe/expedition-groups.md
+/** GET /admin/expedition-groups — expedition-groups.view */
+export const getExpeditionGroups =
+  async (): Promise<ExpeditionGroupListResponse> => {
+    const res = await apiClient.get<ExpeditionGroupListResponse>(
+      "/admin/expedition-groups"
+    );
+    return res.data;
+  };
+
+/** POST /admin/expedition-groups — expedition-groups.create */
+export const createExpeditionGroup = async (
+  payload: ExpeditionGroupPayload
+): Promise<ExpeditionGroupDetailResponse> => {
+  const res = await apiClient.post<ExpeditionGroupDetailResponse>(
+    "/admin/expedition-groups",
+    payload
+  );
+  return res.data;
+};
+
+/** PUT /admin/expedition-groups/{id} — expedition-groups.update */
+export const updateExpeditionGroup = async (
+  id: number,
+  payload: UpdateExpeditionGroupPayload
+): Promise<ExpeditionGroupDetailResponse> => {
+  const res = await apiClient.put<ExpeditionGroupDetailResponse>(
+    `/admin/expedition-groups/${id}`,
+    payload
+  );
+  return res.data;
+};
+
+/** DELETE /admin/expedition-groups/{id} — expedition-groups.delete. Permanen; vendor di grup ini jadi tanpa grup. */
+export const deleteExpeditionGroup = async (
+  id: number
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await apiClient.delete(`/admin/expedition-groups/${id}`);
+  return res.data;
+};
+
 // ✅ Get available discounts for expedition
 export const getAvailableDiscounts = async (params: {
   vendor: string;
@@ -2091,6 +2138,7 @@ export const deleteProduct = async (
 export const getFlatShippingRates = async (params?: {
   vendor?: string;
   is_active?: 0 | 1;
+  user_type?: "personal" | "corporate";
   search?: string;
   per_page?: number;
   page?: number;

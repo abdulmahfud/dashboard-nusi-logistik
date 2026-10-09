@@ -32,6 +32,12 @@ import { toast } from "sonner";
 const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
 const labelCls = "text-sm font-medium text-slate-800";
 
+const USER_TYPES = [
+  { value: "all", label: "Semua Tipe Akun" },
+  { value: "personal", label: "Personal" },
+  { value: "corporate", label: "Corporate" },
+];
+
 interface FlatRateFormProps {
   rate?: FlatShippingRate | null;
   onSubmit: (data: FlatShippingRatePayload) => void;
@@ -45,6 +51,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     vendor: "all",
+    user_type: "all",
     flat_price: "",
     max_weight: "",
     max_length: "",
@@ -82,6 +89,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
       setFormData({
         name: rate.name || "",
         vendor: rate.vendor || "all",
+        user_type: rate.user_type || "all",
         flat_price: String(rate.flat_price ?? ""),
         max_weight: String(rate.max_weight ?? ""),
         max_length: rate.max_length != null ? String(rate.max_length) : "",
@@ -140,6 +148,10 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
     const submitData: FlatShippingRatePayload = {
       name: formData.name.trim(),
       vendor: formData.vendor === "all" ? null : formData.vendor,
+      user_type:
+        formData.user_type === "all"
+          ? null
+          : (formData.user_type as "personal" | "corporate"),
       flat_price: parseFloat(formData.flat_price),
       covered_provinces: coveredProvinces,
       max_weight: parseFloat(formData.max_weight),
@@ -282,6 +294,31 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
             <p className="text-xs text-slate-400">
               Kalau ada 2 program match sekaligus, angka prioritas lebih
               kecil yang dipakai
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="user_type" className={labelCls}>
+              Tipe Akun
+            </Label>
+            <Select
+              value={formData.user_type}
+              onValueChange={(value) => handleInputChange("user_type", value)}
+            >
+              <SelectTrigger id="user_type" className={fieldCls}>
+                <SelectValue placeholder="Pilih tipe akun" />
+              </SelectTrigger>
+              <SelectContent>
+                {USER_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-400">
+              Beda harga untuk customer personal vs corporate. Kosongkan
+              untuk berlaku ke semua tipe akun.
             </p>
           </div>
 

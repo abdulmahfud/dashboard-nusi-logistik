@@ -11,6 +11,16 @@ export interface ExpeditionVendorSetting {
   vendor_code: string;
   /** true untuk vendor yang didukung diskon/flat-ongkir, false untuk GOSEND. */
   eligible_for_pricing_rules: boolean;
+  /** null kalau vendor belum/tidak lagi punya grup. Lihat docs/be-fe/expedition-groups.md */
+  expedition_group_id?: number | null;
+  group?: {
+    id: number;
+    name: string;
+    slug: string;
+    estimasi_dalam_kota: string | null;
+    estimasi_dalam_pulau: string | null;
+    estimasi_luar_pulau: string | null;
+  } | null;
 }
 
 export interface ExpeditionVendorSettingsListResponse {
@@ -22,6 +32,8 @@ export type ExpeditionVendorSettingPatchBody = {
   is_active?: boolean;
   is_cod_active?: boolean;
   note?: string | null;
+  /** Id grup tujuan, atau null untuk melepas vendor dari grup. */
+  expedition_group_id?: number | null;
 };
 
 export interface ExpeditionVendorSettingPatchResponse {

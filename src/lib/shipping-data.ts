@@ -13,6 +13,9 @@ export interface ShippingOption {
   recommended?: boolean;
   available: boolean;
   tags?: Tag[];
+  /** Harga ini hasil program Flat Ongkir (bukan hitungan vendor) — diskon diabaikan total kalau true. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */
+  flatRateApplied?: boolean;
+  flatRateName?: string | null;
   /** Field Addpostingdoc dari response cek ongkir Pos (format serviceCode + fee camelCase) */
   posIndonesiaPosting?: {
     serviceCode: number;
