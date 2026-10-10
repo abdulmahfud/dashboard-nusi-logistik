@@ -120,18 +120,18 @@ export const sidebarData = {
       url: "/dashboard/paket/paket-reguler",
       icon: Truck,
       permission: "expedition.orders.create",
+    },    
+    {
+      title: "Pembayaran Paket",
+      url: "/dashboard/paket/pembayaran-paket",
+      icon: Wallet,
+      permission: "payments.view",
     },
     {
       title: "Katalog Produk",
       url: "/dashboard/paket/katalog-produk",
       icon: Boxes,
       permission: "products.index",
-    },
-    {
-      title: "Pembayaran Paket",
-      url: "/dashboard/paket/pembayaran-paket",
-      icon: Wallet,
-      permission: "payments.view",
     },
     {
       title: "Cancel Order",
