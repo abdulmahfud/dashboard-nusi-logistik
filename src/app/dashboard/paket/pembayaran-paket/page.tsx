@@ -25,27 +25,35 @@ import {
   DateRangeField,
   toApiDate,
 } from "@/components/redesign/date-range-field";
+import { AxiosError } from "axios";
 import {
   CreditCard,
   CheckCircle2,
   Clock,
   DollarSign,
   AlertTriangle,
-  Info,
   Filter,
   Loader2,
   PackageCheck,
   ReceiptText,
   RefreshCw,
   RotateCcw,
+  Send,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getOrdersPage, createPayment } from "@/lib/apiClient";
+import {
+  getOrdersPage,
+  createPayment,
+  bulkProcessOrders,
+  cancelPendingOrder,
+} from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
 import { formatDateTimeId } from "@/lib/date";
 import Link from "next/link";
 import type { DateRange } from "react-day-picker";
+import type { OrderStatusFilter } from "@/types/laporanPengiriman";
 
 interface PendingOrder {
   id: number;
@@ -66,13 +74,6 @@ const headCls = "h-11 text-xs font-semibold text-slate-500";
 /** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
 type AppliedRange = { start?: string; end?: string };
 
-/**
- * Dua status order yang sudah didukung BE untuk alur "review sebelum proses
- * ke ekspedisi" (lihat docs/fe-be/pembayaran-paket-review-sebelum-proses.md).
- * Tab "Sudah Dibayar" memakai status `belum_proses` — di halaman ini
- * sengaja dilabeli "Sudah Dibayar" karena yang relevan buat user adalah
- * order itu sudah lolos tahap pembayaran, bukan istilah teknis BE.
- */
 type PageTab = "belum_diproses" | "sudah_dibayar";
 
 function mapOrder(order: {
@@ -104,13 +105,30 @@ function mapOrder(order: {
   };
 }
 
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    const data = err.response?.data as { message?: string } | undefined;
+    return data?.message || fallback;
+  }
+  return fallback;
+}
+
 export default function PembayaranPaketPage() {
   const { user } = useAuth();
   const isCorporate = user?.account_type === "corporate";
 
+  // Status order yang dipakai tiap tab berbeda per tipe akun — lihat
+  // docs/be-fe/review-sebelum-proses-corporate.md §0. Personal tidak pernah
+  // transit di `belum_proses` (langsung ke `proses_pengiriman` setelah
+  // dibayar); Corporate justru berhenti di `belum_proses` sampai di-commit.
+  const pendingStatus: OrderStatusFilter = isCorporate
+    ? "belum_proses"
+    : "menunggu_pembayaran";
+  const paidStatus: OrderStatusFilter = "proses_pengiriman";
+
   const [activeTab, setActiveTab] = useState<PageTab>("belum_diproses");
 
-  // Tab "Belum Diproses" — status menunggu_pembayaran, alur bulk-bayar lama.
+  // Tab "Belum Diproses"
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   /** Pilihan lintas halaman, disimpan lengkap agar total tetap benar saat ganti halaman. */
   const [selected, setSelected] = useState<Record<number, PendingOrder>>({});
@@ -120,9 +138,10 @@ export default function PembayaranPaketPage() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [cancelingId, setCancelingId] = useState<number | null>(null);
 
-  // Tab "Sudah Dibayar" — status belum_proses, daftar baca-saja untuk sekarang.
+  // Tab "Sudah Dibayar" — status proses_pengiriman, daftar baca-saja.
   const [paidOrders, setPaidOrders] = useState<PendingOrder[]>([]);
   const [paidPage, setPaidPage] = useState(1);
   const [paidPerPage, setPaidPerPage] = useState(20);
@@ -139,7 +158,7 @@ export default function PembayaranPaketPage() {
       setLoading(true);
       // Filter status dilakukan BE; tanggal hanya dikirim jika dipilih eksplisit.
       const response = await getOrdersPage({
-        status: "menunggu_pembayaran",
+        status: pendingStatus,
         start_date: appliedRange.start,
         end_date: appliedRange.end,
         page,
@@ -148,7 +167,7 @@ export default function PembayaranPaketPage() {
 
       const list = (response.data ?? []).map(mapOrder);
 
-      // Halaman terakhir bisa kosong setelah order dibayar: mundur satu halaman.
+      // Halaman terakhir bisa kosong setelah order diproses: mundur satu halaman.
       if (list.length === 0 && page > 1) {
         setPage((p) => Math.max(1, p - 1));
         return;
@@ -163,13 +182,13 @@ export default function PembayaranPaketPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedRange, page, perPage]);
+  }, [pendingStatus, appliedRange, page, perPage]);
 
   const fetchPaidOrders = useCallback(async () => {
     try {
       setPaidLoading(true);
       const response = await getOrdersPage({
-        status: "belum_proses",
+        status: paidStatus,
         start_date: appliedRange.start,
         end_date: appliedRange.end,
         page: paidPage,
@@ -188,11 +207,11 @@ export default function PembayaranPaketPage() {
       setPaidTotal(response.meta?.total ?? list.length);
     } catch (error) {
       console.error("Failed to fetch paid orders:", error);
-      toast.error("Gagal memuat data order yang sudah dibayar");
+      toast.error("Gagal memuat data order yang sudah diproses");
     } finally {
       setPaidLoading(false);
     }
-  }, [appliedRange, paidPage, paidPerPage]);
+  }, [paidStatus, appliedRange, paidPage, paidPerPage]);
 
   useEffect(() => {
     if (activeTab === "belum_diproses") void fetchPendingOrders();
@@ -201,6 +220,12 @@ export default function PembayaranPaketPage() {
   useEffect(() => {
     if (activeTab === "sudah_dibayar") void fetchPaidOrders();
   }, [activeTab, fetchPaidOrders]);
+
+  // Ganti tipe akun (jarang, tapi jaga-jaga) atau pindah tab pending:
+  // reset pilihan supaya tidak menyimpan order dari status yang berbeda.
+  useEffect(() => {
+    setSelected({});
+  }, [pendingStatus]);
 
   const applyFilter = () => {
     const from = rangeInput?.from;
@@ -220,7 +245,9 @@ export default function PembayaranPaketPage() {
     setPaidPage(1);
   };
 
-  const isPayable = (order: PendingOrder) => order.payment_amount !== null;
+  /** Personal: perlu payment_amount untuk ditagih. Corporate: selalu boleh dipilih (dicek limitnya saat commit). */
+  const isPayable = (order: PendingOrder) =>
+    isCorporate || order.payment_amount !== null;
   const payableOnPage = pendingOrders.filter(isPayable);
 
   const handleSelectOrder = (order: PendingOrder, checked: boolean) => {
@@ -232,7 +259,7 @@ export default function PembayaranPaketPage() {
     });
   };
 
-  /** "Pilih Semua" berlaku untuk order yang bisa dibayar di halaman ini. */
+  /** "Pilih Semua" berlaku untuk order yang bisa diproses di halaman ini. */
   const handleSelectAll = (checked: boolean) => {
     setSelected((prev) => {
       const next = { ...prev };
@@ -254,12 +281,10 @@ export default function PembayaranPaketPage() {
     }
 
     try {
-      setPaymentLoading(true);
+      setActionLoading(true);
 
       const selectedOrdersData = selectedOrders;
 
-      // For now, create a single payment for all selected orders
-      // In the future, you might want to create individual payments or bulk payment
       const bulkShippingData = {
         vendor: "bulk_payment",
         orders: selectedOrdersData.map((order) => ({
@@ -298,7 +323,79 @@ export default function PembayaranPaketPage() {
       console.error("Bulk payment error:", error);
       toast.error("Terjadi kesalahan saat membuat pembayaran");
     } finally {
-      setPaymentLoading(false);
+      setActionLoading(false);
+    }
+  };
+
+  /** Corporate: commit batch ke ekspedisi, ongkir dibebankan ke limit kredit. */
+  const handleBulkProcess = async () => {
+    if (selectedOrders.length === 0) {
+      toast.error("Pilih minimal 1 order untuk diproses");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      // Urutan order_ids menentukan prioritas kalau limit pas-pasan — kirim
+      // sesuai urutan tampil (paling lama dibuat duluan).
+      const orderIds = [...selectedOrders]
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+        .map((o) => o.id);
+
+      const res = await bulkProcessOrders(orderIds);
+      const results = res.data?.results ?? [];
+      const queued = results.filter((r) => r.status === "queued").length;
+      const insufficient = results.filter(
+        (r) => r.status === "insufficient_credit"
+      ).length;
+      const notEligible = results.filter(
+        (r) => r.status === "not_eligible" || r.status === "not_found"
+      ).length;
+
+      if (queued > 0) {
+        toast.success(
+          `${queued} order dikirim ke ekspedisi. Status akan berubah jadi "Sudah Dibayar" setelah selesai diproses (beberapa saat).`
+        );
+      }
+      if (insufficient > 0) {
+        toast.error(
+          `${insufficient} order belum diproses — limit kredit tidak cukup saat ini.`
+        );
+      }
+      if (notEligible > 0) {
+        toast.error(`${notEligible} order tidak valid untuk diproses.`);
+      }
+      if (results.length === 0) {
+        toast.error(res.message || "Gagal memproses order.");
+      }
+
+      setSelected({});
+      void fetchPendingOrders();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Terjadi kesalahan saat memproses order."));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelPending = async (order: PendingOrder) => {
+    setCancelingId(order.id);
+    try {
+      await cancelPendingOrder(order.id);
+      toast.success(`Order #${order.id} dibatalkan.`);
+      setSelected((prev) => {
+        const next = { ...prev };
+        delete next[order.id];
+        return next;
+      });
+      void fetchPendingOrders();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Gagal membatalkan order."));
+    } finally {
+      setCancelingId(null);
     }
   };
 
@@ -324,7 +421,11 @@ export default function PembayaranPaketPage() {
               { label: "Pembayaran Paket" },
             ]}
             title="Pembayaran Paket"
-            description="Periksa ulang paket yang sudah dibuat sebelum diproses ke ekspedisi."
+            description={
+              isCorporate
+                ? "Periksa ulang paket sebelum diproses ke ekspedisi — ongkir dibebankan ke limit kredit akun kerja sama Anda."
+                : "Periksa ulang paket yang sudah dibuat sebelum diproses ke ekspedisi."
+            }
             action={
               <Button
                 onClick={() =>
@@ -348,18 +449,6 @@ export default function PembayaranPaketPage() {
               </Button>
             }
           />
-
-          {isCorporate && (
-            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <Info className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-              <p>
-                Untuk akun kerja sama (corporate), proses bulk langsung ke
-                ekspedisi dengan limit kredit dari halaman ini masih dalam
-                pengembangan. Saat ini order corporate tetap diproses
-                langsung saat dibuat di halaman Kirim Paket Reguler.
-              </p>
-            </div>
-          )}
 
           <Tabs
             value={activeTab}
@@ -390,21 +479,33 @@ export default function PembayaranPaketPage() {
                   tone="orange"
                   title="Total Order Pending"
                   value={String(total)}
-                  hint="Order menunggu pembayaran"
+                  hint={
+                    isCorporate
+                      ? "Order menunggu diproses"
+                      : "Order menunggu pembayaran"
+                  }
                 />
                 <StatCard
                   icon={CheckCircle2}
                   tone="green"
                   title="Order Dipilih"
                   value={String(selectedOrders.length)}
-                  hint="Order siap untuk dibayar"
+                  hint={
+                    isCorporate
+                      ? "Order siap diproses"
+                      : "Order siap untuk dibayar"
+                  }
                 />
                 <StatCard
                   icon={CreditCard}
                   tone="blue"
-                  title="Total Pembayaran"
+                  title={isCorporate ? "Total Nilai" : "Total Pembayaran"}
                   value={formatRupiah(getTotalAmount())}
-                  hint="Total nominal pembayaran"
+                  hint={
+                    isCorporate
+                      ? "Akan dibebankan ke limit kredit"
+                      : "Total nominal pembayaran"
+                  }
                 />
               </div>
 
@@ -446,8 +547,9 @@ export default function PembayaranPaketPage() {
               <SectionCard icon={ReceiptText} title="Belum Diproses">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-slate-500">
-                    Order yang belum dibayar — pilih beberapa lalu bayar
-                    sekaligus.
+                    {isCorporate
+                      ? "Order yang belum dikirim ke ekspedisi — pilih beberapa lalu proses sekaligus."
+                      : "Order yang belum dibayar — pilih beberapa lalu bayar sekaligus."}
                   </p>
                   {payableOnPage.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -488,12 +590,16 @@ export default function PembayaranPaketPage() {
                     <p className="text-lg font-semibold text-slate-900">
                       {hasFilter
                         ? "Tidak ada order pada rentang tanggal ini"
-                        : "Tidak ada order yang menunggu pembayaran"}
+                        : isCorporate
+                          ? "Tidak ada order yang menunggu diproses"
+                          : "Tidak ada order yang menunggu pembayaran"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
                       {hasFilter
                         ? "Coba ubah atau reset filter tanggal."
-                        : "Order yang menunggu pembayaran akan muncul di sini."}
+                        : isCorporate
+                          ? "Order non-COD yang baru dibuat akan muncul di sini."
+                          : "Order yang menunggu pembayaran akan muncul di sini."}
                     </p>
                     {hasFilter ? (
                       <Button
@@ -534,6 +640,11 @@ export default function PembayaranPaketPage() {
                             Biaya Kirim
                           </TableHead>
                           <TableHead className={headCls}>Status</TableHead>
+                          {isCorporate && (
+                            <TableHead className={`${headCls} text-right`}>
+                              Aksi
+                            </TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -602,13 +713,17 @@ export default function PembayaranPaketPage() {
                               </TableCell>
                               <TableCell className="whitespace-nowrap py-4 text-right text-sm font-bold tabular-nums text-blue-600">
                                 {order.payment_amount === null ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
-                                    <AlertTriangle
-                                      className="h-3.5 w-3.5"
-                                      aria-hidden
-                                    />
-                                    Nominal tidak tersedia
-                                  </span>
+                                  isCorporate ? (
+                                    <span className="text-slate-400">—</span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                                      <AlertTriangle
+                                        className="h-3.5 w-3.5"
+                                        aria-hidden
+                                      />
+                                      Nominal tidak tersedia
+                                    </span>
+                                  )
                                 ) : (
                                   formatRupiah(order.payment_amount)
                                 )}
@@ -616,9 +731,32 @@ export default function PembayaranPaketPage() {
                               <TableCell className="py-4">
                                 <StatusBadge
                                   status="pending"
-                                  label="Menunggu Pembayaran"
+                                  label={
+                                    isCorporate
+                                      ? "Belum Diproses"
+                                      : "Menunggu Pembayaran"
+                                  }
                                 />
                               </TableCell>
+                              {isCorporate && (
+                                <TableCell className="py-4 text-right">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
+                                    disabled={cancelingId === order.id}
+                                    onClick={() => void handleCancelPending(order)}
+                                  >
+                                    {cancelingId === order.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" aria-hidden />
+                                    )}
+                                    Batalkan
+                                  </Button>
+                                </TableCell>
+                              )}
                             </TableRow>
                           );
                         })}
@@ -641,12 +779,14 @@ export default function PembayaranPaketPage() {
                 )}
               </SectionCard>
 
-              {/* Payment Action */}
+              {/* Payment / Process Action */}
               {selectedOrders.length > 0 && (
                 <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5 md:px-6">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">
-                      Konfirmasi Pembayaran
+                      {isCorporate
+                        ? "Konfirmasi Proses ke Ekspedisi"
+                        : "Konfirmasi Pembayaran"}
                     </h3>
                     <p className="text-sm text-slate-600">
                       {selectedOrders.length} order dipilih - Total:{" "}
@@ -656,14 +796,21 @@ export default function PembayaranPaketPage() {
                     </p>
                   </div>
                   <Button
-                    onClick={handleBulkPayment}
-                    disabled={paymentLoading}
+                    onClick={() =>
+                      void (isCorporate ? handleBulkProcess() : handleBulkPayment())
+                    }
+                    disabled={actionLoading}
                     className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
                   >
-                    {paymentLoading ? (
+                    {actionLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Membuat Invoice...
+                        {isCorporate ? "Memproses..." : "Membuat Invoice..."}
+                      </>
+                    ) : isCorporate ? (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Proses ke Ekspedisi
                       </>
                     ) : (
                       <>
@@ -682,9 +829,9 @@ export default function PembayaranPaketPage() {
                 <StatCard
                   icon={PackageCheck}
                   tone="green"
-                  title="Total Sudah Dibayar"
+                  title="Total Sudah Diproses"
                   value={String(paidTotal)}
-                  hint="Siap/sedang dikirim ke ekspedisi"
+                  hint="Sedang dikirim ke ekspedisi"
                 />
                 <StatCard
                   icon={ReceiptText}
@@ -736,8 +883,9 @@ export default function PembayaranPaketPage() {
 
               <SectionCard icon={PackageCheck} title="Sudah Dibayar">
                 <p className="mb-4 text-sm text-slate-500">
-                  Order yang sudah dibayar dan sedang menunggu diproses ke
-                  ekspedisi.
+                  Order yang sudah lolos tahap pembayaran/limit kredit dan
+                  sedang diproses ke ekspedisi. Order yang sudah lebih lanjut
+                  (mis. sampai tujuan) ada di halaman Laporan Pengiriman.
                 </p>
 
                 {paidLoading ? (

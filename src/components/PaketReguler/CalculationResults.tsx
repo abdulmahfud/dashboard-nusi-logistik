@@ -1437,7 +1437,7 @@ export default function CalculationResults({
         } else {
           toast.success(
             isCorporate
-              ? "Order berhasil dibuat. Ongkir ditambahkan ke limit kredit kerja sama Anda."
+              ? "Order berhasil dibuat. Cek dan proses ke ekspedisi di halaman Pembayaran Paket."
               : paymentMethod === "wallet"
                 ? "Pembayaran wallet berhasil."
                 : "Pembayaran berhasil."

@@ -824,6 +824,43 @@ export const getOrdersPage = async (params: {
   return res.data;
 };
 
+/**
+ * Commit batch order Corporate (status belum_proses) ke ekspedisi — motong
+ * limit kredit lalu kirim ke vendor. Permission orders.create (sama dengan
+ * buat order). Lihat docs/be-fe/review-sebelum-proses-corporate.md
+ */
+export const bulkProcessOrders = async (
+  orderIds: number[]
+): Promise<{
+  success: boolean;
+  message?: string;
+  data: {
+    results: Array<{
+      order_id: number;
+      status: "queued" | "insufficient_credit" | "not_eligible" | "not_found";
+      message?: string;
+    }>;
+  };
+}> => {
+  const res = await apiClient.post("/admin/orders/bulk-process", {
+    order_ids: orderIds,
+  });
+  return res.data;
+};
+
+/**
+ * Batalkan order Corporate yang masih belum_proses & belum punya AWB —
+ * tanpa panggilan ke vendor. Dipakai sebelum commit ke ekspedisi.
+ */
+export const cancelPendingOrder = async (
+  orderId: number
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await apiClient.delete(
+    `/admin/orders/${orderId}/cancel-pending`
+  );
+  return res.data;
+};
+
 // ✅ Get order statistics from backend
 export const getOrderStatistics = async (
   startDate?: string,
