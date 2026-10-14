@@ -680,18 +680,39 @@ export default function PembayaranPaketPage() {
             value={activeTab}
             onValueChange={(v) => setActiveTab(v as PageTab)}
           >
-            <TabsList className="h-11 w-full max-w-md items-stretch rounded-lg bg-slate-100 p-1 sm:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-1 gap-3 bg-transparent p-0 sm:grid-cols-2">
               <TabsTrigger
                 value="belum_diproses"
-                className="h-full flex-1 gap-2 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none sm:flex-none sm:px-6"
+                className="group h-auto items-center justify-start gap-3 whitespace-normal rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors data-[state=active]:border-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:shadow-md"
               >
-                Belum Diproses
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">
+                  <ReceiptText className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 group-data-[state=active]:text-white">
+                    Belum Diproses
+                  </p>
+                  <p className="text-xs text-slate-500 group-data-[state=active]:text-blue-100">
+                    {total} order{" "}
+                    {isCorporate ? "menunggu diproses" : "menunggu pembayaran"}
+                  </p>
+                </div>
               </TabsTrigger>
               <TabsTrigger
                 value="sudah_dibayar"
-                className="h-full flex-1 gap-2 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none sm:flex-none sm:px-6"
+                className="group h-auto items-center justify-start gap-3 whitespace-normal rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors data-[state=active]:border-blue-600 data-[state=active]:bg-blue-600 data-[state=active]:shadow-md"
               >
-                Sudah Dibayar
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">
+                  <PackageCheck className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 group-data-[state=active]:text-white">
+                    Sudah Dibayar
+                  </p>
+                  <p className="text-xs text-slate-500 group-data-[state=active]:text-blue-100">
+                    {paidTotal} order sedang dikirim
+                  </p>
+                </div>
               </TabsTrigger>
             </TabsList>
           </Tabs>
