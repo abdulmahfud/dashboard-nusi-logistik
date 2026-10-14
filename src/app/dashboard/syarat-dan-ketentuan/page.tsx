@@ -295,26 +295,27 @@ export default function BantuanPage() {
                       </li>
                     </ul>
                   </li>
-                  <li>
-                    <b>Fraud dan Kecurangan</b>
-                    <ul className="list-disc ml-6">
-                      <li>
-                        BhisaKirim berhak membatalkan, menahan, atau
-                        mengembalikan pengiriman apabila ditemukan indikasi
-                        penipuan, penyalahgunaan layanan, atau pelanggaran hukum
-                        yang merugikan BhisaKirim atau mitra ekspedisi.
-                      </li>
-                      <li>
-                        Setiap aktivitas curang baik dari pihak pengirim maupun
-                        penerima akan dilaporkan dan ditindaklanjuti sesuai
-                        hukum yang berlaku.
-                      </li>
-                    </ul>
-                  </li>
                 </ul>
               </li>
             </ol>
-            {/* --- Lanjutan Syarat & Ketentuan --- */}
+
+            <br />
+            <h2>Fraud dan Kecurangan</h2>
+            <br />
+            <ul className="list-disc ml-6">
+              <li>
+                BhisaKirim berhak membatalkan, menahan, atau mengembalikan
+                pengiriman apabila ditemukan indikasi penipuan, penyalahgunaan
+                layanan, atau pelanggaran hukum yang merugikan BhisaKirim atau
+                mitra ekspedisi.
+              </li>
+              <li>
+                Setiap aktivitas curang baik dari pihak pengirim maupun
+                penerima akan dilaporkan dan ditindaklanjuti sesuai hukum
+                yang berlaku.
+              </li>
+            </ul>
+
             <br />
             <h2>Perubahan dan Pembatalan</h2>
             <br />
@@ -374,7 +375,7 @@ export default function BantuanPage() {
                       <li>Indikasi penipuan atau penyalahgunaan layanan</li>
                       <li>
                         Permintaan resmi dari mitra ekspedisi, penegak hukum,
-                        atau regulator
+                        atau regulasi
                       </li>
                     </ol>
                   </li>
@@ -443,7 +444,7 @@ export default function BantuanPage() {
                   </li>
                   <li>
                     COD Value akan ditransfer ke akun bank pengguna (pengirim)
-                    maksimal 3–7 hari kerja setelah status pengiriman dinyatakan
+                    maksimal 7–14 hari kerja setelah status pengiriman dinyatakan
                     delivered atau Proof of Delivery (POD) oleh sistem mitra
                     ekspedisi.
                   </li>
@@ -522,77 +523,16 @@ export default function BantuanPage() {
             <br />
             <h3>Fee COD per Ekspedisi</h3>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Fee COD</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">
-                      4% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">Belum tersedia</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE Express</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">
-                      3% + PPN 11%, min Rp2.500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">Belum tersedia</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <p>
+              Besaran Fee COD: <b>5% dari total nilai transaksi</b> (dengan
+              biaya minimal Rp2.500), berlaku untuk ekspedisi berikut: J&amp;T
+              Express, ID Express, J&amp;T Cargo, POS Indonesia, JNE Express,
+              SAP Express, Ninja Xpress, Lion Parcel, dan Anteraja.
+            </p>
+            <p>Layanan COD belum tersedia untuk: Paxel &amp; Go-Send.</p>
             <ul className="list-disc ml-6 mt-2">
               <li>
-                Hitungan fee COD pada Platform Bhisakirim adalah sebagai
+                Hitungan fee COD pada Platform BhisaKirim adalah sebagai
                 berikut:
                 <br />
                 <b>
@@ -615,10 +555,8 @@ export default function BantuanPage() {
               </li>
               <li>
                 Minimal COD Value pada platform untuk seluruh ekspedisi yang
-                melayani COD adalah senilai Rp10.000 dan maksimal Rp3.000.000.
-                Khusus untuk IDX, minimal Rp10.000 dengan maksimal Rp5.000.000,
-                dan J&amp;T Cargo dengan minimal Rp50.000 dan maksimal
-                Rp5.000.000.
+                melayani COD adalah senilai Rp10.000 dan maksimal
+                Rp1.000.000.
               </li>
             </ul>
 
@@ -704,9 +642,71 @@ export default function BantuanPage() {
                       Tidak dipungut biaya retur
                     </td>
                   </tr>
+                  <tr>
+                    <td className="border px-2 py-1">Anteraja</td>
+                    <td className="border px-2 py-1">
+                      Tidak dipungut biaya retur
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
+
+            <br />
+            <h3>Ketentuan Rasio Return Maksimal</h3>
+            <br />
+            <p>
+              Sebagai bagian dari komitmen kami untuk menjaga kualitas
+              layanan dan kepercayaan seluruh pihak yang terlibat (terutama
+              ekspedisi dan pelanggan akhir), BhisaKirim menetapkan batas
+              maksimal rasio pengembalian (return rate) untuk setiap
+              pengguna, mitra, atau merchant aktif.
+            </p>
+            <ul className="list-disc ml-6">
+              <li>
+                <b>Definisi Return</b> — status kiriman yang tidak berhasil
+                diterima oleh penerima karena alasan tertentu, termasuk
+                namun tidak terbatas pada:
+                <ul className="list-disc ml-6">
+                  <li>Penerima tidak berada di tempat</li>
+                  <li>Alamat tidak lengkap atau tidak ditemukan</li>
+                  <li>Penolakan oleh penerima</li>
+                  <li>Barang rusak saat proses pengiriman</li>
+                </ul>
+              </li>
+              <li>
+                <b>Batas Maksimal Return</b> — rasio return maksimal yang
+                diperbolehkan adalah 15% dari total value ongkir
+                pengiriman. Artinya, dari seluruh transaksi value ongkir
+                pengiriman yang dilakukan oleh pengguna, maksimal 15% dan
+                akan dipotong dari saldo akun user.
+              </li>
+              <li>
+                <b>Konsekuensi Jika Melebihi Batas</b> — jika dalam satu
+                periode pengguna melebihi rasio return yang telah
+                ditentukan, maka:
+                <ul className="list-disc ml-6">
+                  <li>
+                    Peringatan resmi akan dikirimkan via email dan
+                    dashboard pengguna.
+                  </li>
+                  <li>
+                    Tinjauan akun akan dilakukan untuk melihat potensi
+                    fraud, penyalahgunaan sistem, atau ketidaksesuaian data
+                    pengiriman.
+                  </li>
+                  <li>
+                    Penangguhan sementara fitur tertentu, seperti layanan
+                    COD atau pencairan dana, sampai adanya pembayaran biaya
+                    return.
+                  </li>
+                  <li>
+                    Pemutusan kerja sama secara sepihak apabila rasio
+                    return tidak diperbaiki segera.
+                  </li>
+                </ul>
+              </li>
+            </ul>
 
             <br />
             <h2>Pengajuan Klaim Barang Rusak atau Hilang</h2>
@@ -923,6 +923,15 @@ export default function BantuanPage() {
                       7 hari kalender dari paket dinyatakan rusak
                     </td>
                   </tr>
+                  <tr>
+                    <td className="border px-2 py-1">Anteraja</td>
+                    <td className="border px-2 py-1">
+                      24 jam dari dinyatakan hilang
+                    </td>
+                    <td className="border px-2 py-1">
+                      24 jam dari paket diterima
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -996,6 +1005,13 @@ export default function BantuanPage() {
                     <td className="border px-2 py-1">Go-Send</td>
                     <td className="border px-2 py-1">
                       7 hari kerja sejak klaim diajukan
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border px-2 py-1">Anteraja</td>
+                    <td className="border px-2 py-1">
+                      3 hari kerja sejak klaim diajukan (atau 3–7 hari kerja
+                      sejak dokumen klaim dinyatakan lengkap)
                     </td>
                   </tr>
                 </tbody>
@@ -1137,10 +1153,14 @@ export default function BantuanPage() {
                   </tr>
                   <tr>
                     <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">Belum tersedia</td>
+                    <td className="border px-2 py-1">0,2% dari harga barang</td>
                   </tr>
                   <tr>
                     <td className="border px-2 py-1">Paxel</td>
+                    <td className="border px-2 py-1">0,2% dari harga barang</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-2 py-1">Anteraja</td>
                     <td className="border px-2 py-1">0,2% dari harga barang</td>
                   </tr>
                   <tr>
@@ -1306,7 +1326,10 @@ export default function BantuanPage() {
                   </tr>
                   <tr>
                     <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">Belum tersedia</td>
+                    <td className="border px-2 py-1">
+                      Sesuai nilai barang pada invoice (hingga batas maksimal
+                      pertanggungan yang disetujui)
+                    </td>
                     <td className="border px-2 py-1">
                       10x biaya kirim atau nilai barang, maksimal Rp1.000.000
                     </td>
@@ -1328,14 +1351,16 @@ export default function BantuanPage() {
                   <tr>
                     <td className="border px-2 py-1">JNE</td>
                     <td className="border px-2 py-1">
-                      Kehilangan: diganti penuh. Kerusakan &ge;70%: barang
-                      ditarik dan diganti baru/uang.
+                      Hilang diganti penuh; jika rusak, barang ditarik dan
+                      diganti barang baru/uang.
                     </td>
                     <td className="border px-2 py-1">0-10x biaya kirim</td>
                   </tr>
                   <tr>
                     <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">Maksimal Rp10.000.000</td>
+                    <td className="border px-2 py-1">
+                      Senilai barang, maksimal Rp10.000.000
+                    </td>
                     <td className="border px-2 py-1">
                       10x biaya kirim atau nilai barang, maksimal Rp1.000.000
                     </td>
@@ -1362,6 +1387,16 @@ export default function BantuanPage() {
                       Maksimal Rp10.000.000 (kecuali emas: Rp4.500.000)
                     </td>
                     <td className="border px-2 py-1">-</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-2 py-1">Anteraja</td>
+                    <td className="border px-2 py-1">
+                      Sesuai nilai barang pada resi/invoice, maksimal
+                      Rp100.000.000 per resi
+                    </td>
+                    <td className="border px-2 py-1">
+                      Maksimal Rp1.000.000 (non-dokumen), Rp100.000 (dokumen)
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -1399,11 +1434,6 @@ export default function BantuanPage() {
                     melalui metode pembayaran yang tersedia di aplikasi seperti
                     e-wallet (Dana, OVO, LinkAja, Gopay), Virtual Account bank,
                     QRIS, dan metode lainnya yang tersedia.
-                  </li>
-                  <li>
-                    Dana yang sudah masuk ke Saldo Aktif tidak dapat diuangkan
-                    kembali (non-refundable), kecuali dalam kondisi tertentu
-                    yang ditentukan oleh BhisaKirim.
                   </li>
                 </ul>
               </li>
@@ -1467,7 +1497,7 @@ export default function BantuanPage() {
                 </ul>
               </li>
               <li>
-                <b>Penarikan Saldo (Jika Berlaku)</b>
+                <b>Penarikan Saldo</b>
                 <ul className="list-disc ml-6">
                   <li>
                     Khusus untuk Member dengan Akun Terverifikasi yang menerima
@@ -1979,23 +2009,18 @@ export default function BantuanPage() {
                 <b>Email:</b> support@bhisakirim.com
               </li>
               <li>
-                <b>WhatsApp Layanan Pengguna:</b> +62 813-3032-3559
+                <b>WhatsApp Layanan Pengguna:</b> +62 821-4132-213
               </li>
               <li>
                 <b>Jam Operasional Layanan Pelanggan:</b>
                 <ul className="list-disc ml-6">
-                  <li>Senin – Jumat: 08.00 – 20.00 WIB</li>
+                  <li>Senin – Jumat: 08.00 – 17.00 WIB</li>
                   <li>
                     Sabtu – Minggu &amp; Hari Libur Nasional: 09.00 – 17.00 WIB
                   </li>
                 </ul>
               </li>
             </ul>
-            <p>
-              Kami akan berupaya memberikan tanggapan secepat mungkin dan
-              membantu menyelesaikan setiap permasalahan Anda dengan layanan
-              BhisaKirim.
-            </p>
           </div>
         </div>
       </SidebarInset>
