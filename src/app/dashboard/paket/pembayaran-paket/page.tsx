@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchInput } from "@/components/ui/search-input";
+import { Input } from "@/components/ui/input";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
@@ -752,14 +752,14 @@ export default function PembayaranPaketPage() {
               e.preventDefault();
               applyFilter();
             }}
-            className="overflow-x-auto rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
           >
-            <div className="flex min-w-max items-center gap-3 lg:min-w-0">
-              <SearchInput
+            <div className="flex items-center gap-3">
+              <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Cari: Order ID, AWB, Nama, No HP"
-                className="h-11 w-[260px] min-w-0 rounded-lg lg:w-auto lg:flex-1"
+                className="h-11 min-w-0 flex-1 basis-0 rounded-lg"
               />
               <Select value={vendorInput} onValueChange={setVendorInput}>
                 <SelectTrigger className="h-11 w-[170px] shrink-0 rounded-lg">
