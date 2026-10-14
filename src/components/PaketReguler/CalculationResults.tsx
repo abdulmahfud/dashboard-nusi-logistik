@@ -15,8 +15,8 @@ import { DiscountCalculation } from "@/types/discount";
 import Image from "next/image";
 import {
   CirclePlus,
-  CheckCircle,
   Package,
+  PackageCheck,
   CreditCard,
   Tag,
   Loader2,
@@ -24,11 +24,15 @@ import {
   Wallet,
   Handshake,
   TrendingUp,
+  Hash,
+  ReceiptText,
+  Truck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createOrder, getAvailableDiscounts } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
+import { StatusBadge } from "@/components/redesign/status-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
 import {
   buildPosIndonesiaShippingOptions,
@@ -1840,59 +1844,93 @@ export default function CalculationResults({
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
-            </div>
-            <DialogTitle className="text-xl font-bold text-green-600">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
+          <DialogHeader className="items-center text-center">
+            <span
+              className={`flex h-16 w-16 items-center justify-center rounded-full ${
+                orderResult?.flow === "cod"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : "bg-blue-50 text-blue-600"
+              }`}
+            >
+              {orderResult?.flow === "cod" ? (
+                <Truck className="h-8 w-8" aria-hidden />
+              ) : (
+                <PackageCheck className="h-8 w-8" aria-hidden />
+              )}
+            </span>
+            <DialogTitle className="text-xl font-bold text-slate-900">
               {orderResult?.flow === "cod"
-                ? "Pengiriman COD sedang diproses"
+                ? "Pengiriman Sedang Diproses"
                 : "Paket Berhasil Disimpan!"}
             </DialogTitle>
-            <DialogDescription asChild>
-              <div className="text-base">
-                {orderResult?.flow === "cod" && (
-                  <p className="text-muted-foreground text-sm mt-2">
-                    Pesanan COD Anda telah diterima dan sedang diproses ke
-                    ekspedisi. Anda dapat melacak status di laporan pengiriman.
-                  </p>
-                )}
-                <div className="bg-blue-50 p-3 rounded-lg mt-4 text-left">
-                  {orderResult?.order_id && (
-                    <div className="text-sm text-blue-600 mb-2">
-                      Order ID: #{orderResult.order_id}
-                    </div>
-                  )}
-                  {orderResult?.reference_no && (
-                    <div className="text-sm text-blue-600 mb-2">
-                      Reference: {orderResult.reference_no}
-                    </div>
-                  )}
-                  {orderResult?.awb_no && (
-                    <div className="text-sm text-blue-600 mb-2">
-                      AWB: {orderResult.awb_no}
-                    </div>
-                  )}
-                  <div className="text-sm text-blue-700">
-                    {orderResult?.flow === "cod"
-                      ? "Status: COD — diproses (tanpa pembayaran di muka)"
-                      : isCorporate
-                        ? "Status: Belum Diproses"
-                        : "Status: Menunggu Pembayaran"}
-                  </div>
-                </div>
-              </div>
+            <DialogDescription className="text-sm text-slate-500">
+              {orderResult?.flow === "cod"
+                ? "Pesanan COD Anda sudah diterima ekspedisi dan sedang dalam pengiriman."
+                : isCorporate
+                  ? "Lanjutkan ke halaman Pembayaran Paket untuk memproses paket ini lewat limit kredit."
+                  : "Lanjutkan ke halaman Pembayaran Paket untuk melakukan pembayaran."}
             </DialogDescription>
           </DialogHeader>
 
+          <div className="space-y-2.5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            {orderResult?.order_id && (
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Hash className="h-3.5 w-3.5" aria-hidden />
+                  Order ID
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  #{orderResult.order_id}
+                </span>
+              </div>
+            )}
+            {orderResult?.reference_no && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <ReceiptText className="h-3.5 w-3.5" aria-hidden />
+                  Reference
+                </span>
+                <span className="break-all text-right text-sm font-semibold text-slate-900">
+                  {orderResult.reference_no}
+                </span>
+              </div>
+            )}
+            {orderResult?.awb_no && (
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Truck className="h-3.5 w-3.5" aria-hidden />
+                  No. AWB
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {orderResult.awb_no}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-slate-200 pt-2.5">
+              <span className="text-xs font-medium text-slate-500">
+                Status
+              </span>
+              {orderResult?.flow === "cod" ? (
+                <StatusBadge status="success" label="Sedang Dikirim" />
+              ) : (
+                <StatusBadge
+                  status="pending"
+                  label={
+                    isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"
+                  }
+                />
+              )}
+            </div>
+          </div>
+
           {orderResult?.flow === "cod" ? (
-            <div className="grid grid-cols-1 gap-3 mt-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 type="button"
                 onClick={handleCreateNewOrder}
                 variant="outline"
-                className="h-11 px-4 font-semibold text-sm flex items-center justify-center gap-2 rounded-full border-blue-200"
+                className="h-11 gap-2 rounded-full border-slate-200 font-semibold"
               >
                 <Package className="h-4 w-4 shrink-0" />
                 Buat Paket Baru
@@ -1900,57 +1938,36 @@ export default function CalculationResults({
               <Button
                 type="button"
                 onClick={handleGoToLaporanPengiriman}
-                className="h-11 px-4 font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 text-sm flex items-center justify-center gap-2 rounded-full"
+                className="h-11 gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 font-semibold text-white hover:from-blue-600 hover:to-indigo-600"
               >
                 <ClipboardList className="h-4 w-4 shrink-0" />
-                Laporan pengiriman
+                Laporan Pengiriman
               </Button>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 gap-3 mt-6 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowSuccessDialog(false);
-                    router.push("/dashboard/paket/pembayaran-paket");
-                  }}
-                  className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  {isCorporate ? "Lihat & Proses Paket" : "Lakukan Pembayaran"}
-                </Button>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                onClick={() => {
+                  setShowSuccessDialog(false);
+                  router.push("/dashboard/paket/pembayaran-paket");
+                }}
+                className="h-11 gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 font-semibold text-white hover:from-blue-600 hover:to-indigo-600"
+              >
+                <CreditCard className="h-4 w-4" />
+                {isCorporate ? "Lihat & Proses Paket" : "Lakukan Pembayaran"}
+              </Button>
 
-                <Button
-                  type="button"
-                  onClick={handleCreateNewOrder}
-                  variant="outline"
-                  className="h-11 px-6 py-4 font-semibold text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
-                >
-                  <Package className="h-4 w-4" />
-                  Buat Paket Baru
-                </Button>
-              </div>
-
-              {orderResult?.success && (
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
-                  <p className="text-sm text-blue-700">
-                    📦 Paket sudah disimpan dan menunggu direview di halaman
-                    Pembayaran Paket.
-                  </p>
-                  {orderResult.order_id && (
-                    <p className="text-xs text-blue-600 mt-2">
-                      Order ID: #{orderResult.order_id}
-                    </p>
-                  )}
-                  <p className="text-xs text-blue-600 mt-2">
-                    {isCorporate
-                      ? "Status: Belum Diproses — proses ke ekspedisi lewat limit kredit di halaman Pembayaran Paket."
-                      : "Status: Menunggu Pembayaran — lakukan pembayaran di halaman Pembayaran Paket."}
-                  </p>
-                </div>
-              )}
-            </>
+              <Button
+                type="button"
+                onClick={handleCreateNewOrder}
+                variant="outline"
+                className="h-11 gap-2 rounded-full border-slate-200 font-semibold"
+              >
+                <Package className="h-4 w-4" />
+                Buat Paket Baru
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>
