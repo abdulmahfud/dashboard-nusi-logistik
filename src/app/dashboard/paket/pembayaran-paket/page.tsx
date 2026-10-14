@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
@@ -8,14 +10,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
@@ -27,18 +21,22 @@ import {
 } from "@/components/redesign/date-range-field";
 import { AxiosError } from "axios";
 import {
+  Calendar,
   CreditCard,
   CheckCircle2,
   Clock,
   DollarSign,
   AlertTriangle,
   Filter,
+  Hash,
   Loader2,
   PackageCheck,
   ReceiptText,
   RefreshCw,
   RotateCcw,
   Send,
+  Tag,
+  Truck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,8 +66,6 @@ interface PendingOrder {
   /** Nominal yang ditagih dari BE. `null` = data tidak tersedia (anomali); order tidak bisa dibayar. */
   payment_amount: number | null;
 }
-
-const headCls = "h-11 text-xs font-semibold text-slate-500";
 
 /** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
 type AppliedRange = { start?: string; end?: string };
@@ -111,6 +107,244 @@ function getErrorMessage(err: unknown, fallback: string): string {
     return data?.message || fallback;
   }
   return fallback;
+}
+
+/** Field label kecil + ikon, dipakai berulang di body kartu order. */
+function CardField({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <p className="flex items-center gap-1 text-xs text-slate-400">
+        <Icon className="h-3.5 w-3.5" aria-hidden />
+        {label}
+      </p>
+      <div className="mt-0.5 text-sm font-medium text-slate-900">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Kartu order untuk tab "Belum Diproses" — ganti baris tabel, 2 kolom per baris. */
+function PendingOrderCard({
+  order,
+  isCorporate,
+  selected,
+  payable,
+  onSelect,
+  canceling,
+  onCancel,
+}: {
+  order: PendingOrder;
+  isCorporate: boolean;
+  selected: boolean;
+  payable: boolean;
+  onSelect: (checked: boolean) => void;
+  canceling: boolean;
+  onCancel: () => void;
+}) {
+  const dt = formatDateTimeId(order.created_at);
+  const isCod = order.service_type_code === "cod";
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            className="mt-1 h-5 w-5 shrink-0 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+            aria-label={`Pilih order ${order.id}`}
+            disabled={!payable}
+            checked={selected}
+            onCheckedChange={(checked) => onSelect(checked === true)}
+          />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <Truck className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              Order #{order.id}
+            </p>
+            <p className="break-all text-xs text-slate-500">
+              Ref: {order.reference_no || "—"}
+            </p>
+          </div>
+        </div>
+        <StatusBadge
+          status="pending"
+          label={isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"}
+        />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+        <CardField icon={Truck} label="Ekspedisi">
+          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+            {order.vendor?.toUpperCase() || "—"}
+          </span>
+        </CardField>
+        <CardField icon={Tag} label="Layanan">
+          <span
+            className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+              isCod ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {order.service_type_code?.toUpperCase() || "—"}
+          </span>
+        </CardField>
+        <CardField icon={Calendar} label="Dibuat">
+          {dt ? (
+            <>
+              {dt.date}{" "}
+              <span className="tabular-nums text-slate-500">
+                {dt.time.slice(0, 5)}
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </CardField>
+        <CardField icon={DollarSign} label="Nilai Barang">
+          <span className="tabular-nums">{formatRupiah(order.item_value)}</span>
+          {isCod && (
+            <p className="mt-0.5 text-xs font-normal text-slate-500">
+              COD: {formatRupiah(order.cod_value)}
+            </p>
+          )}
+        </CardField>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <CreditCard className="h-3.5 w-3.5" aria-hidden />
+          Biaya Kirim
+        </span>
+        {order.payment_amount === null ? (
+          isCorporate ? (
+            <span className="text-sm text-slate-400">—</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+              Nominal tidak tersedia
+            </span>
+          )
+        ) : (
+          <span className="text-sm font-bold tabular-nums text-blue-600">
+            {formatRupiah(order.payment_amount)}
+          </span>
+        )}
+      </div>
+
+      {isCorporate && (
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
+            disabled={canceling}
+            onClick={onCancel}
+          >
+            {canceling ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <X className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Batalkan
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Kartu order untuk tab "Sudah Dibayar" — read-only, tanpa checkbox/aksi. */
+function PaidOrderCard({ order }: { order: PendingOrder }) {
+  const dt = formatDateTimeId(order.created_at);
+  const isCod = order.service_type_code === "cod";
+
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <PackageCheck className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              Order #{order.id}
+            </p>
+            <p className="break-all text-xs text-slate-500">
+              Ref: {order.reference_no || "—"}
+            </p>
+          </div>
+        </div>
+        <StatusBadge status="success" label="Sudah Dibayar" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+        <CardField icon={Truck} label="Ekspedisi">
+          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+            {order.vendor?.toUpperCase() || "—"}
+          </span>
+        </CardField>
+        <CardField icon={Tag} label="Layanan">
+          <span
+            className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+              isCod ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {order.service_type_code?.toUpperCase() || "—"}
+          </span>
+        </CardField>
+        <CardField icon={Calendar} label="Dibuat">
+          {dt ? (
+            <>
+              {dt.date}{" "}
+              <span className="tabular-nums text-slate-500">
+                {dt.time.slice(0, 5)}
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </CardField>
+        <CardField icon={DollarSign} label="Nilai Barang">
+          <span className="tabular-nums">{formatRupiah(order.item_value)}</span>
+          {isCod && (
+            <p className="mt-0.5 text-xs font-normal text-slate-500">
+              COD: {formatRupiah(order.cod_value)}
+            </p>
+          )}
+        </CardField>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <Hash className="h-3.5 w-3.5" aria-hidden />
+          No. Resi
+        </span>
+        <span className="text-sm font-semibold text-slate-700">
+          {order.awb_no || "—"}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between px-3 py-1">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <CreditCard className="h-3.5 w-3.5" aria-hidden />
+          Biaya Kirim
+        </span>
+        <span className="text-sm font-bold tabular-nums text-blue-600">
+          {order.payment_amount === null ? "—" : formatRupiah(order.payment_amount)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function PembayaranPaketPage() {
@@ -622,146 +856,23 @@ export default function PembayaranPaketPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-slate-100 hover:bg-transparent">
-                          <TableHead className={`${headCls} w-10`}>
-                            <span className="sr-only">Pilih</span>
-                          </TableHead>
-                          <TableHead className={headCls}>Order</TableHead>
-                          <TableHead className={headCls}>Ekspedisi</TableHead>
-                          <TableHead className={headCls}>Layanan</TableHead>
-                          <TableHead className={headCls}>Dibuat</TableHead>
-                          <TableHead className={`${headCls} text-right`}>
-                            Nilai Barang
-                          </TableHead>
-                          <TableHead className={`${headCls} text-right`}>
-                            Biaya Kirim
-                          </TableHead>
-                          <TableHead className={headCls}>Status</TableHead>
-                          {isCorporate && (
-                            <TableHead className={`${headCls} text-right`}>
-                              Aksi
-                            </TableHead>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingOrders.map((order) => {
-                          const dt = formatDateTimeId(order.created_at);
-                          const isCod = order.service_type_code === "cod";
-                          return (
-                            <TableRow
-                              key={order.id}
-                              className="border-slate-100 hover:bg-slate-50/60"
-                            >
-                              <TableCell className="py-4">
-                                <Checkbox
-                                  className="h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
-                                  aria-label={`Pilih order ${order.id}`}
-                                  disabled={!isPayable(order)}
-                                  checked={Boolean(selected[order.id])}
-                                  onCheckedChange={(checked) =>
-                                    handleSelectOrder(order, checked === true)
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <p className="text-sm font-semibold text-slate-900">
-                                  Order #{order.id}
-                                </p>
-                                <p className="break-all text-xs text-slate-500">
-                                  Ref: {order.reference_no || "—"}
-                                </p>
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                                  {order.vendor?.toUpperCase() || "—"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <span
-                                  className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                                    isCod
-                                      ? "bg-blue-50 text-blue-700"
-                                      : "bg-slate-100 text-slate-700"
-                                  }`}
-                                >
-                                  {order.service_type_code?.toUpperCase() || "—"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-sm">
-                                {dt ? (
-                                  <>
-                                    <p className="text-slate-900">{dt.date}</p>
-                                    <p className="text-xs tabular-nums text-slate-500">
-                                      {dt.time.slice(0, 5)}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <span className="text-slate-400">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-slate-700">
-                                {formatRupiah(order.item_value)}
-                                {isCod && (
-                                  <p className="text-xs text-slate-500">
-                                    COD: {formatRupiah(order.cod_value)}
-                                  </p>
-                                )}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-right text-sm font-bold tabular-nums text-blue-600">
-                                {order.payment_amount === null ? (
-                                  isCorporate ? (
-                                    <span className="text-slate-400">—</span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
-                                      <AlertTriangle
-                                        className="h-3.5 w-3.5"
-                                        aria-hidden
-                                      />
-                                      Nominal tidak tersedia
-                                    </span>
-                                  )
-                                ) : (
-                                  formatRupiah(order.payment_amount)
-                                )}
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <StatusBadge
-                                  status="pending"
-                                  label={
-                                    isCorporate
-                                      ? "Belum Diproses"
-                                      : "Menunggu Pembayaran"
-                                  }
-                                />
-                              </TableCell>
-                              {isCorporate && (
-                                <TableCell className="py-4 text-right">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
-                                    disabled={cancelingId === order.id}
-                                    onClick={() => void handleCancelPending(order)}
-                                  >
-                                    {cancelingId === order.id ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <X className="h-3.5 w-3.5" aria-hidden />
-                                    )}
-                                    Batalkan
-                                  </Button>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                  <div>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {pendingOrders.map((order) => (
+                        <PendingOrderCard
+                          key={order.id}
+                          order={order}
+                          isCorporate={isCorporate}
+                          payable={isPayable(order)}
+                          selected={Boolean(selected[order.id])}
+                          onSelect={(checked) =>
+                            handleSelectOrder(order, checked)
+                          }
+                          canceling={cancelingId === order.id}
+                          onCancel={() => void handleCancelPending(order)}
+                        />
+                      ))}
+                    </div>
                     <NumberedPagination
                       className="mt-2"
                       page={page}
@@ -924,96 +1035,12 @@ export default function PembayaranPaketPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-slate-100 hover:bg-transparent">
-                          <TableHead className={headCls}>Order</TableHead>
-                          <TableHead className={headCls}>Ekspedisi</TableHead>
-                          <TableHead className={headCls}>Layanan</TableHead>
-                          <TableHead className={headCls}>Dibuat</TableHead>
-                          <TableHead className={`${headCls} text-right`}>
-                            Nilai Barang
-                          </TableHead>
-                          <TableHead className={`${headCls} text-right`}>
-                            Biaya Kirim
-                          </TableHead>
-                          <TableHead className={headCls}>No. Resi</TableHead>
-                          <TableHead className={headCls}>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {paidOrders.map((order) => {
-                          const dt = formatDateTimeId(order.created_at);
-                          const isCod = order.service_type_code === "cod";
-                          return (
-                            <TableRow
-                              key={order.id}
-                              className="border-slate-100 hover:bg-slate-50/60"
-                            >
-                              <TableCell className="py-4">
-                                <p className="text-sm font-semibold text-slate-900">
-                                  Order #{order.id}
-                                </p>
-                                <p className="break-all text-xs text-slate-500">
-                                  Ref: {order.reference_no || "—"}
-                                </p>
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                                  {order.vendor?.toUpperCase() || "—"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <span
-                                  className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                                    isCod
-                                      ? "bg-blue-50 text-blue-700"
-                                      : "bg-slate-100 text-slate-700"
-                                  }`}
-                                >
-                                  {order.service_type_code?.toUpperCase() || "—"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-sm">
-                                {dt ? (
-                                  <>
-                                    <p className="text-slate-900">{dt.date}</p>
-                                    <p className="text-xs tabular-nums text-slate-500">
-                                      {dt.time.slice(0, 5)}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <span className="text-slate-400">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-right text-sm tabular-nums text-slate-700">
-                                {formatRupiah(order.item_value)}
-                                {isCod && (
-                                  <p className="text-xs text-slate-500">
-                                    COD: {formatRupiah(order.cod_value)}
-                                  </p>
-                                )}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-right text-sm font-bold tabular-nums text-blue-600">
-                                {order.payment_amount === null
-                                  ? "—"
-                                  : formatRupiah(order.payment_amount)}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap py-4 text-sm text-slate-700">
-                                {order.awb_no || "—"}
-                              </TableCell>
-                              <TableCell className="py-4">
-                                <StatusBadge
-                                  status="success"
-                                  label="Sudah Dibayar"
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                  <div>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {paidOrders.map((order) => (
+                        <PaidOrderCard key={order.id} order={order} />
+                      ))}
+                    </div>
                     <NumberedPagination
                       className="mt-2"
                       page={paidPage}

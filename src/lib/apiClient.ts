@@ -1556,6 +1556,36 @@ export const createOrderWithPendingPayment = async (data: {
   return res.data;
 };
 
+// ✅ Unified order creation - satu endpoint untuk semua kombinasi akun/metode
+// bayar (COD/non-COD, personal/corporate). BE menentukan status order lewat
+// resolvePaymentPlan(): COD diproses langsung (awb_no terisi), non-COD
+// disimpan untuk direview di halaman Pembayaran Paket (awb_no kosong).
+export const createOrder = async (
+  vendor: string,
+  data: { shipping_data: Record<string, unknown>; amount: number }
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: {
+    id: number;
+    reference_no: string;
+    status: string;
+    awb_no: string | null;
+    vendor: string;
+    service_type_code: string;
+    cod_value: number;
+    item_value: number;
+    payment_amount: number | null;
+    created_at: string;
+  };
+  requires_payment?: boolean;
+  is_cod?: boolean;
+  errors?: Record<string, unknown>;
+}> => {
+  const res = await apiClient.post(`/admin/expedition/${vendor}/order`, data);
+  return res.data;
+};
+
 /** GET /admin/expedition-vendor-settings — expedition.settings.view */
 export const getExpeditionVendorSettings =
   async (): Promise<ExpeditionVendorSettingsListResponse> => {

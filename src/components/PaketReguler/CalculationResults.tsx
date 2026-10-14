@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -23,17 +22,11 @@ import {
   Loader2,
   ClipboardList,
   Wallet,
-  ExternalLink,
   Handshake,
   TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  createPayment,
-  createOrderWithPendingPayment,
-  getAvailableDiscounts,
-  getWalletBalance,
-} from "@/lib/apiClient";
+import { createOrder, getAvailableDiscounts } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { deliveryTypeToPickup } from "@/lib/utils";
@@ -270,7 +263,7 @@ export default function CalculationResults({
     awb_no?: string;
     order_id?: number;
     reference_no?: string;
-    /** COD: dialog khusus dua aksi; payment: alur pembayaran */
+    /** cod: sudah langsung diproses ke ekspedisi (awb_no ada); payment: tersimpan untuk direview di Pembayaran Paket */
     flow?: "cod" | "payment";
   } | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -282,12 +275,6 @@ export default function CalculationResults({
   );
   const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "xendit">(
-    "xendit"
-  );
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [walletError, setWalletError] = useState<string | null>(null);
 
   const { user } = useAuth();
   // Akun corporate (kerja sama/postpaid): tidak bayar di muka sama sekali —
@@ -307,42 +294,10 @@ export default function CalculationResults({
     setOrderResult(null);
     setShowSuccessDialog(false);
     setTermsAccepted(false);
-    setPaymentMethod("xendit");
-    setWalletBalance(0);
-    setWalletError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]); // Only depend on result changes, not isSearching or formData
 
   const isCOD = formData?.formData?.paymentMethod === "cod";
-
-  useEffect(() => {
-    if (!showPaymentSection || isCOD || isCorporate) return;
-
-    const loadWalletBalance = async () => {
-      setWalletLoading(true);
-      setWalletError(null);
-      try {
-        const res = await getWalletBalance();
-        const balanceRaw = res.data?.balance ?? 0;
-        const balance =
-          typeof balanceRaw === "string"
-            ? Number(balanceRaw.replace(/,/g, ""))
-            : Number(balanceRaw);
-        setWalletBalance(Number.isFinite(balance) ? balance : 0);
-      } catch (err) {
-        const msg =
-          err instanceof AxiosError
-            ? (err.response?.data as { message?: string } | undefined)?.message
-            : undefined;
-        setWalletBalance(0);
-        setWalletError(msg || "Gagal memuat saldo wallet.");
-      } finally {
-        setWalletLoading(false);
-      }
-    };
-
-    void loadWalletBalance();
-  }, [showPaymentSection, isCOD, isCorporate]);
 
   // Build shippingOptions from API result if present
   const shippingOptions: ShippingOption[] = useMemo(() => {
@@ -1375,77 +1330,20 @@ export default function CalculationResults({
         return;
       }
 
-      if (isCOD) {
-        // For COD: Create order directly without payment gateway
-        // Format sesuai dokumentasi: { shipping_data: { vendor, sender, receiver, pickup, serviceType, detail }, amount: 0 }
-        const orderResponse = await createOrderWithPendingPayment({
-          shipping_data: shippingData,
-          amount: 0, // COD orders don't require upfront payment
-        });
+      // Satu endpoint untuk semua kombinasi akun/metode bayar - BE yang
+      // menentukan status order lewat resolvePaymentPlan(): COD diproses
+      // langsung ke vendor (awb_no terisi), non-COD (personal maupun
+      // corporate) disimpan untuk direview di halaman Pembayaran Paket
+      // (awb_no kosong). Tidak ada pembayaran di halaman ini.
+      const response = await createOrder(shippingData.vendor, {
+        shipping_data: shippingData,
+        amount: isCOD ? 0 : calculateTotal(),
+      });
 
-        // Handle response format from createOrderWithPendingPayment
-        // Response format: { success: true, message: "...", data: { order_id, reference_no, status, amount } }
-        // For COD, backend should return additional fields like awb_no in the response
-        if (orderResponse.success && orderResponse.data) {
-          // For COD orders, backend should process immediately and return awb_no
-          // If awb_no is not in data, it might be in a nested order object
-          const orderId = orderResponse.data.order_id || 0;
-          const referenceNo = orderResponse.data.reference_no || "";
-          
-          // Try to get awb_no from response (might be in data or nested)
-          const awbNo = (orderResponse.data && typeof orderResponse.data === 'object' && 'awb_no' in orderResponse.data)
-            ? String((orderResponse.data as { awb_no?: string | number }).awb_no || "")
-            : "";
-          
-          handleOrderSuccessCOD({
-            order_id: orderId,
-            reference_no: referenceNo,
-            awb_no: awbNo,
-          });
-        } else {
-          const errorMessage = orderResponse.message || "Gagal membuat order COD";
-          toast.error(errorMessage);
-        }
+      if (response.success && response.data) {
+        handleOrderSaved(response.data);
       } else {
-        // Non-COD: response-driven create payment (wallet / xendit)
-        const totalAmount = calculateTotal();
-        if (paymentMethod === "wallet" && walletBalance < totalAmount) {
-          toast.error("Saldo tidak cukup, silakan topup atau pilih Xendit.");
-          return;
-        }
-
-        const paymentResponse = await createPayment({
-          shipping_data: shippingData,
-          amount: totalAmount,
-          payment_method: paymentMethod,
-        });
-
-        if (!paymentResponse.success || !paymentResponse.data) {
-          toast.error(paymentResponse.message || "Gagal memproses pembayaran");
-          return;
-        }
-
-        const p = paymentResponse.data;
-        const actionUrl = p.action_url || p.invoice_url || null;
-
-        if (p.requires_action) {
-          if (!actionUrl) {
-            toast.error("Link pembayaran tidak tersedia, silakan coba lagi.");
-            return;
-          }
-          window.location.href = actionUrl;
-        } else {
-          toast.success(
-            isCorporate
-              ? "Order berhasil dibuat. Cek dan proses ke ekspedisi di halaman Pembayaran Paket."
-              : paymentMethod === "wallet"
-                ? "Pembayaran wallet berhasil."
-                : "Pembayaran berhasil."
-          );
-          router.push(
-            `/dashboard/payment/success?reference_no=${encodeURIComponent(p.reference_no)}`
-          );
-        }
+        toast.error(response.message || "Gagal menyimpan paket");
       }
     } catch (error) {
       console.error("Error creating order:", error);
@@ -1467,12 +1365,6 @@ export default function CalculationResults({
           // tidak ada jalur "bayar sekarang"/ganti metode bayar di sini.
           // Cukup tampilkan pesan dari BE apa adanya, lebih lama biar terbaca.
           toast.error(message, { duration: 8000 });
-        } else if (
-          lower.includes("saldo") &&
-          (lower.includes("kurang") || lower.includes("tidak cukup"))
-        ) {
-          toast.error("Saldo tidak cukup, silakan topup atau pilih Xendit.");
-          setPaymentMethod("xendit");
         } else {
           toast.error(message || "Terjadi kesalahan saat membuat order");
         }
@@ -1484,21 +1376,31 @@ export default function CalculationResults({
     }
   };
 
-  const handleOrderSuccessCOD = (orderData: {
-    order_id: number;
+  const handleOrderSaved = (order: {
+    id: number;
     reference_no: string;
-    awb_no?: string;
+    status: string;
+    awb_no: string | null;
   }) => {
-    toast.success("Pengiriman COD berhasil dibuat.");
+    const processedNow = Boolean(order.awb_no);
+
+    toast.success(
+      processedNow
+        ? "Pengiriman COD berhasil dibuat."
+        : "Paket berhasil disimpan."
+    );
 
     setOrderResult({
       success: true,
-      message:
-        "Pengiriman COD Anda sedang diproses. Detail pesanan tercantum di bawah.",
-      awb_no: orderData.awb_no,
-      order_id: orderData.order_id,
-      reference_no: orderData.reference_no,
-      flow: "cod",
+      message: processedNow
+        ? "Pengiriman COD Anda sedang diproses. Detail pesanan tercantum di bawah."
+        : isCorporate
+          ? "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk diproses ke ekspedisi menggunakan limit kredit."
+          : "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk melakukan pembayaran.",
+      awb_no: order.awb_no ?? undefined,
+      order_id: order.id,
+      reference_no: order.reference_no,
+      flow: processedNow ? "cod" : "payment",
     });
 
     setShowSuccessDialog(true);
@@ -1743,107 +1645,6 @@ export default function CalculationResults({
             </Card>
           )}
 
-          {/* Pilihan metode bayar untuk NON-COD (personal) */}
-          {!isCOD && !isCorporate && (
-            <Card>
-              <CardContent className="p-4 space-y-4">
-                <h3 className="text-lg font-semibold">Metode Pembayaran</h3>
-                <RadioGroup
-                  value={paymentMethod}
-                  onValueChange={(v) =>
-                    setPaymentMethod(v as "wallet" | "xendit")
-                  }
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-                >
-                  <label
-                    htmlFor="pay-wallet"
-                    className={`rounded-lg border p-3 transition ${
-                      paymentMethod === "wallet"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200"
-                    } ${walletLoading ? "opacity-70" : ""}`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <RadioGroupItem
-                        value="wallet"
-                        id="pay-wallet"
-                        className="mt-0.5"
-                        disabled={walletLoading || walletBalance < calculateTotal()}
-                      />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 font-medium">
-                          <Wallet className="h-4 w-4" />
-                          Saldo Wallet
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {walletLoading
-                            ? "Memuat saldo..."
-                            : `Saldo: Rp${walletBalance.toLocaleString("id-ID")}`}
-                        </p>
-                        {!walletLoading && walletBalance < calculateTotal() && (
-                          <p className="text-xs text-red-600">
-                            Saldo tidak cukup untuk total pembayaran.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </label>
-
-                  <label
-                    htmlFor="pay-xendit"
-                    className={`rounded-lg border p-3 transition ${
-                      paymentMethod === "xendit"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <RadioGroupItem
-                        value="xendit"
-                        id="pay-xendit"
-                        className="mt-0.5"
-                      />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 font-medium">
-                          <ExternalLink className="h-4 w-4" />
-                          Pembayaran Online
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Lanjut ke halaman pembayaran gateway.
-                        </p>
-                      </div>
-                    </div>
-                  </label>
-                </RadioGroup>
-                {walletError && (
-                  <p className="text-xs text-red-600">{walletError}</p>
-                )}
-                {!walletLoading && walletBalance < calculateTotal() && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-                    <span>
-                      Saldo tidak cukup, silakan topup atau pilih Xendit.
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => router.push("/dashboard/wallet")}
-                    >
-                      Topup saldo
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaymentMethod("xendit")}
-                    >
-                      Pembayaran Online
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Payment Summary */}
           <Card>
@@ -1964,9 +1765,9 @@ export default function CalculationResults({
                     <span>Rp{calculateTotal().toLocaleString("id-ID")}</span>
                   </div>
                 ) : (
-                  /* Non-COD: Show total payment */
+                  /* Non-COD personal: belum ada pembayaran di halaman ini - baru ditagih saat direview di Pembayaran Paket */
                   <div className="flex justify-between text-lg font-bold text-blue-600">
-                    <span>Total Pembayaran</span>
+                    <span>Total Biaya Kirim</span>
                     <span>Rp{calculateTotal().toLocaleString("id-ID")}</span>
                   </div>
                 )}
@@ -1986,7 +1787,7 @@ export default function CalculationResults({
                   }
                 />
                 <label htmlFor="terms" className="text-sm text-gray-600">
-                  Dengan klik &quot;Proses Paket&quot; kamu menyetujui Syarat &
+                  Dengan klik &quot;Simpan Paket&quot; kamu menyetujui Syarat &
                   Ketentuan yang berlaku.
                 </label>
               </div>
@@ -2000,12 +1801,12 @@ export default function CalculationResults({
                   {isSubmittingOrder ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Menunggu proses...
+                      Menyimpan...
                     </>
                   ) : (
                     <>
                       <CirclePlus className="w-4 h-4" />
-                      Buat Order
+                      Simpan Paket
                     </>
                   )}
                 </Button>
@@ -2047,7 +1848,7 @@ export default function CalculationResults({
             <DialogTitle className="text-xl font-bold text-green-600">
               {orderResult?.flow === "cod"
                 ? "Pengiriman COD sedang diproses"
-                : "Order Berhasil Dibuat!"}
+                : "Paket Berhasil Disimpan!"}
             </DialogTitle>
             <DialogDescription asChild>
               <div className="text-base">
@@ -2076,8 +1877,8 @@ export default function CalculationResults({
                   <div className="text-sm text-blue-700">
                     {orderResult?.flow === "cod"
                       ? "Status: COD — diproses (tanpa pembayaran di muka)"
-                      : orderResult?.awb_no
-                        ? "Status: Diproses ke ekspedisi"
+                      : isCorporate
+                        ? "Status: Belum Diproses"
                         : "Status: Menunggu Pembayaran"}
                   </div>
                 </div>
@@ -2094,7 +1895,7 @@ export default function CalculationResults({
                 className="h-11 px-4 font-semibold text-sm flex items-center justify-center gap-2 rounded-full border-blue-200"
               >
                 <Package className="h-4 w-4 shrink-0" />
-                Kirim paket lagi
+                Buat Paket Baru
               </Button>
               <Button
                 type="button"
@@ -2107,21 +1908,18 @@ export default function CalculationResults({
             </div>
           ) : (
             <>
-              <div
-                className={`grid gap-3 mt-6 ${orderResult?.awb_no ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}
-              >
-                {!orderResult?.awb_no && (
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      router.push("/dashboard/paket/pembayaran-paket")
-                    }
-                    className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Lakukan Pembayaran
-                  </Button>
-                )}
+              <div className="grid grid-cols-1 gap-3 mt-6 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowSuccessDialog(false);
+                    router.push("/dashboard/paket/pembayaran-paket");
+                  }}
+                  className="h-11 px-6 py-4 font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  {isCorporate ? "Lihat & Proses Paket" : "Lakukan Pembayaran"}
+                </Button>
 
                 <Button
                   type="button"
@@ -2130,33 +1928,28 @@ export default function CalculationResults({
                   className="h-11 px-6 py-4 font-semibold text-sm flex items-center gap-2 rounded shadow-md transition duration-300 ease-in-out"
                 >
                   <Package className="h-4 w-4" />
-                  Kirim Paket Lagi
+                  Buat Paket Baru
                 </Button>
               </div>
 
-              {orderResult?.success &&
-                !orderResult?.awb_no &&
-                orderResult?.flow === "payment" && (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
-                    <p className="text-sm text-blue-700">
-                      📦 Order berhasil dibuat dan sedang diproses setelah
-                      pembayaran berhasil.
-                    </p>
-                    {orderResult.order_id && (
-                      <p className="text-xs text-blue-600 mt-2">
-                        Order ID: #{orderResult.order_id}
-                      </p>
-                    )}
+              {orderResult?.success && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg text-center">
+                  <p className="text-sm text-blue-700">
+                    📦 Paket sudah disimpan dan menunggu direview di halaman
+                    Pembayaran Paket.
+                  </p>
+                  {orderResult.order_id && (
                     <p className="text-xs text-blue-600 mt-2">
-                      Status: Belum Diproses → Akan diproses ke ekspedisi dalam
-                      beberapa menit.
+                      Order ID: #{orderResult.order_id}
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Anda dapat melihat status terkini di halaman laporan
-                      pengiriman.
-                    </p>
-                  </div>
-                )}
+                  )}
+                  <p className="text-xs text-blue-600 mt-2">
+                    {isCorporate
+                      ? "Status: Belum Diproses — proses ke ekspedisi lewat limit kredit di halaman Pembayaran Paket."
+                      : "Status: Menunggu Pembayaran — lakukan pembayaran di halaman Pembayaran Paket."}
+                  </p>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
