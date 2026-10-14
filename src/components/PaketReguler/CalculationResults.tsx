@@ -42,10 +42,6 @@ import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { useAuth } from "@/context/AuthContext";
 import type { ExpeditionGroup } from "@/types/expeditionGroup";
-import {
-  classifyShipmentDistance,
-  type ShipmentDistance,
-} from "@/lib/shipmentDistance";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -261,32 +257,37 @@ function buildVendorGroupFullMap(
   return map;
 }
 
+type GroupEstimasi = { kota: string; pulau: string; luarPulau: string };
+
 /**
- * Estimasi SLA yang ditampilkan ke user - diambil dari Expedition Group
- * (estimasi_dalam_kota/estimasi_dalam_pulau/estimasi_luar_pulau sesuai jarak
- * pengirim-penerima), BUKAN dari field dinamis respons API tiap vendor.
- * Fallback ke `fallback` (durasi yang dihitung dari API vendor) hanya saat
- * vendor belum terdaftar di grup manapun, atau lokasi belum bisa
- * diklasifikasi (data provinsi/kota belum lengkap).
+ * Estimasi SLA yang ditampilkan ke user - diambil langsung dari ketiga field
+ * Expedition Group (estimasi_dalam_kota/estimasi_dalam_pulau/
+ * estimasi_luar_pulau) vendor terkait, apa adanya - BUKAN dihitung dari
+ * respons API tiap vendor, dan BUKAN dipilih berdasarkan jarak
+ * pengirim-penerima (tidak ada klasifikasi/mapping rute). Karena itu nilainya
+ * akan selalu sama untuk semua vendor dalam satu grup yang sama (beda hanya
+ * antar grup, mis. Reguler & COD vs Cargo).
+ * `null` artinya vendor belum terdaftar di grup manapun - pemanggil
+ * fallback ke durasi lama (dihitung dari API vendor).
  */
-function resolveEstimasi(
+function resolveGroupEstimasi(
   optionId: string,
-  fallback: string,
-  vendorGroupFullMap: Record<string, ExpeditionGroup>,
-  shipmentDistance: ShipmentDistance | null
-): string {
+  vendorGroupFullMap: Record<string, ExpeditionGroup>
+): GroupEstimasi | null {
   const vendorKey = vendorKeyFromOptionId(optionId);
   const group = vendorGroupFullMap[vendorKey];
-  if (!group || !shipmentDistance) return fallback;
+  if (!group) return null;
 
-  const text =
-    shipmentDistance === "dalam_kota"
-      ? group.estimasi_dalam_kota
-      : shipmentDistance === "dalam_pulau"
-        ? group.estimasi_dalam_pulau
-        : group.estimasi_luar_pulau;
+  const kota = group.estimasi_dalam_kota?.trim();
+  const pulau = group.estimasi_dalam_pulau?.trim();
+  const luarPulau = group.estimasi_luar_pulau?.trim();
+  if (!kota && !pulau && !luarPulau) return null;
 
-  return text && text.trim() !== "" ? text : fallback;
+  return {
+    kota: kota || "-",
+    pulau: pulau || "-",
+    luarPulau: luarPulau || "-",
+  };
 }
 
 type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
@@ -304,21 +305,6 @@ export default function CalculationResults({
   const vendorGroupFullMap = useMemo(
     () => buildVendorGroupFullMap(groups),
     [groups]
-  );
-  const shipmentDistance = useMemo(
-    () =>
-      classifyShipmentDistance({
-        senderProvince: formData?.businessData?.province,
-        senderRegency: formData?.businessData?.regency,
-        receiverProvince: formData?.formData?.province,
-        receiverRegency: formData?.formData?.regency,
-      }),
-    [
-      formData?.businessData?.province,
-      formData?.businessData?.regency,
-      formData?.formData?.province,
-      formData?.formData?.regency,
-    ]
   );
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -1496,7 +1482,13 @@ export default function CalculationResults({
       )}
 
       {/* Shipping Options List */}
-      {filteredShippingOptions.map((option) => (
+      {filteredShippingOptions.map((option) => {
+        const groupEstimasi = resolveGroupEstimasi(
+          option.id,
+          vendorGroupFullMap
+        );
+
+        return (
         <Card
           key={`${option.id}-${selectedOption === option.id ? "selected" : "unselected"}`}
           className={`cursor-pointer rounded-xl transition-all duration-200 ${
@@ -1605,14 +1597,17 @@ export default function CalculationResults({
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-600">
-                  {resolveEstimasi(
-                    option.id,
-                    option.duration,
-                    vendorGroupFullMap,
-                    shipmentDistance
-                  )}
-                </div>
+                {groupEstimasi ? (
+                  <div className="space-y-0.5 text-xs text-gray-600">
+                    <div>Kota: {groupEstimasi.kota}</div>
+                    <div>Pulau: {groupEstimasi.pulau}</div>
+                    <div>Luar Pulau: {groupEstimasi.luarPulau}</div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">
+                    {option.duration}
+                  </div>
+                )}
                 {option.recommended && (
                   <div className="text-xs text-green-600 font-medium">
                     Rekomendasi
@@ -1622,7 +1617,8 @@ export default function CalculationResults({
             </div>
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
 
       {/* Payment & Summary Section */}
       {showPaymentSection && selectedShippingOption && (
