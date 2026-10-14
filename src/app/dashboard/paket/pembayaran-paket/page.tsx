@@ -746,24 +746,23 @@ export default function PembayaranPaketPage() {
             </div>
           )}
 
-          {/* Filter bar: search, ekspedisi, tanggal, sort, export */}
+          {/* Filter bar: search, ekspedisi, tanggal, sort, export — satu baris */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               applyFilter();
             }}
-            className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+            className="overflow-x-auto rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
           >
-            {/* Baris 1: search + ekspedisi, selalu satu baris */}
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-max items-center gap-3 lg:min-w-0">
               <SearchInput
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Cari: Order ID, AWB, Nama, No HP"
-                className="h-11 min-w-0 flex-1 rounded-lg"
+                className="h-11 w-[260px] min-w-0 rounded-lg lg:w-auto lg:flex-1"
               />
               <Select value={vendorInput} onValueChange={setVendorInput}>
-                <SelectTrigger className="h-11 w-[150px] shrink-0 rounded-lg sm:w-[200px]">
+                <SelectTrigger className="h-11 w-[170px] shrink-0 rounded-lg">
                   <SelectValue placeholder="Semua Ekspedisi" />
                 </SelectTrigger>
                 <SelectContent>
@@ -775,42 +774,14 @@ export default function PembayaranPaketPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Baris 2: tanggal, aksi filter, sort, export */}
-            <div className="flex flex-wrap items-center gap-3">
               <DateRangeField
                 value={rangeInput}
                 onChange={setRangeInput}
                 placeholder="Pilih rentang tanggal"
-                className="w-full sm:w-[260px]"
+                className="w-[220px] shrink-0"
               />
-              <Button
-                type="submit"
-                disabled={currentLoading}
-                className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-              >
-                <Filter className="h-4 w-4" aria-hidden />
-                Terapkan
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetFilter}
-                disabled={
-                  currentLoading ||
-                  (!hasFilter &&
-                    !rangeInput &&
-                    !searchInput &&
-                    vendorInput === "all")
-                }
-                className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-              >
-                <RotateCcw className="h-4 w-4" aria-hidden />
-                Reset
-              </Button>
 
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -825,7 +796,7 @@ export default function PembayaranPaketPage() {
                     setPage(1);
                     setPaidPage(1);
                   }}
-                  className="h-11 w-11 rounded-lg border-slate-200"
+                  className="h-11 w-11 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
                 >
                   {sortDir === "desc" ? (
                     <ArrowUpDown className="h-4 w-4" aria-hidden />
@@ -839,9 +810,35 @@ export default function PembayaranPaketPage() {
                   size="icon"
                   title="Export"
                   onClick={() => setExportOpen(true)}
-                  className="h-11 w-11 rounded-lg border-slate-200"
+                  className="h-11 w-11 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
                 >
                   <Download className="h-4 w-4" aria-hidden />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Reset filter"
+                  onClick={resetFilter}
+                  disabled={
+                    currentLoading ||
+                    (!hasFilter &&
+                      !rangeInput &&
+                      !searchInput &&
+                      vendorInput === "all")
+                  }
+                  className="h-11 w-11 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                </Button>
+                <Button
+                  type="submit"
+                  size="icon"
+                  title="Terapkan filter"
+                  disabled={currentLoading}
+                  className="h-11 w-11 rounded-lg bg-blue-600 hover:bg-blue-700"
+                >
+                  <Filter className="h-4 w-4" aria-hidden />
                 </Button>
               </div>
             </div>
