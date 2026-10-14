@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { ReactNode } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
@@ -10,18 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { SearchInput } from "@/components/ui/search-input";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
@@ -39,25 +40,18 @@ import {
   ArrowUpCircle,
   ArrowUpDown,
   CreditCard,
-  CheckCircle2,
-  Clock,
   Download,
   DollarSign,
   AlertTriangle,
   Filter,
-  Hash,
   Loader2,
-  MoreVertical,
-  Package,
   PackageCheck,
   Pencil,
   ReceiptText,
   RefreshCw,
   RotateCcw,
-  Scale,
   Send,
   Trash2,
-  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -91,6 +85,8 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+
 /** Baris alamat pengirim/penerima dipakai di kolom ALAMAT. */
 function PartyLine({
   icon: Icon,
@@ -119,31 +115,8 @@ function PartyLine({
   );
 }
 
-/** Field label kecil + ikon, dipakai berulang di body kartu order. */
-function CardField({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: typeof ArrowUpCircle;
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <p className="flex items-center gap-1 text-xs text-slate-400">
-        <Icon className="h-3.5 w-3.5" aria-hidden />
-        {label}
-      </p>
-      <div className="mt-0.5 text-sm font-medium text-slate-900">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/** Kartu order — 2 kolom per baris, lebar penuh. `variant="paid"` menyembunyikan checkbox/AKSI. */
-function OrderCard({
+/** Satu baris tabel order. `variant="paid"` menyembunyikan checkbox/AKSI. */
+function OrderRow({
   order,
   variant,
   isCorporate,
@@ -173,37 +146,23 @@ function OrderCard({
     order.payment_amount === null || order.payment_amount === undefined
       ? null
       : Number(order.payment_amount);
-  const hasDimensions = Boolean(detail.panjang || detail.lebar || detail.tinggi);
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          {variant === "pending" && (
-            <Checkbox
-              className="mt-1 h-5 w-5 shrink-0 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
-              aria-label={`Pilih order ${order.id}`}
-              disabled={!payable}
-              checked={selected}
-              onCheckedChange={(checked) => onSelect(checked === true)}
-            />
-          )}
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-            <Truck className="h-5 w-5" aria-hidden />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              Order #{order.id}
-            </p>
-            <p className="break-all text-xs text-slate-500">
-              Ref: {order.reference_no || "—"}
-            </p>
-            <p className="mt-0.5 text-xs text-slate-400">
-              {dt ? `${dt.date} ${dt.time.slice(0, 5)}` : "—"}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
+    <TableRow className="border-slate-100 align-top hover:bg-slate-50/60">
+      {variant === "pending" && (
+        <TableCell className="py-4">
+          <Checkbox
+            className="mt-1 h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+            aria-label={`Pilih order ${order.id}`}
+            disabled={!payable}
+            checked={selected}
+            onCheckedChange={(checked) => onSelect(checked === true)}
+          />
+        </TableCell>
+      )}
+
+      <TableCell className="py-4">
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           <span
             className={`rounded-md px-2 py-0.5 text-xs font-medium ${
               isCod ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"
@@ -220,119 +179,109 @@ function OrderCard({
             <StatusBadge status="success" label="Sudah Dibayar" />
           )}
         </div>
-      </div>
+        <p className="text-sm font-semibold text-slate-900">
+          Order #{order.id}
+        </p>
+        <p className="break-all text-xs text-slate-500">
+          Ref: {order.reference_no || "—"}
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          {dt ? `${dt.date} ${dt.time.slice(0, 5)}` : "—"}
+        </p>
+      </TableCell>
 
-      <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-        <PartyLine
-          icon={ArrowUpCircle}
-          iconClassName="text-slate-400"
-          name={order.shipper?.name}
-          phone={order.shipper?.phone}
-          address={order.shipper?.address}
-        />
-        <PartyLine
-          icon={ArrowDownCircle}
-          iconClassName="text-blue-500"
-          name={order.receiver?.name}
-          phone={order.receiver?.phone}
-          address={order.receiver?.address}
-        />
-      </div>
+      <TableCell className="min-w-[220px] max-w-[280px] py-4">
+        <div className="space-y-2">
+          <PartyLine
+            icon={ArrowUpCircle}
+            iconClassName="text-slate-400"
+            name={order.shipper?.name}
+            phone={order.shipper?.phone}
+            address={order.shipper?.address}
+          />
+          <PartyLine
+            icon={ArrowDownCircle}
+            iconClassName="text-blue-500"
+            name={order.receiver?.name}
+            phone={order.receiver?.phone}
+            address={order.receiver?.address}
+          />
+        </div>
+      </TableCell>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-        <CardField icon={Truck} label="Ekspedisi">
-          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-            {order.vendor?.toUpperCase() || "—"}
-          </span>
-        </CardField>
-        <CardField icon={Package} label="Isi Paket">
-          <span className="line-clamp-1">{detail.goods_desc || "—"}</span>
-          <p className="mt-0.5 text-xs font-normal text-slate-500">
-            {formatRupiah(itemValue)}
-          </p>
-        </CardField>
-        <CardField icon={Scale} label="Berat &amp; Dimensi">
-          {detail.weight ?? "—"} kg
-          <p className="mt-0.5 text-xs font-normal text-slate-500">
-            {hasDimensions
-              ? `${detail.panjang ?? 0}x${detail.lebar ?? 0}x${detail.tinggi ?? 0} cm`
-              : "—"}
-          </p>
-        </CardField>
-        <CardField icon={CreditCard} label="Biaya Kirim">
+      <TableCell className="py-4">
+        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+          {order.vendor?.toUpperCase() || "—"}
+        </span>
+        <div className="mt-1.5 space-y-0.5 text-xs text-slate-600">
           {paymentAmount === null ? (
             isCorporate ? (
-              <span className="text-slate-400">—</span>
+              <p className="text-slate-400">—</p>
             ) : (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+              <p className="inline-flex items-center gap-1 font-medium text-amber-600">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                 Nominal tidak tersedia
-              </span>
+              </p>
             )
           ) : (
-            <span className="tabular-nums text-blue-600">
+            <p className="text-sm font-bold tabular-nums text-blue-600">
               {formatRupiah(paymentAmount)}
-            </span>
-          )}
-          {isCod && (
-            <p className="mt-0.5 text-xs font-normal text-slate-500">
-              COD: {formatRupiah(codValue)}
             </p>
           )}
-        </CardField>
-      </div>
+          {isCod && <p>COD: {formatRupiah(codValue)}</p>}
+          <p>Resi: {order.awb_no || "—"}</p>
+        </div>
+      </TableCell>
 
-      {variant === "pending" ? (
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-9 gap-1.5 rounded-lg border-slate-200"
-            onClick={onEdit}
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Edit
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-9 w-9 rounded-lg border-slate-200"
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MoreVertical className="h-4 w-4" aria-hidden />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="text-rose-600 focus:text-rose-700"
-                onClick={onDelete}
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden />
-                Hapus
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ) : (
-        <div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <Hash className="h-3.5 w-3.5" aria-hidden />
-            No. Resi
-          </span>
-          <span className="text-sm font-semibold text-slate-700">
-            {order.awb_no || "—"}
-          </span>
-        </div>
+      <TableCell className="min-w-[160px] py-4">
+        <p className="text-sm text-slate-800">{detail.goods_desc || "—"}</p>
+        <p className="text-xs tabular-nums text-slate-500">
+          {formatRupiah(itemValue)}
+        </p>
+      </TableCell>
+
+      <TableCell className="py-4 text-xs text-slate-600">
+        <p>Berat: {detail.weight ?? "—"} kg</p>
+        <p>
+          Dimensi:{" "}
+          {detail.panjang || detail.lebar || detail.tinggi
+            ? `${detail.panjang ?? 0}x${detail.lebar ?? 0}x${detail.tinggi ?? 0} cm`
+            : "—"}
+        </p>
+      </TableCell>
+
+      {variant === "pending" && (
+        <TableCell className="py-4 text-right">
+          <div className="flex items-center justify-end gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5 rounded-lg border-slate-200"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
+              disabled={deleting}
+              onClick={onDelete}
+            >
+              {deleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              )}
+              Hapus
+            </Button>
+          </div>
+        </TableCell>
       )}
-    </div>
+    </TableRow>
   );
 }
 
@@ -730,28 +679,18 @@ export default function PembayaranPaketPage() {
             </TabsList>
           </Tabs>
 
+          {/* Ringkasan — selalu 1 baris 2 kolom penuh lebar, kedua tab konsisten. */}
           {isPendingTab ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <StatCard
-                icon={Clock}
+                icon={ReceiptText}
                 tone="orange"
-                title="Total Order Pending"
+                title={isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"}
                 value={String(total)}
                 hint={
                   isCorporate
-                    ? "Order menunggu diproses"
+                    ? "Order menunggu diproses ke ekspedisi"
                     : "Order menunggu pembayaran"
-                }
-              />
-              <StatCard
-                icon={CheckCircle2}
-                tone="green"
-                title="Order Dipilih"
-                value={String(selectedOrders.length)}
-                hint={
-                  isCorporate
-                    ? "Order siap diproses"
-                    : "Order siap untuk dibayar"
                 }
               />
               <StatCard
@@ -761,8 +700,8 @@ export default function PembayaranPaketPage() {
                 value={formatRupiah(getTotalAmount())}
                 hint={
                   isCorporate
-                    ? "Akan dibebankan ke limit kredit"
-                    : "Total nominal pembayaran"
+                    ? `${selectedOrders.length} order dipilih — akan dibebankan ke limit kredit`
+                    : `${selectedOrders.length} order dipilih untuk dibayar`
                 }
               />
             </div>
@@ -771,12 +710,12 @@ export default function PembayaranPaketPage() {
               <StatCard
                 icon={PackageCheck}
                 tone="green"
-                title="Total Sudah Diproses"
+                title="Sudah Dibayar"
                 value={String(paidTotal)}
                 hint="Sedang dikirim ke ekspedisi"
               />
               <StatCard
-                icon={ReceiptText}
+                icon={DollarSign}
                 tone="blue"
                 title="Total Nilai"
                 value={formatRupiah(
@@ -972,23 +911,46 @@ export default function PembayaranPaketPage() {
                   </div>
                 ) : (
                   <div>
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {pendingOrders.map((order) => (
-                        <OrderCard
-                          key={order.id}
-                          order={order}
-                          variant="pending"
-                          isCorporate={isCorporate}
-                          payable={isPayable(order)}
-                          selected={Boolean(selected[order.id])}
-                          onSelect={(checked) =>
-                            handleSelectOrder(order, checked)
-                          }
-                          deleting={deletingId === order.id}
-                          onEdit={() => setEditingOrder(order)}
-                          onDelete={() => void handleDelete(order)}
-                        />
-                      ))}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-100 hover:bg-transparent">
+                            <TableHead className={`${headCls} w-10`}>
+                              <span className="sr-only">Pilih</span>
+                            </TableHead>
+                            <TableHead className={headCls}>Transaksi</TableHead>
+                            <TableHead className={headCls}>Alamat</TableHead>
+                            <TableHead className={headCls}>
+                              Ekspedisi &amp; Ongkir
+                            </TableHead>
+                            <TableHead className={headCls}>Isi Paket</TableHead>
+                            <TableHead className={headCls}>
+                              Info Paket
+                            </TableHead>
+                            <TableHead className={`${headCls} text-right`}>
+                              Aksi
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingOrders.map((order) => (
+                            <OrderRow
+                              key={order.id}
+                              order={order}
+                              variant="pending"
+                              isCorporate={isCorporate}
+                              payable={isPayable(order)}
+                              selected={Boolean(selected[order.id])}
+                              onSelect={(checked) =>
+                                handleSelectOrder(order, checked)
+                              }
+                              deleting={deletingId === order.id}
+                              onEdit={() => setEditingOrder(order)}
+                              onDelete={() => void handleDelete(order)}
+                            />
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                     <NumberedPagination
                       className="mt-2"
@@ -1095,21 +1057,36 @@ export default function PembayaranPaketPage() {
                 </div>
               ) : (
                 <div>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {paidOrders.map((order) => (
-                      <OrderCard
-                        key={order.id}
-                        order={order}
-                        variant="paid"
-                        isCorporate={isCorporate}
-                        payable={false}
-                        selected={false}
-                        onSelect={() => {}}
-                        deleting={false}
-                        onEdit={() => {}}
-                        onDelete={() => {}}
-                      />
-                    ))}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-100 hover:bg-transparent">
+                          <TableHead className={headCls}>Transaksi</TableHead>
+                          <TableHead className={headCls}>Alamat</TableHead>
+                          <TableHead className={headCls}>
+                            Ekspedisi &amp; Ongkir
+                          </TableHead>
+                          <TableHead className={headCls}>Isi Paket</TableHead>
+                          <TableHead className={headCls}>Info Paket</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paidOrders.map((order) => (
+                          <OrderRow
+                            key={order.id}
+                            order={order}
+                            variant="paid"
+                            isCorporate={isCorporate}
+                            payable={false}
+                            selected={false}
+                            onSelect={() => {}}
+                            deleting={false}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                   <NumberedPagination
                     className="mt-2"
