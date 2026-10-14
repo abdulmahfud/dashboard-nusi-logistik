@@ -67,7 +67,7 @@ export function NavUserTop() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="h-auto w-auto gap-3 rounded-xl p-1.5 hover:bg-slate-50 data-[state=open]:bg-slate-50 md:px-2"
+              className="h-auto w-auto cursor-pointer gap-3 rounded-xl p-1.5 hover:bg-slate-50 data-[state=open]:bg-slate-50 md:px-2"
               aria-label="Menu akun"
             >
               <Avatar className="h-10 w-10 rounded-full">
@@ -111,7 +111,7 @@ export function NavUserTop() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="cursor-pointer">
                 <Link
                   href="/dashboard/akun/profil"
                   className="flex items-center gap-2"
@@ -128,7 +128,7 @@ export function NavUserTop() {
                 <BellIcon />
                 Saldo & Komisi
               </DropdownMenuItem> */}
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="cursor-pointer">
                 <Link
                   href="/dashboard/wallet"
                   className="flex items-center gap-2"
@@ -137,7 +137,7 @@ export function NavUserTop() {
                   Withdraw
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="cursor-pointer">
                 <Link
                   href="/dashboard/akun/rekening"
                   className="flex items-center gap-2"
@@ -152,7 +152,7 @@ export function NavUserTop() {
               </DropdownMenuItem> */}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOutIcon />
               Log out
             </DropdownMenuItem>
