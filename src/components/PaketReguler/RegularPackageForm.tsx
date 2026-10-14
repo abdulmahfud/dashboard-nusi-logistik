@@ -1126,7 +1126,7 @@ export default function RegularPackageForm({
                     )}
                   </div>
                   <div className="text-sm text-slate-500">
-                    Nilai barang + ongkir dibayar penerima saat paket sampai
+                    Bayar barang + ongkir ditempat
                   </div>
                   {!codEligible && (
                     <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
