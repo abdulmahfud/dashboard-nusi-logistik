@@ -11,3 +11,27 @@ export const VENDOR_OPTIONS: { value: string; label: string }[] = [
   { value: "anteraja", label: "Anteraja" },
   { value: "ninja", label: "Ninja Express" },
 ];
+
+/** Vendor key -> path logo di public/images (sama dengan yang dipakai CalculationResults.tsx). */
+const VENDOR_LOGOS: Record<string, string> = {
+  jne: "/images/jne.png",
+  sap: "/images/sap-new.png",
+  lion: "/images/lion.png",
+  jntexpress: "/images/jnt.png",
+  jntcargo: "/images/jnt-cargo.png",
+  paxel: "/images/paxel.png",
+  idexpress: "/images/idx.png",
+  posindonesia: "/images/pos.png",
+  anteraja: "/images/anteraja.png",
+  ninja: "/images/ninja.png",
+};
+
+/**
+ * `orders.vendor` casingnya tidak konsisten di data historis (mis.
+ * "jntexpress" vs "POSINDONESIA") — cocokkan tanpa memandang huruf besar
+ * kecil. `null` kalau vendor belum punya logo (mis. GoSend, belum produksi).
+ */
+export function getVendorLogo(vendor: string | null | undefined): string | null {
+  if (!vendor) return null;
+  return VENDOR_LOGOS[vendor.toLowerCase()] ?? null;
+}

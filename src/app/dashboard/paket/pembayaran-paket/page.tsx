@@ -64,11 +64,15 @@ import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
 import { formatDateTimeId } from "@/lib/date";
 import Link from "next/link";
+import Image from "next/image";
 import type { DateRange } from "react-day-picker";
 import type { Order, OrderStatusFilter } from "@/types/laporanPengiriman";
 import EditOrderDialog from "@/components/PembayaranPaket/EditOrderDialog";
 import ExportPendingOrdersDialog from "@/components/PembayaranPaket/ExportPendingOrdersDialog";
-import { VENDOR_OPTIONS } from "@/components/PembayaranPaket/vendorOptions";
+import {
+  VENDOR_OPTIONS,
+  getVendorLogo,
+} from "@/components/PembayaranPaket/vendorOptions";
 import { getDetail } from "@/components/PembayaranPaket/orderDetail";
 
 /** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
@@ -210,9 +214,22 @@ function OrderRow({
       </TableCell>
 
       <TableCell className="py-4">
-        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-          {order.vendor?.toUpperCase() || "—"}
-        </span>
+        {(() => {
+          const logo = getVendorLogo(order.vendor);
+          return logo ? (
+            <Image
+              src={logo}
+              alt={order.vendor ?? "Ekspedisi"}
+              width={72}
+              height={28}
+              className="h-7 w-auto max-w-[90px] object-contain"
+            />
+          ) : (
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+              {order.vendor?.toUpperCase() || "—"}
+            </span>
+          );
+        })()}
         <div className="mt-1.5 space-y-0.5 text-xs text-slate-600">
           {paymentAmount === null ? (
             isCorporate ? (
