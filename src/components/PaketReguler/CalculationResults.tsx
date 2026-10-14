@@ -42,6 +42,10 @@ import { AxiosError } from "axios";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { useAuth } from "@/context/AuthContext";
 import type { ExpeditionGroup } from "@/types/expeditionGroup";
+import {
+  classifyShipmentDistance,
+  type ShipmentDistance,
+} from "@/lib/shipmentDistance";
 
 interface CalculationResultsProps {
   isSearching: boolean;
@@ -244,6 +248,47 @@ function getServiceCategory(
   return vendorGroupMap[vendorKey] ?? SERVICE_CATEGORY_UNGROUPED;
 }
 
+/** Peta vendor (lowercase) -> grup lengkap, untuk baca field estimasi_*. */
+function buildVendorGroupFullMap(
+  groups: ExpeditionGroup[]
+): Record<string, ExpeditionGroup> {
+  const map: Record<string, ExpeditionGroup> = {};
+  for (const group of groups) {
+    for (const vendor of group.vendors ?? []) {
+      map[vendor.toLowerCase()] = group;
+    }
+  }
+  return map;
+}
+
+/**
+ * Estimasi SLA yang ditampilkan ke user - diambil dari Expedition Group
+ * (estimasi_dalam_kota/estimasi_dalam_pulau/estimasi_luar_pulau sesuai jarak
+ * pengirim-penerima), BUKAN dari field dinamis respons API tiap vendor.
+ * Fallback ke `fallback` (durasi yang dihitung dari API vendor) hanya saat
+ * vendor belum terdaftar di grup manapun, atau lokasi belum bisa
+ * diklasifikasi (data provinsi/kota belum lengkap).
+ */
+function resolveEstimasi(
+  optionId: string,
+  fallback: string,
+  vendorGroupFullMap: Record<string, ExpeditionGroup>,
+  shipmentDistance: ShipmentDistance | null
+): string {
+  const vendorKey = vendorKeyFromOptionId(optionId);
+  const group = vendorGroupFullMap[vendorKey];
+  if (!group || !shipmentDistance) return fallback;
+
+  const text =
+    shipmentDistance === "dalam_kota"
+      ? group.estimasi_dalam_kota
+      : shipmentDistance === "dalam_pulau"
+        ? group.estimasi_dalam_pulau
+        : group.estimasi_luar_pulau;
+
+  return text && text.trim() !== "" ? text : fallback;
+}
+
 type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
 
 export default function CalculationResults({
@@ -256,6 +301,25 @@ export default function CalculationResults({
   onSelectedOptionChange,
 }: CalculationResultsProps) {
   const vendorGroupMap = useMemo(() => buildVendorGroupMap(groups), [groups]);
+  const vendorGroupFullMap = useMemo(
+    () => buildVendorGroupFullMap(groups),
+    [groups]
+  );
+  const shipmentDistance = useMemo(
+    () =>
+      classifyShipmentDistance({
+        senderProvince: formData?.businessData?.province,
+        senderRegency: formData?.businessData?.regency,
+        receiverProvince: formData?.formData?.province,
+        receiverRegency: formData?.formData?.regency,
+      }),
+    [
+      formData?.businessData?.province,
+      formData?.businessData?.regency,
+      formData?.formData?.province,
+      formData?.formData?.regency,
+    ]
+  );
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isInsured, setIsInsured] = useState(false);
@@ -1541,7 +1605,14 @@ export default function CalculationResults({
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-600">{option.duration}</div>
+                <div className="text-sm text-gray-600">
+                  {resolveEstimasi(
+                    option.id,
+                    option.duration,
+                    vendorGroupFullMap,
+                    shipmentDistance
+                  )}
+                </div>
                 {option.recommended && (
                   <div className="text-xs text-green-600 font-medium">
                     Rekomendasi
