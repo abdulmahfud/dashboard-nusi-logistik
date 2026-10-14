@@ -14,7 +14,8 @@ export type ExportType =
   | "transactions"
   | "wallet-history"
   | "payment-history"
-  | "wallet-transactions";
+  | "wallet-transactions"
+  | "pending-orders";
 
 export type ExportStatus =
   | "pending"
@@ -69,6 +70,8 @@ export interface CreateExportPayload {
   role?: string;
   /** Hanya untuk users: tipe akun customer. */
   account_type?: "personal" | "corporate";
+  /** Hanya untuk pending-orders: kode vendor (mis. "jne", "sap"). */
+  vendor?: string;
 }
 
 export interface ExportListQuery {

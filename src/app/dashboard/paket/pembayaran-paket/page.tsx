@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import TopNav from "@/components/top-nav";
@@ -10,6 +8,28 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SearchInput } from "@/components/ui/search-input";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
@@ -21,23 +41,26 @@ import {
 } from "@/components/redesign/date-range-field";
 import { AxiosError } from "axios";
 import {
-  Calendar,
+  ArrowDownCircle,
+  ArrowUp,
+  ArrowUpCircle,
+  ArrowUpDown,
   CreditCard,
   CheckCircle2,
   Clock,
+  Download,
   DollarSign,
   AlertTriangle,
   Filter,
-  Hash,
   Loader2,
+  MoreVertical,
   PackageCheck,
+  Pencil,
   ReceiptText,
   RefreshCw,
   RotateCcw,
   Send,
-  Tag,
-  Truck,
-  X,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -51,55 +74,17 @@ import { formatRupiah } from "@/lib/currency";
 import { formatDateTimeId } from "@/lib/date";
 import Link from "next/link";
 import type { DateRange } from "react-day-picker";
-import type { OrderStatusFilter } from "@/types/laporanPengiriman";
-
-interface PendingOrder {
-  id: number;
-  reference_no: string;
-  vendor: string;
-  service_type_code: string;
-  cod_value: number;
-  item_value: number;
-  status: string;
-  created_at: string;
-  awb_no: string;
-  /** Nominal yang ditagih dari BE. `null` = data tidak tersedia (anomali); order tidak bisa dibayar. */
-  payment_amount: number | null;
-}
+import type { Order, OrderStatusFilter } from "@/types/laporanPengiriman";
+import EditOrderDialog from "@/components/PembayaranPaket/EditOrderDialog";
+import ExportPendingOrdersDialog from "@/components/PembayaranPaket/ExportPendingOrdersDialog";
+import { VENDOR_OPTIONS } from "@/components/PembayaranPaket/vendorOptions";
+import { getDetail } from "@/components/PembayaranPaket/orderDetail";
 
 /** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
 type AppliedRange = { start?: string; end?: string };
 
 type PageTab = "belum_diproses" | "sudah_dibayar";
-
-function mapOrder(order: {
-  id: number;
-  reference_no?: string;
-  vendor?: string;
-  service_type_code?: string;
-  cod_value?: string | number;
-  item_value?: string | number;
-  status?: string;
-  created_at?: string;
-  awb_no?: string;
-  payment_amount?: number | string | null;
-}): PendingOrder {
-  const amount =
-    order.payment_amount == null ? null : Number(order.payment_amount);
-  return {
-    id: order.id,
-    reference_no: order.reference_no || "",
-    vendor: order.vendor || "",
-    service_type_code: order.service_type_code || "",
-    cod_value: Number(order.cod_value) || 0,
-    item_value: Number(order.item_value) || 0,
-    status: order.status || "",
-    created_at: order.created_at || "",
-    awb_no: order.awb_no || "",
-    payment_amount:
-      amount !== null && Number.isFinite(amount) ? amount : null,
-  };
-}
+type SortDir = "asc" | "desc";
 
 function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof AxiosError) {
@@ -109,191 +94,84 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-/** Field label kecil + ikon, dipakai berulang di body kartu order. */
-function CardField({
+const headCls = "h-11 text-xs font-semibold text-slate-500";
+
+/** Baris alamat pengirim/penerima dipakai di kolom ALAMAT. */
+function PartyLine({
   icon: Icon,
-  label,
-  children,
+  iconClassName,
+  name,
+  phone,
+  address,
 }: {
-  icon: LucideIcon;
-  label: string;
-  children: ReactNode;
+  icon: typeof ArrowUpCircle;
+  iconClassName: string;
+  name?: string | null;
+  phone?: string | null;
+  address?: string | null;
 }) {
   return (
-    <div>
-      <p className="flex items-center gap-1 text-xs text-slate-400">
-        <Icon className="h-3.5 w-3.5" aria-hidden />
-        {label}
-      </p>
-      <div className="mt-0.5 text-sm font-medium text-slate-900">
-        {children}
+    <div className="flex items-start gap-1.5">
+      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconClassName}`} aria-hidden />
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-slate-900">
+          {name || "—"}
+          {phone ? ` / ${phone}` : ""}
+        </p>
+        <p className="line-clamp-2 text-xs text-slate-500">{address || "—"}</p>
       </div>
     </div>
   );
 }
 
-/** Kartu order untuk tab "Belum Diproses" — ganti baris tabel, 2 kolom per baris. */
-function PendingOrderCard({
+/** Satu baris tabel order. `variant="paid"` menyembunyikan checkbox/AKSI. */
+function OrderRow({
   order,
+  variant,
   isCorporate,
-  selected,
   payable,
+  selected,
   onSelect,
-  canceling,
-  onCancel,
+  deleting,
+  onEdit,
+  onDelete,
 }: {
-  order: PendingOrder;
+  order: Order;
+  variant: "pending" | "paid";
   isCorporate: boolean;
-  selected: boolean;
   payable: boolean;
+  selected: boolean;
   onSelect: (checked: boolean) => void;
-  canceling: boolean;
-  onCancel: () => void;
+  deleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const dt = formatDateTimeId(order.created_at);
   const isCod = order.service_type_code === "cod";
+  const detail = getDetail(order);
+  const itemValue = Number(order.item_value) || 0;
+  const codValue = Number(order.cod_value) || 0;
+  const paymentAmount =
+    order.payment_amount === null || order.payment_amount === undefined
+      ? null
+      : Number(order.payment_amount);
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+    <TableRow className="border-slate-100 align-top hover:bg-slate-50/60">
+      {variant === "pending" && (
+        <TableCell className="py-4">
           <Checkbox
-            className="mt-1 h-5 w-5 shrink-0 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+            className="mt-1 h-5 w-5 rounded-md border-slate-300 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
             aria-label={`Pilih order ${order.id}`}
             disabled={!payable}
             checked={selected}
             onCheckedChange={(checked) => onSelect(checked === true)}
           />
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-            <Truck className="h-5 w-5" aria-hidden />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              Order #{order.id}
-            </p>
-            <p className="break-all text-xs text-slate-500">
-              Ref: {order.reference_no || "—"}
-            </p>
-          </div>
-        </div>
-        <StatusBadge
-          status="pending"
-          label={isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"}
-        />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-        <CardField icon={Truck} label="Ekspedisi">
-          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-            {order.vendor?.toUpperCase() || "—"}
-          </span>
-        </CardField>
-        <CardField icon={Tag} label="Layanan">
-          <span
-            className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-              isCod ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {order.service_type_code?.toUpperCase() || "—"}
-          </span>
-        </CardField>
-        <CardField icon={Calendar} label="Dibuat">
-          {dt ? (
-            <>
-              {dt.date}{" "}
-              <span className="tabular-nums text-slate-500">
-                {dt.time.slice(0, 5)}
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-400">—</span>
-          )}
-        </CardField>
-        <CardField icon={DollarSign} label="Nilai Barang">
-          <span className="tabular-nums">{formatRupiah(order.item_value)}</span>
-          {isCod && (
-            <p className="mt-0.5 text-xs font-normal text-slate-500">
-              COD: {formatRupiah(order.cod_value)}
-            </p>
-          )}
-        </CardField>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-          <CreditCard className="h-3.5 w-3.5" aria-hidden />
-          Biaya Kirim
-        </span>
-        {order.payment_amount === null ? (
-          isCorporate ? (
-            <span className="text-sm text-slate-400">—</span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
-              <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-              Nominal tidak tersedia
-            </span>
-          )
-        ) : (
-          <span className="text-sm font-bold tabular-nums text-blue-600">
-            {formatRupiah(order.payment_amount)}
-          </span>
-        )}
-      </div>
-
-      {isCorporate && (
-        <div className="mt-4 flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-9 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"
-            disabled={canceling}
-            onClick={onCancel}
-          >
-            {canceling ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <X className="h-3.5 w-3.5" aria-hidden />
-            )}
-            Batalkan
-          </Button>
-        </div>
+        </TableCell>
       )}
-    </div>
-  );
-}
 
-/** Kartu order untuk tab "Sudah Dibayar" — read-only, tanpa checkbox/aksi. */
-function PaidOrderCard({ order }: { order: PendingOrder }) {
-  const dt = formatDateTimeId(order.created_at);
-  const isCod = order.service_type_code === "cod";
-
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-            <PackageCheck className="h-5 w-5" aria-hidden />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              Order #{order.id}
-            </p>
-            <p className="break-all text-xs text-slate-500">
-              Ref: {order.reference_no || "—"}
-            </p>
-          </div>
-        </div>
-        <StatusBadge status="success" label="Sudah Dibayar" />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-        <CardField icon={Truck} label="Ekspedisi">
-          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-            {order.vendor?.toUpperCase() || "—"}
-          </span>
-        </CardField>
-        <CardField icon={Tag} label="Layanan">
+      <TableCell className="py-4">
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           <span
             className={`rounded-md px-2 py-0.5 text-xs font-medium ${
               isCod ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-700"
@@ -301,49 +179,129 @@ function PaidOrderCard({ order }: { order: PendingOrder }) {
           >
             {order.service_type_code?.toUpperCase() || "—"}
           </span>
-        </CardField>
-        <CardField icon={Calendar} label="Dibuat">
-          {dt ? (
-            <>
-              {dt.date}{" "}
-              <span className="tabular-nums text-slate-500">
-                {dt.time.slice(0, 5)}
-              </span>
-            </>
+          {variant === "pending" ? (
+            <StatusBadge
+              status="pending"
+              label={isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"}
+            />
           ) : (
-            <span className="text-slate-400">—</span>
+            <StatusBadge status="success" label="Sudah Dibayar" />
           )}
-        </CardField>
-        <CardField icon={DollarSign} label="Nilai Barang">
-          <span className="tabular-nums">{formatRupiah(order.item_value)}</span>
-          {isCod && (
-            <p className="mt-0.5 text-xs font-normal text-slate-500">
-              COD: {formatRupiah(order.cod_value)}
+        </div>
+        <p className="text-sm font-semibold text-slate-900">
+          Order #{order.id}
+        </p>
+        <p className="break-all text-xs text-slate-500">
+          Ref: {order.reference_no || "—"}
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          {dt ? `${dt.date} ${dt.time.slice(0, 5)}` : "—"}
+        </p>
+      </TableCell>
+
+      <TableCell className="min-w-[220px] max-w-[280px] py-4">
+        <div className="space-y-2">
+          <PartyLine
+            icon={ArrowUpCircle}
+            iconClassName="text-slate-400"
+            name={order.shipper?.name}
+            phone={order.shipper?.phone}
+            address={order.shipper?.address}
+          />
+          <PartyLine
+            icon={ArrowDownCircle}
+            iconClassName="text-blue-500"
+            name={order.receiver?.name}
+            phone={order.receiver?.phone}
+            address={order.receiver?.address}
+          />
+        </div>
+      </TableCell>
+
+      <TableCell className="py-4">
+        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+          {order.vendor?.toUpperCase() || "—"}
+        </span>
+        <div className="mt-1.5 space-y-0.5 text-xs text-slate-600">
+          {paymentAmount === null ? (
+            isCorporate ? (
+              <p className="text-slate-400">—</p>
+            ) : (
+              <p className="inline-flex items-center gap-1 font-medium text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                Nominal tidak tersedia
+              </p>
+            )
+          ) : (
+            <p className="text-sm font-bold tabular-nums text-blue-600">
+              {formatRupiah(paymentAmount)}
             </p>
           )}
-        </CardField>
-      </div>
+          {isCod && <p>COD: {formatRupiah(codValue)}</p>}
+          <p>Resi: {order.awb_no || "—"}</p>
+        </div>
+      </TableCell>
 
-      <div className="mt-4 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-          <Hash className="h-3.5 w-3.5" aria-hidden />
-          No. Resi
-        </span>
-        <span className="text-sm font-semibold text-slate-700">
-          {order.awb_no || "—"}
-        </span>
-      </div>
+      <TableCell className="min-w-[160px] py-4">
+        <p className="text-sm text-slate-800">{detail.goods_desc || "—"}</p>
+        <p className="text-xs tabular-nums text-slate-500">
+          {formatRupiah(itemValue)}
+        </p>
+      </TableCell>
 
-      <div className="mt-2 flex items-center justify-between px-3 py-1">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-          <CreditCard className="h-3.5 w-3.5" aria-hidden />
-          Biaya Kirim
-        </span>
-        <span className="text-sm font-bold tabular-nums text-blue-600">
-          {order.payment_amount === null ? "—" : formatRupiah(order.payment_amount)}
-        </span>
-      </div>
-    </div>
+      <TableCell className="py-4 text-xs text-slate-600">
+        <p>Berat: {detail.weight ?? "—"} kg</p>
+        <p>
+          Dimensi:{" "}
+          {detail.panjang || detail.lebar || detail.tinggi
+            ? `${detail.panjang ?? 0}x${detail.lebar ?? 0}x${detail.tinggi ?? 0} cm`
+            : "—"}
+        </p>
+      </TableCell>
+
+      {variant === "pending" && (
+        <TableCell className="py-4 text-right">
+          <div className="flex items-center justify-end gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1.5 rounded-lg border-slate-200"
+              onClick={onEdit}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 rounded-lg border-slate-200"
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4" aria-hidden />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-rose-600 focus:text-rose-700"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden />
+                  Hapus
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TableCell>
+      )}
+    </TableRow>
   );
 }
 
@@ -363,9 +321,9 @@ export default function PembayaranPaketPage() {
   const [activeTab, setActiveTab] = useState<PageTab>("belum_diproses");
 
   // Tab "Belum Diproses"
-  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   /** Pilihan lintas halaman, disimpan lengkap agar total tetap benar saat ganti halaman. */
-  const [selected, setSelected] = useState<Record<number, PendingOrder>>({});
+  const [selected, setSelected] = useState<Record<number, Order>>({});
   const selectedOrders = Object.values(selected);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -373,10 +331,12 @@ export default function PembayaranPaketPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Tab "Sudah Dibayar" — status proses_pengiriman, daftar baca-saja.
-  const [paidOrders, setPaidOrders] = useState<PendingOrder[]>([]);
+  const [paidOrders, setPaidOrders] = useState<Order[]>([]);
   const [paidPage, setPaidPage] = useState(1);
   const [paidPerPage, setPaidPerPage] = useState(20);
   const [paidLastPage, setPaidLastPage] = useState(1);
@@ -385,7 +345,17 @@ export default function PembayaranPaketPage() {
 
   const [rangeInput, setRangeInput] = useState<DateRange | undefined>();
   const [appliedRange, setAppliedRange] = useState<AppliedRange>({});
-  const hasFilter = Boolean(appliedRange.start || appliedRange.end);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [vendorInput, setVendorInput] = useState("all");
+  const [appliedVendor, setAppliedVendor] = useState("all");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const hasFilter = Boolean(
+    appliedRange.start ||
+      appliedRange.end ||
+      appliedSearch ||
+      appliedVendor !== "all"
+  );
 
   const fetchPendingOrders = useCallback(async () => {
     try {
@@ -395,11 +365,14 @@ export default function PembayaranPaketPage() {
         status: pendingStatus,
         start_date: appliedRange.start,
         end_date: appliedRange.end,
+        search: appliedSearch || undefined,
+        vendor: appliedVendor !== "all" ? appliedVendor : undefined,
+        sort: sortDir,
         page,
         per_page: perPage,
       });
 
-      const list = (response.data ?? []).map(mapOrder);
+      const list = response.data ?? [];
 
       // Halaman terakhir bisa kosong setelah order diproses: mundur satu halaman.
       if (list.length === 0 && page > 1) {
@@ -416,7 +389,15 @@ export default function PembayaranPaketPage() {
     } finally {
       setLoading(false);
     }
-  }, [pendingStatus, appliedRange, page, perPage]);
+  }, [
+    pendingStatus,
+    appliedRange,
+    appliedSearch,
+    appliedVendor,
+    sortDir,
+    page,
+    perPage,
+  ]);
 
   const fetchPaidOrders = useCallback(async () => {
     try {
@@ -425,11 +406,14 @@ export default function PembayaranPaketPage() {
         status: paidStatus,
         start_date: appliedRange.start,
         end_date: appliedRange.end,
+        search: appliedSearch || undefined,
+        vendor: appliedVendor !== "all" ? appliedVendor : undefined,
+        sort: sortDir,
         page: paidPage,
         per_page: paidPerPage,
       });
 
-      const list = (response.data ?? []).map(mapOrder);
+      const list = response.data ?? [];
 
       if (list.length === 0 && paidPage > 1) {
         setPaidPage((p) => Math.max(1, p - 1));
@@ -445,7 +429,15 @@ export default function PembayaranPaketPage() {
     } finally {
       setPaidLoading(false);
     }
-  }, [paidStatus, appliedRange, paidPage, paidPerPage]);
+  }, [
+    paidStatus,
+    appliedRange,
+    appliedSearch,
+    appliedVendor,
+    sortDir,
+    paidPage,
+    paidPerPage,
+  ]);
 
   useEffect(() => {
     if (activeTab === "belum_diproses") void fetchPendingOrders();
@@ -468,6 +460,8 @@ export default function PembayaranPaketPage() {
       start: from ? toApiDate(from) : undefined,
       end: to ? toApiDate(to) : undefined,
     });
+    setAppliedSearch(searchInput.trim());
+    setAppliedVendor(vendorInput);
     setPage(1);
     setPaidPage(1);
   };
@@ -475,16 +469,20 @@ export default function PembayaranPaketPage() {
   const resetFilter = () => {
     setRangeInput(undefined);
     setAppliedRange({});
+    setSearchInput("");
+    setAppliedSearch("");
+    setVendorInput("all");
+    setAppliedVendor("all");
     setPage(1);
     setPaidPage(1);
   };
 
   /** Personal: perlu payment_amount untuk ditagih. Corporate: selalu boleh dipilih (dicek limitnya saat commit). */
-  const isPayable = (order: PendingOrder) =>
+  const isPayable = (order: Order) =>
     isCorporate || order.payment_amount !== null;
   const payableOnPage = pendingOrders.filter(isPayable);
 
-  const handleSelectOrder = (order: PendingOrder, checked: boolean) => {
+  const handleSelectOrder = (order: Order, checked: boolean) => {
     setSelected((prev) => {
       const next = { ...prev };
       if (checked && isPayable(order)) next[order.id] = order;
@@ -615,11 +613,11 @@ export default function PembayaranPaketPage() {
     }
   };
 
-  const handleCancelPending = async (order: PendingOrder) => {
-    setCancelingId(order.id);
+  const handleDelete = async (order: Order) => {
+    setDeletingId(order.id);
     try {
       await cancelPendingOrder(order.id);
-      toast.success(`Order #${order.id} dibatalkan.`);
+      toast.success(`Order #${order.id} dihapus.`);
       setSelected((prev) => {
         const next = { ...prev };
         delete next[order.id];
@@ -627,15 +625,18 @@ export default function PembayaranPaketPage() {
       });
       void fetchPendingOrders();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Gagal membatalkan order."));
+      toast.error(getErrorMessage(error, "Gagal menghapus order."));
     } finally {
-      setCancelingId(null);
+      setDeletingId(null);
     }
   };
 
   const allSelected =
     payableOnPage.length > 0 &&
     payableOnPage.every((order) => selected[order.id]);
+
+  const isPendingTab = activeTab === "belum_diproses";
+  const currentLoading = isPendingTab ? loading : paidLoading;
 
   return (
     <SidebarProvider>
@@ -663,20 +664,14 @@ export default function PembayaranPaketPage() {
             action={
               <Button
                 onClick={() =>
-                  activeTab === "belum_diproses"
-                    ? fetchPendingOrders()
-                    : fetchPaidOrders()
+                  isPendingTab ? fetchPendingOrders() : fetchPaidOrders()
                 }
                 variant="outline"
-                disabled={activeTab === "belum_diproses" ? loading : paidLoading}
+                disabled={currentLoading}
                 className="h-10 gap-2 rounded-lg border-slate-200 bg-white"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${
-                    (activeTab === "belum_diproses" ? loading : paidLoading)
-                      ? "animate-spin"
-                      : ""
-                  }`}
+                  className={`h-4 w-4 ${currentLoading ? "animate-spin" : ""}`}
                   aria-hidden
                 />
                 Refresh
@@ -704,80 +699,162 @@ export default function PembayaranPaketPage() {
             </TabsList>
           </Tabs>
 
-          {activeTab === "belum_diproses" ? (
-            <>
-              {/* Summary Card */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <StatCard
-                  icon={Clock}
-                  tone="orange"
-                  title="Total Order Pending"
-                  value={String(total)}
-                  hint={
-                    isCorporate
-                      ? "Order menunggu diproses"
-                      : "Order menunggu pembayaran"
-                  }
-                />
-                <StatCard
-                  icon={CheckCircle2}
-                  tone="green"
-                  title="Order Dipilih"
-                  value={String(selectedOrders.length)}
-                  hint={
-                    isCorporate
-                      ? "Order siap diproses"
-                      : "Order siap untuk dibayar"
-                  }
-                />
-                <StatCard
-                  icon={CreditCard}
-                  tone="blue"
-                  title={isCorporate ? "Total Nilai" : "Total Pembayaran"}
-                  value={formatRupiah(getTotalAmount())}
-                  hint={
-                    isCorporate
-                      ? "Akan dibebankan ke limit kredit"
-                      : "Total nominal pembayaran"
-                  }
-                />
-              </div>
+          {isPendingTab ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <StatCard
+                icon={Clock}
+                tone="orange"
+                title="Total Order Pending"
+                value={String(total)}
+                hint={
+                  isCorporate
+                    ? "Order menunggu diproses"
+                    : "Order menunggu pembayaran"
+                }
+              />
+              <StatCard
+                icon={CheckCircle2}
+                tone="green"
+                title="Order Dipilih"
+                value={String(selectedOrders.length)}
+                hint={
+                  isCorporate
+                    ? "Order siap diproses"
+                    : "Order siap untuk dibayar"
+                }
+              />
+              <StatCard
+                icon={CreditCard}
+                tone="blue"
+                title={isCorporate ? "Total Nilai" : "Total Pembayaran"}
+                value={formatRupiah(getTotalAmount())}
+                hint={
+                  isCorporate
+                    ? "Akan dibebankan ke limit kredit"
+                    : "Total nominal pembayaran"
+                }
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <StatCard
+                icon={PackageCheck}
+                tone="green"
+                title="Total Sudah Diproses"
+                value={String(paidTotal)}
+                hint="Sedang dikirim ke ekspedisi"
+              />
+              <StatCard
+                icon={ReceiptText}
+                tone="blue"
+                title="Total Nilai"
+                value={formatRupiah(
+                  paidOrders.reduce(
+                    (sum, o) => sum + (o.payment_amount ?? 0),
+                    0
+                  )
+                )}
+                hint="Jumlah nominal di halaman ini"
+              />
+            </div>
+          )}
 
-              {/* Filter tanggal */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  applyFilter();
+          {/* Filter bar: search, ekspedisi, tanggal, sort, export */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyFilter();
+            }}
+            className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+          >
+            <SearchInput
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Cari: Order ID, AWB, Nama, No HP"
+              className="h-11 w-full rounded-lg sm:w-[240px]"
+            />
+            <Select value={vendorInput} onValueChange={setVendorInput}>
+              <SelectTrigger className="h-11 w-full rounded-lg sm:w-[180px]">
+                <SelectValue placeholder="Semua Ekspedisi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Ekspedisi</SelectItem>
+                {VENDOR_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DateRangeField
+              value={rangeInput}
+              onChange={setRangeInput}
+              placeholder="Pilih rentang tanggal"
+              className="w-full sm:w-[260px]"
+            />
+            <Button
+              type="submit"
+              disabled={currentLoading}
+              className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+            >
+              <Filter className="h-4 w-4" aria-hidden />
+              Terapkan
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetFilter}
+              disabled={
+                currentLoading ||
+                (!hasFilter &&
+                  !rangeInput &&
+                  !searchInput &&
+                  vendorInput === "all")
+              }
+              className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              Reset
+            </Button>
+
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title={
+                  sortDir === "desc"
+                    ? "Terbaru lebih dulu"
+                    : "Terlama lebih dulu"
+                }
+                onClick={() => {
+                  setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+                  setPage(1);
+                  setPaidPage(1);
                 }}
-                className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="h-11 w-11 rounded-lg border-slate-200"
               >
-                <DateRangeField
-                  value={rangeInput}
-                  onChange={setRangeInput}
-                  placeholder="Pilih rentang tanggal"
-                  className="w-full sm:w-[290px]"
-                />
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-                >
-                  <Filter className="h-4 w-4" aria-hidden />
-                  Terapkan Filter
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetFilter}
-                  disabled={loading || (!hasFilter && !rangeInput)}
-                  className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  <RotateCcw className="h-4 w-4" aria-hidden />
-                  Reset
-                </Button>
-              </form>
+                {sortDir === "desc" ? (
+                  <ArrowUpDown className="h-4 w-4" aria-hidden />
+                ) : (
+                  <ArrowUp className="h-4 w-4" aria-hidden />
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="Export"
+                onClick={() => setExportOpen(true)}
+                className="h-11 w-11 rounded-lg border-slate-200"
+              >
+                <Download className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
+          </form>
 
-              {/* Orders List */}
+          {isPendingTab ? (
+            <>
               <SectionCard icon={ReceiptText} title="Belum Diproses">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-slate-500">
@@ -823,14 +900,14 @@ export default function PembayaranPaketPage() {
                     </div>
                     <p className="text-lg font-semibold text-slate-900">
                       {hasFilter
-                        ? "Tidak ada order pada rentang tanggal ini"
+                        ? "Tidak ada order yang cocok dengan filter"
                         : isCorporate
                           ? "Tidak ada order yang menunggu diproses"
                           : "Tidak ada order yang menunggu pembayaran"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
                       {hasFilter
-                        ? "Coba ubah atau reset filter tanggal."
+                        ? "Coba ubah atau reset filter."
                         : isCorporate
                           ? "Order non-COD yang baru dibuat akan muncul di sini."
                           : "Order yang menunggu pembayaran akan muncul di sini."}
@@ -857,21 +934,46 @@ export default function PembayaranPaketPage() {
                   </div>
                 ) : (
                   <div>
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {pendingOrders.map((order) => (
-                        <PendingOrderCard
-                          key={order.id}
-                          order={order}
-                          isCorporate={isCorporate}
-                          payable={isPayable(order)}
-                          selected={Boolean(selected[order.id])}
-                          onSelect={(checked) =>
-                            handleSelectOrder(order, checked)
-                          }
-                          canceling={cancelingId === order.id}
-                          onCancel={() => void handleCancelPending(order)}
-                        />
-                      ))}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-100 hover:bg-transparent">
+                            <TableHead className={`${headCls} w-10`}>
+                              <span className="sr-only">Pilih</span>
+                            </TableHead>
+                            <TableHead className={headCls}>Transaksi</TableHead>
+                            <TableHead className={headCls}>Alamat</TableHead>
+                            <TableHead className={headCls}>
+                              Ekspedisi &amp; Ongkir
+                            </TableHead>
+                            <TableHead className={headCls}>Isi Paket</TableHead>
+                            <TableHead className={headCls}>
+                              Info Paket
+                            </TableHead>
+                            <TableHead className={`${headCls} text-right`}>
+                              Aksi
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingOrders.map((order) => (
+                            <OrderRow
+                              key={order.id}
+                              order={order}
+                              variant="pending"
+                              isCorporate={isCorporate}
+                              payable={isPayable(order)}
+                              selected={Boolean(selected[order.id])}
+                              onSelect={(checked) =>
+                                handleSelectOrder(order, checked)
+                              }
+                              deleting={deletingId === order.id}
+                              onEdit={() => setEditingOrder(order)}
+                              onDelete={() => void handleDelete(order)}
+                            />
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                     <NumberedPagination
                       className="mt-2"
@@ -934,133 +1036,115 @@ export default function PembayaranPaketPage() {
               )}
             </>
           ) : (
-            <>
-              {/* Summary Card */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <StatCard
-                  icon={PackageCheck}
-                  tone="green"
-                  title="Total Sudah Diproses"
-                  value={String(paidTotal)}
-                  hint="Sedang dikirim ke ekspedisi"
-                />
-                <StatCard
-                  icon={ReceiptText}
-                  tone="blue"
-                  title="Total Nilai"
-                  value={formatRupiah(
-                    paidOrders.reduce(
-                      (sum, o) => sum + (o.payment_amount ?? 0),
-                      0
-                    )
-                  )}
-                  hint="Jumlah nominal di halaman ini"
-                />
-              </div>
+            <SectionCard icon={PackageCheck} title="Sudah Dibayar">
+              <p className="mb-4 text-sm text-slate-500">
+                Order yang sudah lolos tahap pembayaran/limit kredit dan
+                sedang diproses ke ekspedisi. Order yang sudah lebih lanjut
+                (mis. sampai tujuan) ada di halaman Laporan Pengiriman.
+              </p>
 
-              {/* Filter tanggal */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  applyFilter();
-                }}
-                className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
-              >
-                <DateRangeField
-                  value={rangeInput}
-                  onChange={setRangeInput}
-                  placeholder="Pilih rentang tanggal"
-                  className="w-full sm:w-[290px]"
-                />
-                <Button
-                  type="submit"
-                  disabled={paidLoading}
-                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-                >
-                  <Filter className="h-4 w-4" aria-hidden />
-                  Terapkan Filter
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetFilter}
-                  disabled={paidLoading || (!hasFilter && !rangeInput)}
-                  className="h-11 gap-2 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  <RotateCcw className="h-4 w-4" aria-hidden />
-                  Reset
-                </Button>
-              </form>
-
-              <SectionCard icon={PackageCheck} title="Sudah Dibayar">
-                <p className="mb-4 text-sm text-slate-500">
-                  Order yang sudah lolos tahap pembayaran/limit kredit dan
-                  sedang diproses ke ekspedisi. Order yang sudah lebih lanjut
-                  (mis. sampai tujuan) ada di halaman Laporan Pengiriman.
-                </p>
-
-                {paidLoading ? (
-                  <div className="flex items-center justify-center py-16 text-slate-500">
-                    <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-600" />
-                    <span>Memuat data order...</span>
-                  </div>
-                ) : paidOrders.length === 0 ? (
-                  <div className="flex flex-col items-center px-4 py-12 text-center">
-                    <span className="mb-6 flex h-28 w-28 items-center justify-center rounded-full bg-emerald-50">
-                      <PackageCheck
-                        className="h-12 w-12 text-emerald-300"
-                        aria-hidden
-                      />
-                    </span>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {hasFilter
-                        ? "Tidak ada order pada rentang tanggal ini"
-                        : "Belum ada order yang sudah dibayar"}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {hasFilter
-                        ? "Coba ubah atau reset filter tanggal."
-                        : "Order yang sudah dibayar akan muncul di sini."}
-                    </p>
-                    {hasFilter && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetFilter}
-                        className="mt-6 gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                      >
-                        <RotateCcw className="h-4 w-4" aria-hidden />
-                        Reset Filter
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      {paidOrders.map((order) => (
-                        <PaidOrderCard key={order.id} order={order} />
-                      ))}
-                    </div>
-                    <NumberedPagination
-                      className="mt-2"
-                      page={paidPage}
-                      lastPage={paidLastPage}
-                      total={paidTotal}
-                      perPage={paidPerPage}
-                      disabled={paidLoading}
-                      onPageChange={setPaidPage}
-                      onPerPageChange={(n) => {
-                        setPaidPerPage(n);
-                        setPaidPage(1);
-                      }}
+              {paidLoading ? (
+                <div className="flex items-center justify-center py-16 text-slate-500">
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-600" />
+                  <span>Memuat data order...</span>
+                </div>
+              ) : paidOrders.length === 0 ? (
+                <div className="flex flex-col items-center px-4 py-12 text-center">
+                  <span className="mb-6 flex h-28 w-28 items-center justify-center rounded-full bg-emerald-50">
+                    <PackageCheck
+                      className="h-12 w-12 text-emerald-300"
+                      aria-hidden
                     />
+                  </span>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {hasFilter
+                      ? "Tidak ada order yang cocok dengan filter"
+                      : "Belum ada order yang sudah dibayar"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {hasFilter
+                      ? "Coba ubah atau reset filter."
+                      : "Order yang sudah dibayar akan muncul di sini."}
+                  </p>
+                  {hasFilter && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={resetFilter}
+                      className="mt-6 gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      Reset Filter
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-100 hover:bg-transparent">
+                          <TableHead className={headCls}>Transaksi</TableHead>
+                          <TableHead className={headCls}>Alamat</TableHead>
+                          <TableHead className={headCls}>
+                            Ekspedisi &amp; Ongkir
+                          </TableHead>
+                          <TableHead className={headCls}>Isi Paket</TableHead>
+                          <TableHead className={headCls}>Info Paket</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paidOrders.map((order) => (
+                          <OrderRow
+                            key={order.id}
+                            order={order}
+                            variant="paid"
+                            isCorporate={isCorporate}
+                            payable={false}
+                            selected={false}
+                            onSelect={() => {}}
+                            deleting={false}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                )}
-              </SectionCard>
-            </>
+                  <NumberedPagination
+                    className="mt-2"
+                    page={paidPage}
+                    lastPage={paidLastPage}
+                    total={paidTotal}
+                    perPage={paidPerPage}
+                    disabled={paidLoading}
+                    onPageChange={setPaidPage}
+                    onPerPageChange={(n) => {
+                      setPaidPerPage(n);
+                      setPaidPage(1);
+                    }}
+                  />
+                </div>
+              )}
+            </SectionCard>
           )}
         </div>
       </SidebarInset>
+
+      <EditOrderDialog
+        order={editingOrder}
+        onOpenChange={(open) => {
+          if (!open) setEditingOrder(null);
+        }}
+        onSaved={() => void fetchPendingOrders()}
+      />
+      <ExportPendingOrdersDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        initialVendor={appliedVendor !== "all" ? appliedVendor : undefined}
+        initialDateFrom={appliedRange.start}
+        initialDateTo={appliedRange.end}
+      />
     </SidebarProvider>
   );
 }

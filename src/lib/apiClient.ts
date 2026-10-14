@@ -21,6 +21,7 @@ import type {
   ShipperUpdateRequest,
 } from "@/types/dataPengirim";
 import type {
+  Order,
   OrderListResponse,
   OrderStatusFilter,
 } from "@/types/laporanPengiriman";
@@ -819,6 +820,9 @@ export const getOrdersPage = async (params: {
   end_date?: string;
   page?: number;
   per_page?: number;
+  vendor?: string;
+  search?: string;
+  sort?: "asc" | "desc";
 }): Promise<OrderListResponse> => {
   const res = await apiClient.get("/admin/list-orders", { params });
   return res.data;
@@ -849,14 +853,48 @@ export const bulkProcessOrders = async (
 };
 
 /**
- * Batalkan order Corporate yang masih belum_proses & belum punya AWB —
- * tanpa panggilan ke vendor. Dipakai sebelum commit ke ekspedisi.
+ * Hapus (soft delete) order yang masih menunggu_pembayaran/belum_proses &
+ * belum punya AWB — tanpa panggilan ke vendor. Row tetap ada di DB, cuma
+ * hilang dari semua listing/laporan/export normal.
  */
 export const cancelPendingOrder = async (
   orderId: number
 ): Promise<{ success: boolean; message?: string }> => {
   const res = await apiClient.delete(
     `/admin/orders/${orderId}/cancel-pending`
+  );
+  return res.data;
+};
+
+/**
+ * Edit field terbatas (penerima + catatan) pada order yang masih
+ * menunggu_pembayaran/belum_proses & belum punya AWB. Sengaja TIDAK
+ * mencakup berat/dimensi/nilai barang/COD — field itu menentukan
+ * payment_amount yang sudah tersimpan, mengubahnya tanpa quote ulang akan
+ * membuat nominal tagihan/potongan limit kredit jadi tidak sinkron.
+ */
+export const updateOrder = async (
+  orderId: number,
+  data: {
+    receiver?: {
+      name?: string;
+      phone?: string;
+      address?: string;
+      province?: string;
+      regency?: string;
+      district?: string;
+      postal_code?: string;
+    };
+    instruction?: string;
+  }
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: Order;
+}> => {
+  const res = await apiClient.put(
+    `/admin/orders/${orderId}/update-pending`,
+    data
   );
   return res.data;
 };
