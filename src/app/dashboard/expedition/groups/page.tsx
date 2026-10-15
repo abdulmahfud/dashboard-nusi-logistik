@@ -12,6 +12,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  RotateCcw,
   Trash2,
   Truck,
 } from "lucide-react";
@@ -58,6 +59,7 @@ import {
   createExpeditionGroup,
   updateExpeditionGroup,
   deleteExpeditionGroup,
+  resetDefaultExpeditionGroups,
 } from "@/lib/apiClient";
 import type {
   ExpeditionGroup,
@@ -152,6 +154,9 @@ export default function ExpeditionGroupsPage() {
     null
   );
   const [deleting, setDeleting] = useState(false);
+
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const load = useCallback(async () => {
     if (!canView) return;
@@ -248,6 +253,24 @@ export default function ExpeditionGroupsPage() {
     }
   };
 
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      await resetDefaultExpeditionGroups();
+      toast.success(
+        "Grup ekspedisi dan penetapan vendor dikembalikan ke default."
+      );
+      setResetOpen(false);
+      await load();
+    } catch (err) {
+      toast.error(
+        getErrorMessage(err, "Gagal mengembalikan ke pengaturan default.")
+      );
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <SidebarProvider>
@@ -288,15 +311,30 @@ export default function ExpeditionGroupsPage() {
             title="Grup Ekspedisi"
             description="Kelompokkan vendor ke dalam grup (Reguler & COD, Cargo, dst) beserta estimasi pengiriman generik per grup — dipakai untuk tab pilihan layanan saat kirim paket."
             action={
-              canCreate ? (
-                <Button
-                  type="button"
-                  className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
-                  onClick={openCreate}
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Tambah Grup
-                </Button>
+              canCreate || canUpdate ? (
+                <div className="flex items-center gap-2">
+                  {canUpdate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 gap-2 rounded-lg border-amber-200 text-amber-700 hover:bg-amber-50"
+                      onClick={() => setResetOpen(true)}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                      Reset ke Default
+                    </Button>
+                  )}
+                  {canCreate && (
+                    <Button
+                      type="button"
+                      className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
+                      onClick={openCreate}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                      Tambah Grup
+                    </Button>
+                  )}
+                </div>
               ) : undefined
             }
           />
@@ -637,6 +675,47 @@ export default function ExpeditionGroupsPage() {
                   </>
                 ) : (
                   "Hapus"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Konfirmasi reset ke default */}
+        <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+          <AlertDialogContent className="rounded-2xl border-slate-100">
+            <AlertDialogHeader className="items-center text-center sm:text-center">
+              <span className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                <RotateCcw className="h-7 w-7" aria-hidden />
+              </span>
+              <AlertDialogTitle>Reset ke Pengaturan Default</AlertDialogTitle>
+              <AlertDialogDescription>
+                Grup &quot;Reguler &amp; COD&quot; dan &quot;Cargo&quot; akan
+                dikembalikan ke nama, slug, dan estimasi pengiriman default
+                (membuat ulang kalau sebelumnya terhapus), dan semua vendor
+                dikembalikan ke grup default masing-masing — J&amp;T Cargo ke
+                Cargo, vendor lainnya ke Reguler &amp; COD. Perubahan manual
+                pada kedua grup ini dan penetapan vendor akan ditimpa. Grup
+                custom lain yang pernah dibuat tidak dihapus. Tindakan ini
+                tidak dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="sm:justify-center">
+              <AlertDialogCancel className="h-10 rounded-lg border-slate-200">
+                Batal
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void handleReset()}
+                disabled={resetting}
+                className="h-10 rounded-lg bg-amber-600 hover:bg-amber-700"
+              >
+                {resetting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Mereset…
+                  </>
+                ) : (
+                  "Reset ke Default"
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>

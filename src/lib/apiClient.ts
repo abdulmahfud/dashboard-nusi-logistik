@@ -1686,6 +1686,21 @@ export const deleteExpeditionGroup = async (
   return res.data;
 };
 
+/**
+ * POST /admin/expedition-groups/reset-default — expedition-groups.update.
+ * Paksa kembalikan grup "Reguler & COD"/"Cargo" dan penetapan vendor ke
+ * default (jntcargo -> Cargo, lainnya -> Reguler & COD), menimpa perubahan
+ * manual. Tidak menghapus grup custom lain, tidak mengubah is_active/
+ * is_cod_active vendor.
+ */
+export const resetDefaultExpeditionGroups =
+  async (): Promise<ExpeditionGroupListResponse> => {
+    const res = await apiClient.post<ExpeditionGroupListResponse>(
+      "/admin/expedition-groups/reset-default"
+    );
+    return res.data;
+  };
+
 // ✅ Get available discounts for expedition
 export const getAvailableDiscounts = async (params: {
   vendor: string;
