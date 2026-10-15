@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
-import { Check, Clock, Tag, ThumbsUp } from "lucide-react";
+import { Clock, Tag, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import {
@@ -396,7 +396,6 @@ export default function ShippingResults({
   isSearching,
   result,
 }: ShippingResultsProps) {
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"cheapest" | "expensive">("cheapest");
   const [showAll, setShowAll] = useState(false);
 
@@ -1096,7 +1095,6 @@ export default function ShippingResults({
               <TableHead className={headCls}>Ekspedisi / Layanan</TableHead>
               <TableHead className={headCls}>Estimasi</TableHead>
               <TableHead className={headCls}>Ongkir</TableHead>
-              <TableHead className={`${headCls} text-right`}>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1104,13 +1102,11 @@ export default function ShippingResults({
               const unavailable = option.available === false;
               const disc = discountInfo[option.id];
               const loadingDisc = isLoadingDiscounts[option.id] || false;
-              const selected = selectedOption === option.id;
               return (
                 <TableRow
                   key={option.id}
                   className={cn(
                     "border-slate-100 hover:bg-slate-50/60",
-                    selected && "bg-blue-50/50",
                     unavailable && "opacity-60"
                   )}
                 >
@@ -1228,23 +1224,6 @@ export default function ShippingResults({
                         Tidak tersedia
                       </span>
                     )}
-                  </TableCell>
-                  <TableCell className="py-4 text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={unavailable}
-                      onClick={() => setSelectedOption(option.id)}
-                      className={cn(
-                        "h-9 gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700",
-                        selected &&
-                          "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
-                      )}
-                    >
-                      {selected && <Check className="h-4 w-4" aria-hidden />}
-                      {selected ? "Dipilih" : "Pilih"}
-                    </Button>
                   </TableCell>
                 </TableRow>
               );
