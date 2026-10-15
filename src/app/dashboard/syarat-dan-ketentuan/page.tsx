@@ -212,6 +212,10 @@ export default function BantuanPage() {
                   </li>
                   <li>
                     <b>Barang yang Tidak Diperbolehkan</b>
+                    <p>
+                      Barang-barang berikut tidak diperkenankan untuk dikirim
+                      melalui BhisaKirim:
+                    </p>
                     <ul className="list-decimal ml-6">
                       <li>
                         Barang berbahaya, mudah meledak, mudah terbakar, atau
@@ -326,7 +330,7 @@ export default function BantuanPage() {
                   <li>
                     Pengguna dapat melakukan perubahan detail pengiriman
                     (alamat, jenis layanan, informasi penerima, dll.) sebelum
-                    paket di-pickup atau belum drop-off.
+                    paket di-pickup atau diserahkan ke agen drop-off.
                   </li>
                   <li>
                     Segala perubahan yang dilakukan setelah paket diproses oleh
@@ -823,6 +827,11 @@ export default function BantuanPage() {
             <br />
             <h3>Waktu Pelaporan Kehilangan/Rusak per Ekspedisi</h3>
             <br />
+            <p>
+              Apabila barang rusak/hilang, Anda wajib melakukan pelaporan
+              sesuai ketentuan ekspedisi, yaitu:
+            </p>
+            <br />
             <div className="overflow-x-auto">
               <table className="min-w-full border text-xs">
                 <thead>
@@ -937,6 +946,12 @@ export default function BantuanPage() {
             </div>
             <br />
             <h3>Waktu Jawaban Klaim Ekspedisi</h3>
+            <br />
+            <p>
+              Mitra ekspedisi melalui kami akan memberikan jawaban atas
+              pengajuan klaim barang rusak/hilang Anda dengan ketentuan waktu
+              sebagai berikut:
+            </p>
             <br />
             <div className="overflow-x-auto">
               <table className="min-w-full border text-xs">
@@ -1078,6 +1093,7 @@ export default function BantuanPage() {
               </li>
               <li>
                 <b>Pengecualian Asuransi</b>
+                <p>Asuransi tidak berlaku untuk:</p>
                 <ul className="list-disc ml-6">
                   <li>
                     Barang-barang yang dilarang atau dibatasi pengirimannya
