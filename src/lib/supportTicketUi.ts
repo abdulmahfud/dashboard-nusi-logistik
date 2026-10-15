@@ -29,6 +29,25 @@ export const SUPPORT_PRIORITY_OPTIONS: { value: string; label: string }[] = [
 
 export const DEFAULT_SUPPORT_TICKET_PRIORITY = 3;
 
+/**
+ * Opsi prioritas yang dipilih pelapor sendiri saat membuat tiket (form
+ * submit) — 4 label saja, bukan skala admin 1-5 di atas. Value yang dikirim
+ * tetap angka 1-5 yang sama ke BE: Mendesak=1, Tinggi=2, Sedang=3, Rendah=4.
+ * Level 5 ("Terendah") sengaja tidak ditawarkan di sini, cuma bisa diset
+ * staf lewat manajemen tiket. Lihat docs/be-fe/update-prioritas-tiket-bantuan.md
+ */
+export const SUPPORT_TICKET_CREATE_PRIORITY_OPTIONS: {
+  value: string;
+  label: string;
+}[] = [
+  { value: "4", label: "Rendah" },
+  { value: "3", label: "Sedang" },
+  { value: "2", label: "Tinggi" },
+  { value: "1", label: "Mendesak" },
+];
+
+export const DEFAULT_SUPPORT_TICKET_CREATE_PRIORITY = "3";
+
 const SUPPORT_PRIORITY_LABEL: Record<number, string> = {
   1: "Tertinggi",
   2: "Tinggi",

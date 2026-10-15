@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/select";
 import { createSupportTicket } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
-import { SUPPORT_DEPARTMENT_OPTIONS } from "@/lib/supportTicketUi";
+import {
+  DEFAULT_SUPPORT_TICKET_CREATE_PRIORITY,
+  SUPPORT_DEPARTMENT_OPTIONS,
+  SUPPORT_TICKET_CREATE_PRIORITY_OPTIONS,
+} from "@/lib/supportTicketUi";
 import type { SupportDepartment } from "@/types/supportTicket";
 import {
   SUPPORT_TICKET_ACCEPT_IMAGES,
@@ -66,6 +70,9 @@ export function SupportTicketCreateForm({
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [department, setDepartment] = useState<string>("");
+  const [priority, setPriority] = useState<string>(
+    DEFAULT_SUPPORT_TICKET_CREATE_PRIORITY
+  );
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -156,6 +163,7 @@ export function SupportTicketCreateForm({
       const fd = new FormData();
       fd.append("title", t);
       fd.append("department", department as SupportDepartment);
+      fd.append("priority", priority);
       if (text) fd.append("message", text);
       recheck.accepted.forEach((f) => fd.append("attachments[]", f));
 
@@ -167,6 +175,7 @@ export function SupportTicketCreateForm({
 
       setTitle("");
       setDepartment("");
+      setPriority(DEFAULT_SUPPORT_TICKET_CREATE_PRIORITY);
       setMessage("");
       setFiles([]);
       setFileHint(null);
@@ -233,6 +242,24 @@ export function SupportTicketCreateForm({
             </SelectTrigger>
             <SelectContent>
               {SUPPORT_DEPARTMENT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="stf-priority" className="text-sm font-medium text-slate-800">
+            Prioritas
+          </Label>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger id="stf-priority" className="h-11 rounded-lg border-slate-200 bg-white">
+              <SelectValue placeholder="Pilih prioritas" />
+            </SelectTrigger>
+            <SelectContent>
+              {SUPPORT_TICKET_CREATE_PRIORITY_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>
