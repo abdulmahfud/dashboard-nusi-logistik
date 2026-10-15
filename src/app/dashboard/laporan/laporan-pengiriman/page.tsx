@@ -376,7 +376,16 @@ const LaporanPengiriman = () => {
       "Retur",
       "Dibatalkan",
     ].map((status) => {
-      const c = count(status);
+      // Kartu "Belum Proses" di sini disatukan dengan "Menunggu Pembayaran"
+      // (status khusus akun personal) - sama seperti tab "Belum Diproses" di
+      // halaman Pembayaran Paket, yang menghitung menunggu_pembayaran
+      // (personal) dan belum_proses (corporate) sebagai satu bucket "belum
+      // diproses ke ekspedisi". Tanpa ini, order personal yang masih
+      // menunggu pembayaran tidak terhitung di kartu mana pun.
+      const c =
+        status === "Belum Proses"
+          ? count("Belum Proses") + count("Menunggu Pembayaran")
+          : count(status);
       return { status, count: c, percentage: pct(c) };
     });
     return entries;
