@@ -43,6 +43,7 @@ import {
   Download,
   DollarSign,
   AlertTriangle,
+  ExternalLink,
   Filter,
   Loader2,
   PackageCheck,
@@ -52,6 +53,7 @@ import {
   RotateCcw,
   Send,
   Trash2,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -59,6 +61,7 @@ import {
   createPayment,
   bulkProcessOrders,
   cancelPendingOrder,
+  getWalletBalance,
 } from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
@@ -332,6 +335,14 @@ export default function PembayaranPaketPage() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
+  // Metode pembayaran bulk — hanya relevan untuk personal (corporate selalu
+  // lewat limit kredit via handleBulkProcess).
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "xendit">(
+    "xendit"
+  );
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(false);
+
   // Tab "Sudah Dibayar" — status proses_pengiriman, daftar baca-saja.
   const [paidOrders, setPaidOrders] = useState<Order[]>([]);
   const [paidPage, setPaidPage] = useState(1);
@@ -450,6 +461,31 @@ export default function PembayaranPaketPage() {
     setSelected({});
   }, [pendingStatus]);
 
+  // Saldo wallet — hanya untuk personal (dipakai saat memilih metode bayar
+  // "wallet" di sticky action bar).
+  useEffect(() => {
+    if (isCorporate || activeTab !== "belum_diproses") return;
+    let cancelled = false;
+    setWalletLoading(true);
+    getWalletBalance()
+      .then((res) => {
+        if (cancelled) return;
+        const raw = res.data?.balance ?? 0;
+        const balance =
+          typeof raw === "string" ? Number(raw.replace(/,/g, "")) : Number(raw);
+        setWalletBalance(Number.isFinite(balance) ? balance : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletBalance(0);
+      })
+      .finally(() => {
+        if (!cancelled) setWalletLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCorporate, activeTab]);
+
   const applyFilter = () => {
     const from = rangeInput?.from;
     const to = rangeInput?.to ?? rangeInput?.from;
@@ -508,6 +544,10 @@ export default function PembayaranPaketPage() {
       toast.error("Pilih minimal 1 order untuk pembayaran");
       return;
     }
+    if (paymentMethod === "wallet" && walletBalance < getTotalAmount()) {
+      toast.error("Saldo wallet tidak cukup, silakan topup atau pilih pembayaran online.");
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -530,6 +570,7 @@ export default function PembayaranPaketPage() {
       const paymentResponse = await createPayment({
         shipping_data: bulkShippingData,
         amount: getTotalAmount(),
+        payment_method: paymentMethod,
       });
 
       if (paymentResponse.success && paymentResponse.data) {
@@ -1006,44 +1047,99 @@ export default function PembayaranPaketPage() {
 
               {/* Payment / Process Action */}
               {selectedOrders.length > 0 && (
-                <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5 md:px-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      {isCorporate
-                        ? "Konfirmasi Proses ke Ekspedisi"
-                        : "Konfirmasi Pembayaran"}
-                    </h3>
-                    <p className="text-sm text-slate-600">
-                      {selectedOrders.length} order dipilih - Total:{" "}
-                      <span className="font-semibold text-slate-900">
-                        {formatRupiah(getTotalAmount())}
+                <div className="sticky bottom-4 z-20 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5 md:px-6">
+                  {!isCorporate && (
+                    <div className="flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:gap-3">
+                      <span className="shrink-0 text-sm font-medium text-slate-700">
+                        Metode Pembayaran:
                       </span>
-                    </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("wallet")}
+                          disabled={
+                            walletLoading || walletBalance < getTotalAmount()
+                          }
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            paymentMethod === "wallet"
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Wallet className="h-4 w-4" aria-hidden />
+                          Saldo Wallet
+                          <span className="text-xs text-slate-400">
+                            (
+                            {walletLoading
+                              ? "memuat..."
+                              : formatRupiah(walletBalance)}
+                            )
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("xendit")}
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                            paymentMethod === "xendit"
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <ExternalLink className="h-4 w-4" aria-hidden />
+                          Pembayaran Online
+                        </button>
+                      </div>
+                      {!walletLoading && walletBalance < getTotalAmount() && (
+                        <span className="text-xs text-amber-600">
+                          Saldo wallet tidak cukup untuk total ini.
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {isCorporate
+                          ? "Konfirmasi Proses ke Ekspedisi"
+                          : "Konfirmasi Pembayaran"}
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        {selectedOrders.length} order dipilih - Total:{" "}
+                        <span className="font-semibold text-slate-900">
+                          {formatRupiah(getTotalAmount())}
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() =>
+                        void (isCorporate
+                          ? handleBulkProcess()
+                          : handleBulkPayment())
+                      }
+                      disabled={actionLoading}
+                      className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+                    >
+                      {actionLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {isCorporate ? "Memproses..." : "Memproses Pembayaran..."}
+                        </>
+                      ) : isCorporate ? (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Proses ke Ekspedisi
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-4 w-4" />
+                          {paymentMethod === "wallet"
+                            ? "Bayar dengan Saldo"
+                            : "Bayar Sekarang"}
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    onClick={() =>
-                      void (isCorporate ? handleBulkProcess() : handleBulkPayment())
-                    }
-                    disabled={actionLoading}
-                    className="h-11 gap-2 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
-                  >
-                    {actionLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {isCorporate ? "Memproses..." : "Membuat Invoice..."}
-                      </>
-                    ) : isCorporate ? (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Proses ke Ekspedisi
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="h-4 w-4" />
-                        Bayar Sekarang
-                      </>
-                    )}
-                  </Button>
                 </div>
               )}
             </>
