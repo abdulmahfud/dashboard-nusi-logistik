@@ -36,7 +36,6 @@ import {
   ClipboardListIcon,
   Download,
   Hourglass,
-  Info,
   Loader2,
   Package,
   Package2,
@@ -369,7 +368,6 @@ const LaporanPengiriman = () => {
     const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
     const entries = [
       "Belum Proses",
-      "Belum di Expedisi",
       "Proses Pengiriman",
       "Kendala Pengiriman",
       "Sampai Tujuan",
@@ -420,7 +418,6 @@ const LaporanPengiriman = () => {
 
   const statusIcon: Record<string, { icon: LucideIcon; tone: Tone }> = {
     "Belum Proses": { icon: Hourglass, tone: "amber" },
-    "Belum di Expedisi": { icon: Info, tone: "slate" },
     "Proses Pengiriman": { icon: Truck, tone: "blue" },
     "Kendala Pengiriman": { icon: AlertTriangle, tone: "rose" },
     "Sampai Tujuan": { icon: CheckCircle2, tone: "green" },
