@@ -9,6 +9,7 @@ import { SectionCardsCod } from "@/components/section-cards-cod";
 import { SectionCardsReguler } from "@/components/section-cards-reguler";
 import { SectionCardsTrouble } from "@/components/section-cards-trouble";
 import { SectionCardsShipmentSummary } from "@/components/section-cards-shipment-summary";
+import { CodVerificationAlert } from "@/components/cod-verification-alert";
 import { DateRangeField } from "@/components/redesign/date-range-field";
 import TopNav from "@/components/top-nav";
 import { useAuth } from "@/context/AuthContext";
@@ -73,6 +74,8 @@ function DashboardContent() {
                   className="w-[240px]"
                 />
               </div>
+
+              <CodVerificationAlert user={user} />
 
               <SectionCardsBalance />
               <SectionCardsCredit user={user} />
