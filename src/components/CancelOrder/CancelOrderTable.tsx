@@ -70,6 +70,13 @@ const SUPPORTED_VENDORS = [
 const FETCH_PAGE_SIZE = 100;
 const FETCH_MAX_PAGES = 30;
 
+/** Filter diproses di BE (OrderController::index(), param service_type). */
+const SERVICE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "reguler", label: "Reguler" },
+  { value: "cod", label: "COD" },
+  { value: "cargo", label: "Cargo" },
+];
+
 const headCls = "h-11 text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const fieldCls = "h-11 rounded-lg border-slate-200 bg-white";
 
@@ -90,18 +97,19 @@ export default function CancelOrderTable() {
   );
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (serviceType = serviceFilter) => {
     try {
       setLoading(true);
 
-      // Filter status dilakukan BE; semua halaman diambil supaya tidak ada
-      // order yang terlewat (endpoint ini berpaginasi).
+      // Filter status & service_type dilakukan BE; semua halaman diambil
+      // supaya tidak ada order yang terlewat (endpoint ini berpaginasi).
       const orders: Order[] = [];
       let current = 1;
       let last = 1;
       do {
         const res = await getOrdersPage({
           status: "proses_pengiriman",
+          service_type: serviceType !== "all" ? serviceType : undefined,
           page: current,
           per_page: FETCH_PAGE_SIZE,
         });
@@ -143,15 +151,13 @@ export default function CancelOrderTable() {
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchOrders(serviceFilter);
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceFilter]);
 
   const vendorOptions = useMemo(
     () => Array.from(new Set(data.map((d) => d.vendor))).sort(),
-    [data]
-  );
-  const serviceOptions = useMemo(
-    () => Array.from(new Set(data.map((d) => d.service_type_code))).sort(),
     [data]
   );
 
@@ -176,8 +182,6 @@ export default function CancelOrderTable() {
         return false;
       }
       if (vendorFilter !== "all" && row.vendor !== vendorFilter) return false;
-      if (serviceFilter !== "all" && row.service_type_code !== serviceFilter)
-        return false;
       if (from && to) {
         const created = row.created_at
           ? toApiDate(new Date(row.created_at))
@@ -186,7 +190,7 @@ export default function CancelOrderTable() {
       }
       return true;
     });
-  }, [data, globalFilter, vendorFilter, serviceFilter, range]);
+  }, [data, globalFilter, vendorFilter, range]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(page, totalPages);
@@ -249,7 +253,7 @@ export default function CancelOrderTable() {
               )}
               <Button
                 variant="outline"
-                onClick={fetchOrders}
+                onClick={() => fetchOrders()}
                 disabled={loading}
                 className="h-11 shrink-0 gap-2 rounded-lg border-slate-200"
               >
@@ -305,9 +309,9 @@ export default function CancelOrderTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Service Type</SelectItem>
-                {serviceOptions.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
+                {SERVICE_TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
                   </SelectItem>
                 ))}
               </SelectContent>

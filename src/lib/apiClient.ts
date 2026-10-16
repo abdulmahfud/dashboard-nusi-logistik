@@ -823,6 +823,8 @@ export const getOrdersPage = async (params: {
   vendor?: string;
   search?: string;
   sort?: "asc" | "desc";
+  /** "reguler" | "cod" | "cargo" — difilter di BE, lihat OrderController::index(). */
+  service_type?: string;
 }): Promise<OrderListResponse> => {
   const res = await apiClient.get("/admin/list-orders", { params });
   return res.data;
