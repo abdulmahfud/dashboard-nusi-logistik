@@ -577,84 +577,28 @@ export default function BantuanPage() {
               ekspedisi berikut:
             </p>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Fee Retur</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">
-                      100% dari biaya ongkos pulang*
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">
-                      Tidak dipungut biaya retur
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">
-                      60% dari biaya ongkos kirim
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">
-                      100% dari biaya ongkos kirim
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">
-                      100% dari biaya ongkos kirim
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE</td>
-                    <td className="border px-2 py-1">
-                      50% dari biaya ongkos kirim
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">
-                      Tidak dipungut biaya retur
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">
-                      Tidak dipungut biaya retur
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">
-                      100% dari biaya ongkos kirim
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">
-                      Tidak dipungut biaya retur
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Anteraja</td>
-                    <td className="border px-2 py-1">
-                      Tidak dipungut biaya retur
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <h4>Gratis Biaya Retur (0%)</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                ID Express, SAP Express, Ninja Xpress, Anteraja &amp; Go-Send:
+                Tidak dipungut biaya retur.
+              </li>
+            </ul>
+            <br />
+            <h4>Biaya Retur Sebagian (50% &ndash; 60%)</h4>
+            <ul className="list-disc ml-6">
+              <li>JNE: 50% dari biaya ongkos kirim.</li>
+              <li>J&amp;T Cargo: 60% dari biaya ongkos kirim.</li>
+            </ul>
+            <br />
+            <h4>Biaya Retur Penuh (100%)</h4>
+            <ul className="list-disc ml-6">
+              <li>J&amp;T Express: 100% dari biaya ongkos pulang.</li>
+              <li>
+                Paxel, POS Indonesia, &amp; Lion Parcel: 100% dari biaya
+                ongkos kirim.
+              </li>
+            </ul>
 
             <br />
             <h3>Ketentuan Rasio Return Maksimal</h3>
@@ -825,125 +769,38 @@ export default function BantuanPage() {
               </li>
             </ul>
             <br />
-            <h3>Waktu Pelaporan Kehilangan/Rusak per Ekspedisi</h3>
-            <br />
             <p>
               Apabila barang rusak/hilang, Anda wajib melakukan pelaporan
               sesuai ketentuan ekspedisi, yaitu:
             </p>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Hilang</th>
-                    <th className="border px-2 py-1">Rusak</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">
-                      7 hari dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      2x24 jam dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">
-                      14 hari dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      2x24 jam dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">
-                      5 hari kalender dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      3 hari kalender dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">
-                      24 jam dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      24 jam dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">
-                      15 hari kalender dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      45 hari kalender dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE</td>
-                    <td className="border px-2 py-1">
-                      7 hari dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      2x24 jam dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">
-                      30 hari dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      2x24 jam dari paket diterima
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">
-                      14 hari kerja dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      14 hari kerja dari dinyatakan rusak
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">
-                      14 hari kerja dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      14 hari kerja dari dinyatakan rusak
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">
-                      7 hari kalender dari paket dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      7 hari kalender dari paket dinyatakan rusak
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Anteraja</td>
-                    <td className="border px-2 py-1">
-                      24 jam dari dinyatakan hilang
-                    </td>
-                    <td className="border px-2 py-1">
-                      24 jam dari paket diterima
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <h4>Laporan Kerusakan Paket</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                2x24 Jam (2 Hari) dari Paket Diterima: J&amp;T Express, ID
+                Express, JNE, dan SAP Express.
+              </li>
+              <li>24 Jam (1 Hari) dari Paket Diterima: Paxel, Anteraja.</li>
+              <li>3 Hari Kalender: J&amp;T Cargo.</li>
+              <li>7 Hari Kalender: Go-Send.</li>
+              <li>14 Hari Kerja: Ninja Xpress dan Lion Parcel.</li>
+              <li>45 Hari Kalender: POS Indonesia.</li>
+            </ul>
+            <br />
+            <h4>Laporan Kehilangan Paket</h4>
+            <ul className="list-disc ml-6">
+              <li>24 Jam dari Dinyatakan Hilang: Paxel, Anteraja.</li>
+              <li>5 Hari Kalender: J&amp;T Cargo.</li>
+              <li>
+                7 Hari / 7 Hari Kalender: J&amp;T Express, JNE, dan Go-Send.
+              </li>
+              <li>
+                14 Hari / 14 Hari Kerja: ID Express, Ninja Xpress, dan Lion
+                Parcel.
+              </li>
+              <li>15 Hari Kalender: POS Indonesia.</li>
+              <li>30 Hari: SAP Express.</li>
+            </ul>
             <br />
             <h3>Waktu Jawaban Klaim Ekspedisi</h3>
             <br />
@@ -953,89 +810,35 @@ export default function BantuanPage() {
               sebagai berikut:
             </p>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Waktu Jawaban Klaim</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">
-                      14 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">
-                      7 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">
-                      3 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">
-                      7 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">
-                      7 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE</td>
-                    <td className="border px-2 py-1">
-                      7 hari kalender sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">
-                      6 bulan dari tanggal pengiriman
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">
-                      14 hari kalender sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">
-                      7 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">
-                      7 hari kerja sejak klaim diajukan
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Anteraja</td>
-                    <td className="border px-2 py-1">
-                      3 hari kerja sejak klaim diajukan (atau 3–7 hari kerja
-                      sejak dokumen klaim dinyatakan lengkap)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p>
-              Klaim akan dibayarkan maksimal H+7 hari kerja sejak proses klaim
-              disetujui oleh ekspedisi terkait.
-            </p>
+            <h4>Respon Cepat (3&ndash;7 Hari)</h4>
+            <ul className="list-disc ml-6">
+              <li>J&amp;T Cargo: 3 hari kerja sejak klaim diajukan.</li>
+              <li>Anteraja: 3 hari kerja sejak klaim diajukan.</li>
+              <li>JNE Express: 7 hari kalender sejak klaim diajukan.</li>
+              <li>
+                ID Express, Paxel, POS Indonesia, Lion Parcel, &amp; Go-Send:
+                7 hari kerja sejak klaim diajukan.
+              </li>
+              <li>
+                Anteraja: 3&ndash;7 hari kerja sejak dokumen klaim dinyatakan
+                lengkap oleh tim terkait.
+              </li>
+            </ul>
+            <br />
+            <h4>Respon Standar (14 Hari)</h4>
+            <ul className="list-disc ml-6">
+              <li>Ninja Xpress: 14 hari kalender sejak klaim diajukan.</li>
+              <li>J&amp;T Express: 14 hari kerja sejak klaim diajukan.</li>
+            </ul>
+            <br />
+            <h4>Ketentuan Khusus</h4>
+            <ul className="list-disc ml-6">
+              <li>SAP Express: Maksimal 6 bulan dari tanggal pengiriman.</li>
+              <li>
+                Klaim akan dibayarkan maksimal H+7 hari kerja sejak proses
+                klaim disetujui oleh ekspedisi terkait.
+              </li>
+            </ul>
 
             <br />
             <h2>Asuransi</h2>
@@ -1146,82 +949,56 @@ export default function BantuanPage() {
                   </li>
                 </ul>
               </li>
+              <li>
+                Biaya asuransi masing-masing ekspedisi adalah sebagai
+                berikut:
+              </li>
             </ul>
             <br />
-            <h3>Biaya Asuransi per Ekspedisi</h3>
+            <h4>Persentase Tetap (0,2% &ndash; 0,6%)</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                J&amp;T Express, ID Express, J&amp;T Cargo, Anteraja &amp;
+                Paxel: 0,2% dari harga barang.
+              </li>
+              <li>SAP Express: 0,3% dari harga barang.</li>
+              <li>Lion Parcel: 0,6% dari harga barang.</li>
+            </ul>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Biaya Asuransi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">0,2% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">0,2% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">0,2% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">0,2% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Anteraja</td>
-                    <td className="border px-2 py-1">0,2% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">
-                      0,5% dari harga barang, min. Rp500
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE</td>
-                    <td className="border px-2 py-1">
-                      &lt; Rp500.000: Rp2.500 (opsional)
-                      <br />
-                      &ge; Rp500.000 &amp; &lt; Rp2.000.000: Rp2.500 (wajib)
-                      <br />
-                      &ge; Rp2.000.000: 0,2% dari harga barang + Rp5.000 (wajib)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">0,3% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">
-                      0,2775% dari harga barang, min. Rp2.775
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">0,6% dari harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">
-                      Silver: Maks Rp5.000.000
-                      <br />
-                      Gold: Maks Rp10.000.000
-                      <br />
-                      Platinum: Maks Rp25.000.000
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <h4>Persentase dengan Batas Minimum</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                POS Indonesia: 0,5% dari harga barang (Minimal Rp500).
+              </li>
+              <li>
+                Ninja Xpress: 0,2775% dari harga barang (Minimal Rp2.775).
+              </li>
+            </ul>
+            <br />
+            <h4>Tarif Bertingkat &amp; Paket Khusus</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                JNE Express:
+                <ul className="list-disc ml-6">
+                  <li>Harga &lt; Rp500.000: Rp2.500 (Opsional).</li>
+                  <li>
+                    Harga Rp500.000 s/d &lt; Rp2.000.000: Rp2.500 (Wajib).
+                  </li>
+                  <li>
+                    Harga &ge; Rp2.000.000: 0,2% dari harga barang + Rp5.000
+                    (Wajib).
+                  </li>
+                </ul>
+              </li>
+              <li>
+                Go-Send (Berdasarkan Paket Pertanggungan):
+                <ul className="list-disc ml-6">
+                  <li>Silver: Pertanggungan maksimal Rp5.000.000.</li>
+                  <li>Gold: Pertanggungan maksimal Rp10.000.000.</li>
+                  <li>Platinum: Pertanggungan maksimal Rp25.000.000.</li>
+                </ul>
+              </li>
+            </ul>
 
             <br />
             <h2>Nilai Penggantian Barang</h2>
@@ -1308,115 +1085,59 @@ export default function BantuanPage() {
               </li>
             </ul>
             <br />
-            <h3>Nilai Penggantian Barang per Ekspedisi</h3>
+            <h4>Pengiriman Ber-Asuransi</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                J&amp;T Express &amp; ID Express: Senilai barang, maksimal
+                Rp20.000.000 (Khusus dokumen J&amp;T max Rp2.000.000).
+              </li>
+              <li>Lion Parcel: Senilai barang, maksimal Rp1.000.000.000.</li>
+              <li>SAP Express: Senilai barang, maksimal Rp10.000.000.</li>
+              <li>
+                Go-Send: Maksimal Rp10.000.000 (Khusus emas maksimal
+                Rp4.500.000).
+              </li>
+              <li>Paxel: Maksimal 10x ongkir (hingga Rp20.000.000).</li>
+              <li>
+                POS Indonesia &amp; Ninja Xpress: Penggantian penuh senilai
+                harga barang.
+              </li>
+              <li>
+                JNE: Hilang diganti penuh; jika rusak, barang ditarik dan
+                diganti barang baru/uang.
+              </li>
+              <li>
+                Anteraja: Penggantian diberikan sebesar nilai barang yang
+                dinyatakan pada resi/invoice, dengan nilai pertanggungan
+                maksimum hingga Rp100.000.000 per resi.
+              </li>
+              <li>
+                J&amp;T Cargo: Penggantian ganti rugi diberikan sesuai nilai
+                barang yang tertera pada invoice (hingga batas maksimal
+                pertanggungan yang disetujui).
+              </li>
+            </ul>
             <br />
-            <div className="overflow-x-auto">
-              <table className="min-w-full border text-xs">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Ekspedisi</th>
-                    <th className="border px-2 py-1">Asuransi</th>
-                    <th className="border px-2 py-1">Non Asuransi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Express</td>
-                    <td className="border px-2 py-1">
-                      Maksimal Rp20.000.000 (barang), Rp2.000.000 (dokumen)
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim atau nilai barang, maksimal Rp1.000.000
-                      (barang), Rp100.000 (dokumen)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">ID Express</td>
-                    <td className="border px-2 py-1">
-                      Sesuai nilai barang, maksimal Rp20.000.000
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim atau nilai barang, maksimal Rp1.000.000
-                      (barang), Rp100.000 (dokumen)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">J&amp;T Cargo</td>
-                    <td className="border px-2 py-1">
-                      Sesuai nilai barang pada invoice (hingga batas maksimal
-                      pertanggungan yang disetujui)
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim atau nilai barang, maksimal Rp1.000.000
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Paxel</td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim, maksimal Rp20.000.000
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim, maksimal Rp1.000.000
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">POS Indonesia</td>
-                    <td className="border px-2 py-1">Sesuai harga barang</td>
-                    <td className="border px-2 py-1">Sesuai harga barang</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">JNE</td>
-                    <td className="border px-2 py-1">
-                      Hilang diganti penuh; jika rusak, barang ditarik dan
-                      diganti barang baru/uang.
-                    </td>
-                    <td className="border px-2 py-1">0-10x biaya kirim</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">SAP Express</td>
-                    <td className="border px-2 py-1">
-                      Senilai barang, maksimal Rp10.000.000
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim atau nilai barang, maksimal Rp1.000.000
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Ninja Xpress</td>
-                    <td className="border px-2 py-1">Sesuai harga barang</td>
-                    <td className="border px-2 py-1">
-                      10x biaya ongkir atau maksimal Rp1.000.000
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Lion Parcel</td>
-                    <td className="border px-2 py-1">
-                      Sesuai harga barang atau maksimal Rp1.000.000.000
-                    </td>
-                    <td className="border px-2 py-1">
-                      10x biaya kirim atau Rp1.000.000, mana yang terendah
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Go-Send</td>
-                    <td className="border px-2 py-1">
-                      Maksimal Rp10.000.000 (kecuali emas: Rp4.500.000)
-                    </td>
-                    <td className="border px-2 py-1">-</td>
-                  </tr>
-                  <tr>
-                    <td className="border px-2 py-1">Anteraja</td>
-                    <td className="border px-2 py-1">
-                      Sesuai nilai barang pada resi/invoice, maksimal
-                      Rp100.000.000 per resi
-                    </td>
-                    <td className="border px-2 py-1">
-                      Maksimal Rp1.000.000 (non-dokumen), Rp100.000 (dokumen)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <h4>Pengiriman Non-Asuransi (Tanpa Asuransi)</h4>
+            <ul className="list-disc ml-6">
+              <li>
+                Aturan Umum (J&amp;T Express, ID Express, J&amp;T Cargo, SAP
+                Express, Lion Parcel): Maksimal 10x ongkir atau harga barang
+                (mana yang terendah), dengan batas maksimal Rp1.000.000.
+                Khusus dokumen (J&amp;T &amp; ID Express): Penggantian
+                maksimal Rp100.000.
+              </li>
+              <li>
+                Paxel &amp; Ninja Xpress: Maksimal 10x ongkir (hingga
+                Rp1.000.000).
+              </li>
+              <li>JNE: Maksimal 0&ndash;10x ongkir.</li>
+              <li>POS Indonesia: Penggantian disesuaikan dengan nilai barang.</li>
+              <li>
+                Anteraja: ganti rugi maksimal sebesar Rp1.000.000 untuk
+                barang non-dokumen dan Rp100.000 untuk dokumen.
+              </li>
+            </ul>
 
             <br />
             <h2>Saldo Aktif</h2>
