@@ -27,14 +27,20 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getOrdersPage } from "@/lib/apiClient";
+import { getExpeditionVendorSettings, getOrdersPage } from "@/lib/apiClient";
 import { Order } from "@/types/laporanPengiriman";
 import {
   DateRangeField,
   toApiDate,
 } from "@/components/redesign/date-range-field";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
+import { VENDOR_OPTIONS as VENDOR_LABEL_SOURCE } from "@/components/PembayaranPaket/vendorOptions";
 import CancelOrderDialog from "./CancelOrderDialog";
+
+/** Label ramah-baca per vendor key; daftar vendor itu sendiri selalu dari BE. */
+const VENDOR_LABELS: Record<string, string> = Object.fromEntries(
+  VENDOR_LABEL_SOURCE.map((o) => [o.value, o.label])
+);
 
 interface CancelOrderData {
   id: number;
@@ -88,6 +94,9 @@ export default function CancelOrderTable() {
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [vendorFilter, setVendorFilter] = useState("all");
+  const [vendorOptions, setVendorOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
   const [serviceFilter, setServiceFilter] = useState("all");
   const [range, setRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
@@ -97,12 +106,15 @@ export default function CancelOrderTable() {
   );
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  const fetchOrders = async (serviceType = serviceFilter) => {
+  const fetchOrders = async (
+    serviceType = serviceFilter,
+    vendor = vendorFilter
+  ) => {
     try {
       setLoading(true);
 
-      // Filter status & service_type dilakukan BE; semua halaman diambil
-      // supaya tidak ada order yang terlewat (endpoint ini berpaginasi).
+      // Filter status/service_type/vendor dilakukan BE; semua halaman
+      // diambil supaya tidak ada order yang terlewat (endpoint ini berpaginasi).
       const orders: Order[] = [];
       let current = 1;
       let last = 1;
@@ -110,6 +122,7 @@ export default function CancelOrderTable() {
         const res = await getOrdersPage({
           status: "proses_pengiriman",
           service_type: serviceType !== "all" ? serviceType : undefined,
+          vendor: vendor !== "all" ? vendor : undefined,
           page: current,
           per_page: FETCH_PAGE_SIZE,
         });
@@ -151,15 +164,31 @@ export default function CancelOrderTable() {
   };
 
   useEffect(() => {
-    fetchOrders(serviceFilter);
+    fetchOrders(serviceFilter, vendorFilter);
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceFilter]);
+  }, [serviceFilter, vendorFilter]);
 
-  const vendorOptions = useMemo(
-    () => Array.from(new Set(data.map((d) => d.vendor))).sort(),
-    [data]
-  );
+  // Daftar vendor untuk dropdown selalu dari BE (/admin/expedition-vendor-settings),
+  // bukan hardcode atau diturunkan dari order yang sudah termuat (yang bisa
+  // tidak lengkap kalau difilter/kosong).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getExpeditionVendorSettings();
+        const rows = Array.isArray(res.data) ? res.data : [];
+        const opts = rows
+          .map((row) => {
+            const value = row.vendor.toLowerCase();
+            return { value, label: VENDOR_LABELS[value] ?? row.vendor };
+          })
+          .sort((a, b) => a.label.localeCompare(b.label));
+        setVendorOptions(opts);
+      } catch (error) {
+        console.error("Error fetching vendor list:", error);
+      }
+    })();
+  }, []);
 
   const hasFilter =
     globalFilter.trim() !== "" ||
@@ -181,7 +210,6 @@ export default function CancelOrderTable() {
       ) {
         return false;
       }
-      if (vendorFilter !== "all" && row.vendor !== vendorFilter) return false;
       if (from && to) {
         const created = row.created_at
           ? toApiDate(new Date(row.created_at))
@@ -190,7 +218,7 @@ export default function CancelOrderTable() {
       }
       return true;
     });
-  }, [data, globalFilter, vendorFilter, range]);
+  }, [data, globalFilter, range]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(page, totalPages);
@@ -287,9 +315,9 @@ export default function CancelOrderTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Vendor</SelectItem>
-                {vendorOptions.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
+                {vendorOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
                   </SelectItem>
                 ))}
               </SelectContent>
