@@ -1097,11 +1097,7 @@ export default function RegularPackageForm({
                   </div>
                   {!codEligible && (
                     <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
-                      <p>
-                        Fitur COD belum bisa di gunakan - Upload ktp dan
-                        rekening bank, Fitur COD bisa di gunakan setelah ktp
-                        dan rekening bank di setujui
-                      </p>
+                      
                       <Link
                         href="/dashboard/akun/rekening"
                         className="mt-1 inline-flex items-center font-medium text-blue-600 underline hover:text-blue-700"
