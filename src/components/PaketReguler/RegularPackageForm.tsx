@@ -45,11 +45,9 @@ import { toast } from "sonner";
 import Link from "next/link";
 import GoogleMapPicker, { GoogleMapPickerRef } from "@/components/GoogleMapPicker";
 import { useAuth } from "@/context/AuthContext";
-import type { BankAccount } from "@/types/bankAccount";
 import {
   getShippers,
   getReceivers,
-  getBankAccounts,
   getExpeditionVendorSettings,
   getJntExpressShipmentCost,
   getPaxelShipmentCost,
@@ -284,19 +282,6 @@ export default function RegularPackageForm({
   const { user } = useAuth();
   const isPersonalAccount = user?.account_type === "personal";
   const codEligible = !isPersonalAccount || user?.cod_eligible !== false;
-  const [myBankAccounts, setMyBankAccounts] = useState<BankAccount[] | null>(
-    null
-  );
-  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
-
-  useEffect(() => {
-    if (!isPersonalAccount || codEligible) return;
-    setLoadingBankAccounts(true);
-    getBankAccounts()
-      .then((res) => setMyBankAccounts(res.data))
-      .catch(() => setMyBankAccounts([]))
-      .finally(() => setLoadingBankAccounts(false));
-  }, [isPersonalAccount, codEligible]);
 
   // Jangan biarkan user "terjebak" di COD yang sebenarnya terkunci —
   // alihkan otomatis ke Non-COD kalau belum eligible.
@@ -308,24 +293,6 @@ export default function RegularPackageForm({
   }, [codEligible]);
 
   /** Pesan spesifik alasan COD terkunci, dibaca dari status rekening bank sendiri. */
-  const codLockedReason = (): string => {
-    if (loadingBankAccounts) return "Memeriksa status rekening bank…";
-    if (!myBankAccounts || myBankAccounts.length === 0) {
-      return "Belum ada rekening bank terdaftar.";
-    }
-    if (myBankAccounts.some((b) => b.status === "pending")) {
-      return "Rekening bank Anda sedang menunggu persetujuan admin.";
-    }
-    if (
-      myBankAccounts.some(
-        (b) => b.status === "approved" && b.deletion_requested_at
-      )
-    ) {
-      return "Rekening bank Anda sedang menunggu proses penghapusan.";
-    }
-    return "Rekening bank Anda ditolak admin. Perbaiki data dan ajukan ulang.";
-  };
-
   useEffect(() => {
     getShippers().then((res) => {
       const mapped = res.data.data.map((shipper: Shipper) => ({
@@ -1131,8 +1098,9 @@ export default function RegularPackageForm({
                   {!codEligible && (
                     <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
                       <p>
-                        Fitur COD belum bisa di gunakan — {codLockedReason()} - Upload ktp dan rekening bank, Fitur COD bisa di gunakan setelah ktp dan rekening bank di setujui
-                        dahulu.
+                        Fitur COD belum bisa di gunakan - Upload ktp dan
+                        rekening bank, Fitur COD bisa di gunakan setelah ktp
+                        dan rekening bank di setujui
                       </p>
                       <Link
                         href="/dashboard/akun/rekening"
