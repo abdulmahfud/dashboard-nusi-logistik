@@ -215,14 +215,14 @@ export const sidebarData = {
   ],
   kerjaSama: [
     {
-      title: "Akun Kerja Sama",
+      title: "Customer Corporate",
       url: "/dashboard/kerja-sama/akun",
       icon: Handshake,
       matchPrefix: true,
       permission: "kerja-sama.accounts.view",
     },
     {
-      title: "Invoice Kerja Sama",
+      title: "Invoice Customer Corporate",
       url: "/dashboard/kerja-sama/invoices",
       icon: ReceiptText,
       matchPrefix: true,

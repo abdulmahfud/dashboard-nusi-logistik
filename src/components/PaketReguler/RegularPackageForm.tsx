@@ -1131,8 +1131,7 @@ export default function RegularPackageForm({
                   {!codEligible && (
                     <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
                       <p>
-                        COD belum bisa dipakai — {codLockedReason()} Tambahkan
-                        rekening bank dan tunggu persetujuan admin terlebih
+                        Fitur COD belum bisa di gunakan — {codLockedReason()} - Upload ktp dan rekening bank, Fitur COD bisa di gunakan setelah ktp dan rekening bank di setujui
                         dahulu.
                       </p>
                       <Link

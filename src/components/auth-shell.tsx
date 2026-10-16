@@ -40,16 +40,12 @@ export function AuthShell({ children }: { children: ReactNode }) {
                 priority
                 className="h-auto w-[200px]"
               />
-              <p className="mt-1 text-sm text-slate-500">
-                Agregator Pengiriman
-              </p>
             </div>
 
             <div className="space-y-4">
               <h1 className="text-4xl font-bold leading-tight tracking-tight text-slate-900 xl:text-5xl">
-                Kelola semua pengiriman
-                <br />
-                dalam <span className="text-blue-600">satu platform</span>
+                Pilih. Kirim.
+                 <span className="text-blue-600">Selesai.</span>
               </h1>
               <p className="max-w-lg text-base text-slate-600">
                 Integrasikan berbagai ekspedisi, bandingkan ongkir, lacak paket,

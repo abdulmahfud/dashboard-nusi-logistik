@@ -80,7 +80,7 @@ export function SectionCardsReguler({
         <InlineStat
           icon={Box}
           tone="slate"
-          label="Total Paket"
+          label="Belum Proses"
           value={stats.totalPaket}
           loading={loading}
         />
