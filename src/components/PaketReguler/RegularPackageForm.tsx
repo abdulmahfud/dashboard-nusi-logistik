@@ -1095,9 +1095,8 @@ export default function RegularPackageForm({
                   <div className="text-sm text-slate-500">
                     Bayar barang + ongkir ditempat
                   </div>
-                  {!codEligible && (
-                    <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
-                      
+                  {/* {!codEligible && (
+                    <div className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">                      
                       <Link
                         href="/dashboard/akun/rekening"
                         className="mt-1 inline-flex items-center font-medium text-blue-600 underline hover:text-blue-700"
@@ -1106,7 +1105,7 @@ export default function RegularPackageForm({
                         Kelola rekening bank →
                       </Link>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </label>
 
