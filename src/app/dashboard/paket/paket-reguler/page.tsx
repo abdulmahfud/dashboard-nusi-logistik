@@ -167,8 +167,8 @@ const PaketReguler = () => {
             description="Kirim paket ke seluruh Indonesia dengan mudah dan aman."
           />
 
-          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-10">
-            <div className="min-w-0 lg:col-span-7">
+          <div className="flex flex-col gap-6">
+            <div className="min-w-0">
               <RegularPackageForm
                 key={formResetKey}
                 onResult={handleCalculationResult}
@@ -177,7 +177,7 @@ const PaketReguler = () => {
               />
             </div>
 
-            <div className="min-w-0 space-y-6 lg:col-span-3">
+            <div className="min-w-0 space-y-6">
               <SectionCard icon={Truck} title="Pilihan Layanan">
                 <Tabs
                   value={activeCategory}
