@@ -169,7 +169,7 @@ export default function KerjaSamaAkunDetailPage() {
       const res = await getKerjaSamaAccount(userId);
       setAccount(res.data);
     } catch (err) {
-      setError(getErrorMessage(err, "Gagal memuat detail akun kerja sama."));
+      setError(getErrorMessage(err, "Gagal memuat detail customer corporate."));
     } finally {
       setLoading(false);
     }
@@ -401,13 +401,13 @@ export default function KerjaSamaAkunDetailPage() {
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
               {
-                label: "Akun Kerja Sama",
+                label: "customer corporate",
                 href: "/dashboard/kerja-sama/akun",
               },
               { label: account?.company_name || account?.name || "Detail" },
             ]}
             back={{ href: "/dashboard/kerja-sama/akun" }}
-            title={account?.company_name || account?.name || "Akun Kerja Sama"}
+            title={account?.company_name || account?.name || "Customer Corporate"}
             description={account?.email}
           />
 
@@ -766,7 +766,7 @@ export default function KerjaSamaAkunDetailPage() {
                 <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
                   <span>
                     Akun ini masih terdaftar sebagai <strong>Personal</strong>.
-                    Akun kerja sama personal baru sudah tidak bisa dibuat lagi
+                    Akun customer corporate baru sudah tidak bisa dibuat lagi
                     — upgrade ke Corporate untuk melanjutkan kerja sama dengan
                     akun ini.
                   </span>

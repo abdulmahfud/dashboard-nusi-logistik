@@ -208,7 +208,7 @@ export default function KerjaSamaInvoicesPage() {
 
   const submitGenerate = async () => {
     if (!selectedAccount) {
-      toast.error("Pilih akun kerja sama terlebih dahulu.");
+      toast.error("Pilih customer corporate terlebih dahulu.");
       return;
     }
     setGenSaving(true);
@@ -481,7 +481,7 @@ export default function KerjaSamaInvoicesPage() {
             <div className="space-y-3">
               <div className="relative" ref={accountInputRef}>
                 <Label htmlFor="account-search">
-                  Akun Kerja Sama <span className="text-red-500">*</span>
+                  Customer Corporate <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative mt-1">
                   <Input

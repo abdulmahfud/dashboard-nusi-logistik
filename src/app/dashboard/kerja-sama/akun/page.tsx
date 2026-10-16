@@ -84,7 +84,7 @@ export default function KerjaSamaAkunPage() {
           err instanceof AxiosError
             ? (err.response?.data as { message?: string })?.message
             : undefined;
-        setError(msg || "Gagal memuat daftar akun kerja sama.");
+        setError(msg || "Gagal memuat daftar customer corporate.");
         setRows([]);
       } finally {
         setLoading(false);
@@ -144,10 +144,10 @@ export default function KerjaSamaAkunPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Akun Kerja Sama" },
+              { label: "Customer Corporate" },
             ]}
             icon={Handshake}
-            title="Akun Kerja Sama"
+            title="customer corporate"
             description="Kelola akun postpaid (bayar via invoice bulanan berdasarkan limit kredit)."
             action={
               hasPermission("kerja-sama.accounts.create") ? (
@@ -159,7 +159,7 @@ export default function KerjaSamaAkunPage() {
                   }
                 >
                   <Plus className="h-4 w-4" aria-hidden />
-                  Aktifkan Akun Kerja Sama
+                  Aktifkan customer corporate
                 </Button>
               ) : undefined
             }
@@ -240,7 +240,7 @@ export default function KerjaSamaAkunPage() {
               </div>
             ) : rows.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-500">
-                Belum ada akun kerja sama.
+                Belum ada customer corporate.
               </p>
             ) : (
               <div className="space-y-4">

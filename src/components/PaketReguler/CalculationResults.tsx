@@ -1649,7 +1649,7 @@ export default function CalculationResults({
                 <div className="flex items-center gap-2 text-white">
                   <Handshake className="h-5 w-5" />
                   <h3 className="text-base font-semibold">
-                    Akun Kerja Sama (Corporate)
+                    Customer Corporate
                   </h3>
                 </div>
               </div>
@@ -1707,7 +1707,7 @@ export default function CalculationResults({
 
                 {user?.credit && user.credit.kerja_sama_is_active === false && (
                   <div className="rounded-md bg-red-50 p-3 text-xs text-red-800">
-                    Akun kerja sama Anda sedang nonaktif — order tidak bisa
+                    Customer corporate Anda sedang nonaktif — order tidak bisa
                     diproses lewat limit kredit sampai diaktifkan kembali oleh
                     admin.
                   </div>

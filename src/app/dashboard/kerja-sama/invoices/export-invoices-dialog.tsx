@@ -198,7 +198,7 @@ export default function ExportInvoicesDialog({
           ) : (
             <div className="relative">
               <Input
-                placeholder="Cari akun kerja sama, kosong = semua akun"
+                placeholder="Cari customer corporate, kosong = semua akun"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoComplete="off"

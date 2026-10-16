@@ -203,7 +203,7 @@ export default function CreateKerjaSamaAkunPage() {
     setSubmitting(true);
     try {
       await createKerjaSamaAccount(payload);
-      toast.success("Akun kerja sama berhasil diaktifkan.");
+      toast.success("Customer corporate berhasil diaktifkan.");
       router.push(`/dashboard/kerja-sama/akun/${selectedUser.id}`);
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data) {
@@ -216,10 +216,10 @@ export default function CreateKerjaSamaAkunPage() {
             .flat()
             .forEach((msg) => toast.error(msg));
         } else {
-          toast.error(data.message || "Gagal mengaktifkan akun kerja sama.");
+          toast.error(data.message || "Gagal mengaktifkan customer corporate.");
         }
       } else {
-        toast.error("Gagal mengaktifkan akun kerja sama.");
+        toast.error("Gagal mengaktifkan customer corporate.");
       }
     } finally {
       setSubmitting(false);
@@ -244,11 +244,11 @@ export default function CreateKerjaSamaAkunPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Akun Kerja Sama", href: "/dashboard/kerja-sama/akun" },
-              { label: "Aktifkan Akun" },
+              { label: "Customer Corporate", href: "/dashboard/kerja-sama/akun" },
+              { label: "Aktifkan Customer Corporate" },
             ]}
             back={{ href: "/dashboard/kerja-sama/akun" }}
-            title="Aktifkan Akun Kerja Sama"
+            title="Aktifkan Customer Corporate"
             description="Data & limit yang sudah disepakati di luar sistem (offline). Begitu disimpan, akun langsung aktif — tidak ada status pending."
           />
 

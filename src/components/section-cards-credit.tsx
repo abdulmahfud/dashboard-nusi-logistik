@@ -47,7 +47,7 @@ export function SectionCardsCredit({ user }: { user: UserData }) {
       {!user.credit.kerja_sama_is_active && (
         <div className="mx-2 mb-4 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-800">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          Akun kerja sama sedang nonaktif — order baru tidak bisa dibuat lewat
+          Customer corporate sedang nonaktif — order baru tidak bisa dibuat lewat
           limit kredit sampai diaktifkan kembali oleh admin.
         </div>
       )}

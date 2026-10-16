@@ -696,7 +696,7 @@ export default function PembayaranPaketPage() {
             title="Pembayaran Paket"
             description={
               isCorporate
-                ? "Periksa ulang paket sebelum diproses ke ekspedisi — ongkir dibebankan ke limit kredit akun kerja sama Anda."
+                ? "Periksa ulang paket sebelum diproses ke ekspedisi — ongkir dibebankan ke limit kredit customer corporate Anda."
                 : "Periksa ulang paket yang sudah dibuat sebelum diproses ke ekspedisi."
             }
             action={

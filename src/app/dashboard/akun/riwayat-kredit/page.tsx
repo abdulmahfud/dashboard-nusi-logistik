@@ -158,7 +158,7 @@ export default function RiwayatKreditSayaPage() {
             ]}
             icon={CreditCard}
             title="Riwayat Transaksi Kredit Saya"
-            description="Khusus akun kerja sama (corporate) — riwayat tagihan dan pembayaran yang memengaruhi limit kredit Anda."
+            description="Khusus customer corporate (corporate) — riwayat tagihan dan pembayaran yang memengaruhi limit kredit Anda."
             action={
               <div className="flex flex-wrap items-center gap-2">
                 <Button
