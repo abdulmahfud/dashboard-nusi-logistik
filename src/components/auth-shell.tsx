@@ -45,7 +45,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
             <div className="space-y-4">
               <h1 className="text-4xl font-bold leading-tight tracking-tight text-slate-900 xl:text-5xl">
                 Pilih. Kirim. 
-                 <span className="text-blue-600">Selesai.</span>
+                 <span className="text-blue-600"> Selesai.</span>
               </h1>
               <p className="max-w-lg text-base text-slate-600">
                 Integrasikan berbagai ekspedisi, bandingkan ongkir, lacak paket,
