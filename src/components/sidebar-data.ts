@@ -112,6 +112,8 @@ export const sidebarData = {
       url: "/dashboard/akun/riwayat-kredit",
       icon: CreditCard,
       permission: "users.index",
+      // Riwayat kredit kerja sama cuma relevan untuk akun corporate.
+      requiresAccountType: "corporate" as const,
     },
   ],
   sendPackage: [

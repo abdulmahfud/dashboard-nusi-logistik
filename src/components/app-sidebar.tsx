@@ -31,7 +31,7 @@ import Link from "next/link";
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { hasPermission, loading: authLoading } = useAuth();
+  const { hasPermission, loading: authLoading, user } = useAuth();
   const pathname = usePathname();
 
   /** Agar item menu aktif (biasanya di bawah) langsung terlihat di area scroll sidebar */
@@ -84,7 +84,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const filteredAccount = filterSidebarByPermission(
     sidebarData.account,
     hasPermission,
-    authLoading
+    authLoading,
+    user?.account_type
   );
   const filteredKerjaSama = filterSidebarByPermission(
     sidebarData.kerjaSama,
