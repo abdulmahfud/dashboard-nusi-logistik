@@ -12,7 +12,6 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Loader2, Package, ShieldCheck, Truck } from "lucide-react";
 import RegularPackageForm from "../../../../components/PaketReguler/RegularPackageForm";
 import CalculationResults, {
-  SERVICE_CATEGORY_UNGROUPED,
   type ServiceCategory,
 } from "@/components/PaketReguler/CalculationResults";
 import { getExpeditionGroups } from "@/lib/apiClient";
@@ -203,13 +202,6 @@ const PaketReguler = () => {
                         {group.name}
                       </TabsTrigger>
                     ))}
-                    {/* Fallback untuk vendor yang belum/tidak lagi punya grup (lihat docs/be-fe/expedition-groups.md §4) */}
-                    <TabsTrigger
-                      value={SERVICE_CATEGORY_UNGROUPED}
-                      className="h-full flex-1 rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-none"
-                    >
-                      Lainnya
-                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
 
