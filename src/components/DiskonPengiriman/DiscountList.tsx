@@ -47,6 +47,8 @@ const headCls = "h-11 text-xs font-semibold text-slate-500";
 interface DiscountListProps {
   discounts: ExpeditionDiscount[];
   isLoading: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
   onEdit: (discount: ExpeditionDiscount) => void;
   onDelete: (id: number) => Promise<void>;
   onToggleStatus: (id: number) => Promise<void>;
@@ -57,6 +59,8 @@ interface DiscountListProps {
 export function DiscountList({
   discounts,
   isLoading,
+  canUpdate,
+  canDelete,
   onEdit,
   onDelete,
   onToggleStatus,
@@ -250,62 +254,68 @@ export function DiscountList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => onEdit(discount)}
-                        disabled={
-                          deletingId === discount.id ||
-                          togglingId === discount.id
-                        }
-                      >
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleToggleStatus(discount.id)}
-                        disabled={
-                          deletingId === discount.id ||
-                          togglingId === discount.id
-                        }
-                      >
-                        {togglingId === discount.id ? (
-                          <>
-                            <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                            {discount.is_active
-                              ? "Menonaktifkan..."
-                              : "Mengaktifkan..."}
-                          </>
-                        ) : discount.is_active ? (
-                          <>
-                            <PowerOff className="mr-2 h-4 w-4" />
-                            Nonaktifkan
-                          </>
-                        ) : (
-                          <>
-                            <Power className="mr-2 h-4 w-4" />
-                            Aktifkan
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(discount)}
-                        className="text-red-600"
-                        disabled={
-                          deletingId === discount.id ||
-                          togglingId === discount.id
-                        }
-                      >
-                        {deletingId === discount.id ? (
-                          <>
-                            <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                            Menghapus...
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Hapus
-                          </>
-                        )}
-                      </DropdownMenuItem>
+                      {canUpdate && (
+                        <DropdownMenuItem
+                          onClick={() => onEdit(discount)}
+                          disabled={
+                            deletingId === discount.id ||
+                            togglingId === discount.id
+                          }
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {canUpdate && (
+                        <DropdownMenuItem
+                          onClick={() => handleToggleStatus(discount.id)}
+                          disabled={
+                            deletingId === discount.id ||
+                            togglingId === discount.id
+                          }
+                        >
+                          {togglingId === discount.id ? (
+                            <>
+                              <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                              {discount.is_active
+                                ? "Menonaktifkan..."
+                                : "Mengaktifkan..."}
+                            </>
+                          ) : discount.is_active ? (
+                            <>
+                              <PowerOff className="mr-2 h-4 w-4" />
+                              Nonaktifkan
+                            </>
+                          ) : (
+                            <>
+                              <Power className="mr-2 h-4 w-4" />
+                              Aktifkan
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      )}
+                      {canDelete && (
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteClick(discount)}
+                          className="text-red-600"
+                          disabled={
+                            deletingId === discount.id ||
+                            togglingId === discount.id
+                          }
+                        >
+                          {deletingId === discount.id ? (
+                            <>
+                              <div className="mr-2 h-4 w-4 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                              Menghapus...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Hapus
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

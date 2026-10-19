@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -7,8 +10,36 @@ import TopNav from "@/components/top-nav";
 import { DiscountManagement } from "@/components/DiskonPengiriman/DiscountManagement";
 import { PageHeader } from "@/components/redesign/page-header";
 import { BadgePercent } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function DiskonPengirimanPage() {
+  const { hasPermission, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !hasPermission("discounts.view")) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, hasPermission, router]);
+
+  if (authLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat…</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
+  if (!hasPermission("discounts.view")) {
+    return null;
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar variant="inset" />

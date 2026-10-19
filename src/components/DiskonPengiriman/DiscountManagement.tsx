@@ -38,6 +38,7 @@ import {
   fetchPricingEligibleVendors,
   type PricingVendorOption,
 } from "@/lib/pricingVendors";
+import { useAuth } from "@/context/AuthContext";
 
 const USER_TYPE_FILTERS = [
   { value: "all", label: "Semua Tipe Akun" },
@@ -55,6 +56,11 @@ interface DiscountStatistics {
 }
 
 export function DiscountManagement() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission("discounts.create");
+  const canUpdate = hasPermission("discounts.update");
+  const canDelete = hasPermission("discounts.delete");
+
   const [discounts, setDiscounts] = useState<ExpeditionDiscount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -385,13 +391,15 @@ export function DiscountManagement() {
             />
             Refresh
           </Button>
-          <Button
-            onClick={handleCreateDiscount}
-            className="h-11 gap-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            Tambah Diskon
-          </Button>
+          {canCreate && (
+            <Button
+              onClick={handleCreateDiscount}
+              className="h-11 gap-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              Tambah Diskon
+            </Button>
+          )}
         </div>
       </div>
 
@@ -411,10 +419,12 @@ export function DiscountManagement() {
         <DiscountList
           discounts={discounts}
           isLoading={isLoading}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
           onEdit={handleEditDiscount}
           onDelete={handleDeleteDiscount}
           onToggleStatus={handleToggleStatus}
-          onCreate={handleCreateDiscount}
+          onCreate={canCreate ? handleCreateDiscount : undefined}
         />
 
         {!isLoading && discounts.length > 0 && (
