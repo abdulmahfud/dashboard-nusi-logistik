@@ -43,9 +43,11 @@ import {
   Download,
   DollarSign,
   AlertTriangle,
+  Banknote,
   ExternalLink,
   Filter,
   Loader2,
+  Package,
   PackageCheck,
   Pencil,
   ReceiptText,
@@ -979,17 +981,19 @@ export default function PembayaranPaketPage() {
                   onValueChange={(v) => setPendingSubTab(v as PendingSubTab)}
                   className="mb-4"
                 >
-                  <TabsList className="h-11 w-full gap-2 bg-slate-100 p-1 sm:w-auto">
+                  <TabsList className="grid h-11 w-full grid-cols-2 gap-2 bg-slate-100 p-1">
                     <TabsTrigger
                       value="reguler"
-                      className="flex-1 rounded-lg px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+                      className="gap-1.5 rounded-lg text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
                     >
+                      <Package className="h-4 w-4" aria-hidden />
                       Reguler
                     </TabsTrigger>
                     <TabsTrigger
                       value="cod"
-                      className="flex-1 rounded-lg px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+                      className="gap-1.5 rounded-lg text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
                     >
+                      <Banknote className="h-4 w-4" aria-hidden />
                       COD
                     </TabsTrigger>
                   </TabsList>
