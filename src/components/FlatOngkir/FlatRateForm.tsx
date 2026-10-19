@@ -214,11 +214,20 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
               disabled={loadingVendors}
             >
               <SelectTrigger id="vendor" className={fieldCls}>
+                {/* SelectValue cuma resolve label otomatis dari SelectItem
+                    yang sudah pernah mount (dropdown dibuka) - value yang
+                    diisi lewat kode (edit) sebelum itu jadi tidak kelihatan
+                    labelnya walau value-nya benar. Kasih children eksplisit. */}
                 <SelectValue
                   placeholder={
                     loadingVendors ? "Memuat daftar vendor..." : "Pilih vendor"
                   }
-                />
+                >
+                  {formData.vendor === "all"
+                    ? "Semua Vendor"
+                    : vendorOptions.find((v) => v.value === formData.vendor)
+                        ?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Vendor</SelectItem>

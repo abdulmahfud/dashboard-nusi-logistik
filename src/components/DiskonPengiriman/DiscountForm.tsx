@@ -310,13 +310,24 @@ export function DiscountForm({
                 id="vendor"
                 className={cn(fieldCls, errors.vendor && "border-red-500")}
               >
+                {/* SelectValue cuma bisa resolve label otomatis dari
+                    SelectItem yang sudah pernah mount di DOM (dropdown
+                    dibuka) - kalau value diisi lewat kode (edit) sebelum
+                    dropdown pernah dibuka, label-nya tidak pernah muncul
+                    walau value-nya benar. Kasih children eksplisit supaya
+                    tidak tergantung itemText registration itu. */}
                 <SelectValue
                   placeholder={
                     loadingVendors
                       ? "Memuat daftar vendor..."
                       : "Pilih vendor ekspedisi"
                   }
-                />
+                >
+                  {
+                    vendorOptions.find((v) => v.value === formData.vendor)
+                      ?.label
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {vendorOptions.map((vendor) => (
