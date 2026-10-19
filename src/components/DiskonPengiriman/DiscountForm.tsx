@@ -26,6 +26,22 @@ import { PRIORITY_OPTIONS, DEFAULT_PRIORITY } from "@/lib/priorityScale";
 import { getExpeditionDiscounts } from "@/lib/apiClient";
 import { toast } from "sonner";
 
+/**
+ * BE mengirim valid_from/valid_until sebagai ISO 8601 UTC (cast `datetime`
+ * di model, mis. "2026-09-28T10:56:00.000000Z") - <input type="datetime-local">
+ * cuma menerima "YYYY-MM-DDTHH:mm" tanpa timezone, jadi kalau dikirim mentah
+ * browser diam-diam menolaknya dan input kelihatan kosong meski datanya ada.
+ * Dikonversi ke jam lokal browser di sini supaya tampil dan tetap konsisten
+ * dengan apa yang tersimpan.
+ */
+function toDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 interface DiscountFormProps {
   discount?: ExpeditionDiscount | null;
   onSubmit: (data: ExpeditionDiscount) => void;
@@ -107,6 +123,14 @@ export function DiscountForm({
 
   useEffect(() => {
     if (discount) {
+      const validFrom = toDatetimeLocalValue(discount.valid_from);
+      const validUntil = toDatetimeLocalValue(discount.valid_until);
+      if ((discount.valid_from && !validFrom) || (discount.valid_until && !validUntil)) {
+        toast.error(
+          "Tanggal berlaku diskon ini gagal dibaca — periksa kembali sebelum menyimpan, atau isi ulang."
+        );
+      }
+
       setFormData({
         vendor: discount.vendor || "",
         discount_type: discount.discount_type,
@@ -116,8 +140,8 @@ export function DiscountForm({
           discount.maximum_discount_amount?.toString() || "",
         user_type: discount.user_type || "all",
         is_active: discount.is_active,
-        valid_from: discount.valid_from || "",
-        valid_until: discount.valid_until || "",
+        valid_from: validFrom,
+        valid_until: validUntil,
         description: discount.description || "",
         usage_limit: discount.usage_limit?.toString() || "",
         priority: discount.priority?.toString() || DEFAULT_PRIORITY,
@@ -214,7 +238,11 @@ export function DiscountForm({
       }
     } catch (error) {
       console.error("Gagal memeriksa duplikasi diskon:", error);
-      // Tidak blocking — kalau pengecekan gagal, biarkan submit lanjut dan BE yang validasi.
+      // Tidak blocking — kalau pengecekan gagal, biarkan submit lanjut dan BE
+      // yang validasi. Tetap diberi tahu lewat toast supaya tidak senyap.
+      toast.warning(
+        "Gagal memeriksa duplikasi diskon sebelum menyimpan — lanjut menyimpan, BE akan tetap memvalidasi."
+      );
     } finally {
       setSubmitting(false);
     }
