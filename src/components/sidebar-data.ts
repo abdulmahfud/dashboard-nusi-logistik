@@ -30,6 +30,7 @@ import {
   CreditCard,
   Download,
   Layers,
+  Newspaper,
 } from "lucide-react";
 
 /**
@@ -307,6 +308,18 @@ export const sidebarData = {
       url: "/dashboard/permissions",
       icon: ShieldUser,
       permission: "permissions.index",
+    },
+    {
+      title: "Artikel Blog",
+      url: "/dashboard/blog/artikel",
+      icon: Newspaper,
+      permission: "posts.index",
+    },
+    {
+      title: "Kategori Blog",
+      url: "/dashboard/blog/kategori",
+      icon: Tag,
+      permission: "categories.index",
     },
   ],
 };

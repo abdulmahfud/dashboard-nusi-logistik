@@ -108,6 +108,13 @@ import type {
 } from "@/types/expeditionGroup";
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
 import type {
+  PostCategoryListResponse,
+  PostCategoryAllResponse,
+  PostCategoryDetailResponse,
+  BlogPostListResponse,
+  BlogPostDetailResponse,
+} from "@/types/post";
+import type {
   KerjaSamaAccountListResponse,
   KerjaSamaAccountDetailResponse,
   CreateKerjaSamaAccountPayload,
@@ -1702,6 +1709,116 @@ export const resetDefaultExpeditionGroups =
     );
     return res.data;
   };
+
+// ===== Blog: Kategori Post — lihat docs/be-fe/feature-post-kategori-blog.md =====
+
+/** GET /admin/categories — categories.index (paginasi kecil, 5/halaman di BE). */
+export const getPostCategories = async (params?: {
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<PostCategoryListResponse> => {
+  const res = await apiClient.get<PostCategoryListResponse>(
+    "/admin/categories",
+    { params }
+  );
+  return res.data;
+};
+
+/** GET /admin/categories/all — tanpa paginasi, untuk dropdown form post. */
+export const getAllPostCategories =
+  async (): Promise<PostCategoryAllResponse> => {
+    const res = await apiClient.get<PostCategoryAllResponse>(
+      "/admin/categories/all"
+    );
+    return res.data;
+  };
+
+export const createPostCategory = async (
+  name: string
+): Promise<PostCategoryDetailResponse> => {
+  const res = await apiClient.post<PostCategoryDetailResponse>(
+    "/admin/categories",
+    { name }
+  );
+  return res.data;
+};
+
+export const updatePostCategory = async (
+  id: number,
+  name: string
+): Promise<PostCategoryDetailResponse> => {
+  const res = await apiClient.put<PostCategoryDetailResponse>(
+    `/admin/categories/${id}`,
+    { name }
+  );
+  return res.data;
+};
+
+export const deletePostCategory = async (
+  id: number
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await apiClient.delete(`/admin/categories/${id}`);
+  return res.data;
+};
+
+// ===== Blog: Post =====
+
+/** GET /admin/posts — posts.index (semua post, bukan cuma milik sendiri). */
+export const getBlogPosts = async (params?: {
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<BlogPostListResponse> => {
+  const res = await apiClient.get<BlogPostListResponse>("/admin/posts", {
+    params,
+  });
+  return res.data;
+};
+
+export const getBlogPost = async (
+  id: number
+): Promise<BlogPostDetailResponse> => {
+  const res = await apiClient.get<BlogPostDetailResponse>(
+    `/admin/posts/${id}`
+  );
+  return res.data;
+};
+
+/** POST /admin/posts — multipart: title, category_id, content, image (wajib). */
+export const createBlogPost = async (
+  formData: FormData
+): Promise<BlogPostDetailResponse> => {
+  const res = await apiClient.post<BlogPostDetailResponse>(
+    "/admin/posts",
+    formData
+  );
+  return res.data;
+};
+
+/**
+ * PUT /admin/posts/{id} — multipart: title, category_id, content, image
+ * (opsional). Dikirim sebagai POST + field `_method=PUT` (method-spoofing
+ * Laravel) karena PHP tidak mem-parse file dari request PUT multipart asli.
+ */
+export const updateBlogPost = async (
+  id: number,
+  formData: FormData
+): Promise<BlogPostDetailResponse> => {
+  formData.append("_method", "PUT");
+  const res = await apiClient.post<BlogPostDetailResponse>(
+    `/admin/posts/${id}`,
+    formData
+  );
+  return res.data;
+};
+
+export const deleteBlogPost = async (
+  id: number
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await apiClient.delete(`/admin/posts/${id}`);
+  return res.data;
+};
 
 // ✅ Get available discounts for expedition
 export const getAvailableDiscounts = async (params: {
