@@ -832,8 +832,17 @@ export const getOrdersPage = async (params: {
   sort?: "asc" | "desc";
   /** "reguler" | "cod" | "cargo" — difilter di BE, lihat OrderController::index(). */
   service_type?: string;
+  /**
+   * Filter murni `cod_value` (independen dari `service_type`, yang juga
+   * mengecualikan vendor cargo) — dipakai tab Reguler/COD di Pembayaran
+   * Paket supaya order cargo non-COD tidak ikut hilang dari kedua tab.
+   */
+  cod?: boolean;
 }): Promise<OrderListResponse> => {
-  const res = await apiClient.get("/admin/list-orders", { params });
+  const { cod, ...rest } = params;
+  const res = await apiClient.get("/admin/list-orders", {
+    params: { ...rest, ...(cod !== undefined ? { cod: cod ? "1" : "0" } : {}) },
+  });
   return res.data;
 };
 

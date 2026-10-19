@@ -83,6 +83,7 @@ import { getDetail } from "@/components/PembayaranPaket/orderDetail";
 type AppliedRange = { start?: string; end?: string };
 
 type PageTab = "belum_diproses" | "sudah_dibayar";
+type PendingSubTab = "reguler" | "cod";
 type SortDir = "asc" | "desc";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -181,7 +182,9 @@ function OrderRow({
           {variant === "pending" ? (
             <StatusBadge
               status="pending"
-              label={isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"}
+              label={
+                isCod || isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"
+              }
             />
           ) : (
             <StatusBadge status="success" label="Sudah Dibayar" />
@@ -321,6 +324,12 @@ export default function PembayaranPaketPage() {
 
   const [activeTab, setActiveTab] = useState<PageTab>("belum_diproses");
 
+  // Sub-tab di dalam "Belum Diproses": COD tidak pernah butuh pembayaran
+  // (ongkir+barang ditagih tunai ke penerima) - dipisah dari Reguler supaya
+  // user tidak bisa memilih order reguler dan COD sekaligus dalam satu
+  // seleksi (keduanya butuh aksi & endpoint yang berbeda).
+  const [pendingSubTab, setPendingSubTab] = useState<PendingSubTab>("reguler");
+
   // Tab "Belum Diproses"
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   /** Pilihan lintas halaman, disimpan lengkap agar total tetap benar saat ganti halaman. */
@@ -367,12 +376,19 @@ export default function PembayaranPaketPage() {
       appliedVendor !== "all"
   );
 
+  // Order COD (personal maupun corporate) selalu berstatus belum_proses
+  // (lihat resolvePaymentPlan() di BE - COD selalu menang atas isPostpaid()),
+  // jadi tab COD query-nya beda dari tab Reguler khusus untuk personal.
+  const effectivePendingStatus: OrderStatusFilter =
+    pendingSubTab === "cod" ? "belum_proses" : pendingStatus;
+
   const fetchPendingOrders = useCallback(async () => {
     try {
       setLoading(true);
-      // Filter status dilakukan BE; tanggal hanya dikirim jika dipilih eksplisit.
+      // Filter status/cod dilakukan BE; tanggal hanya dikirim jika dipilih eksplisit.
       const response = await getOrdersPage({
-        status: pendingStatus,
+        status: effectivePendingStatus,
+        cod: pendingSubTab === "cod",
         start_date: appliedRange.start,
         end_date: appliedRange.end,
         search: appliedSearch || undefined,
@@ -400,7 +416,8 @@ export default function PembayaranPaketPage() {
       setLoading(false);
     }
   }, [
-    pendingStatus,
+    effectivePendingStatus,
+    pendingSubTab,
     appliedRange,
     appliedSearch,
     appliedVendor,
@@ -467,11 +484,14 @@ export default function PembayaranPaketPage() {
     if (activeTab === "sudah_dibayar") void fetchPaidOrders();
   }, [activeTab, fetchPaidOrders]);
 
-  // Ganti tipe akun (jarang, tapi jaga-jaga) atau pindah tab pending:
-  // reset pilihan supaya tidak menyimpan order dari status yang berbeda.
+  // Ganti tipe akun (jarang, tapi jaga-jaga) atau pindah sub-tab Reguler/COD:
+  // reset pilihan & halaman supaya tidak menyimpan order dari kombinasi
+  // status/cod yang berbeda (corporate: kedua sub-tab sama-sama belum_proses,
+  // jadi harus di-key juga dari pendingSubTab, bukan cuma pendingStatus).
   useEffect(() => {
     setSelected({});
-  }, [pendingStatus]);
+    setPage(1);
+  }, [pendingStatus, pendingSubTab]);
 
   // Saldo wallet — hanya untuk personal (dipakai saat memilih metode bayar
   // "wallet" di sticky action bar).
@@ -550,6 +570,10 @@ export default function PembayaranPaketPage() {
 
   const getTotalAmount = () =>
     selectedOrders.reduce((sum, order) => sum + (order.payment_amount ?? 0), 0);
+
+  /** Total nilai COD yang akan ditagih tunai ke PENERIMA, bukan ke pengirim. */
+  const getTotalCodValue = () =>
+    selectedOrders.reduce((sum, order) => sum + (Number(order.cod_value) || 0), 0);
 
   const handleBulkPayment = async () => {
     if (selectedOrders.length === 0) {
@@ -923,9 +947,11 @@ export default function PembayaranPaketPage() {
               <SectionCard icon={ReceiptText} title="Belum Diproses">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-slate-500">
-                    {isCorporate
-                      ? "Order yang belum dikirim ke ekspedisi — pilih beberapa lalu proses sekaligus."
-                      : "Order yang belum dibayar — pilih beberapa lalu bayar sekaligus."}
+                    {pendingSubTab === "cod"
+                      ? "Order COD yang belum terkirim ke ekspedisi — tidak ada pembayaran, langsung diproses ke vendor."
+                      : isCorporate
+                        ? "Order yang belum dikirim ke ekspedisi — pilih beberapa lalu proses sekaligus."
+                        : "Order yang belum dibayar — pilih beberapa lalu bayar sekaligus."}
                   </p>
                   {payableOnPage.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -944,6 +970,30 @@ export default function PembayaranPaketPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Reguler tidak pernah butuh pembayaran COD dicampur jadi satu
+                    seleksi (beda endpoint/aksi) - dipisah di sini, tepat di
+                    atas tabel, bukan tombol yang berubah-ubah. */}
+                <Tabs
+                  value={pendingSubTab}
+                  onValueChange={(v) => setPendingSubTab(v as PendingSubTab)}
+                  className="mb-4"
+                >
+                  <TabsList className="h-11 w-full gap-2 bg-slate-100 p-1 sm:w-auto">
+                    <TabsTrigger
+                      value="reguler"
+                      className="flex-1 rounded-lg px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+                    >
+                      Reguler
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="cod"
+                      className="flex-1 rounded-lg px-4 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm sm:flex-none"
+                    >
+                      COD
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
 
                 {loading ? (
                   <div className="flex items-center justify-center py-16 text-slate-500">
@@ -966,16 +1016,20 @@ export default function PembayaranPaketPage() {
                     <p className="text-lg font-semibold text-slate-900">
                       {hasFilter
                         ? "Tidak ada order yang cocok dengan filter"
-                        : isCorporate
-                          ? "Tidak ada order yang menunggu diproses"
-                          : "Tidak ada order yang menunggu pembayaran"}
+                        : pendingSubTab === "cod"
+                          ? "Tidak ada order COD yang menunggu diproses"
+                          : isCorporate
+                            ? "Tidak ada order yang menunggu diproses"
+                            : "Tidak ada order yang menunggu pembayaran"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
                       {hasFilter
                         ? "Coba ubah atau reset filter."
-                        : isCorporate
-                          ? "Order non-COD yang baru dibuat akan muncul di sini."
-                          : "Order yang menunggu pembayaran akan muncul di sini."}
+                        : pendingSubTab === "cod"
+                          ? "Order COD yang sedang menunggu diproses ke ekspedisi akan muncul di sini."
+                          : isCorporate
+                            ? "Order non-COD yang baru dibuat akan muncul di sini."
+                            : "Order yang menunggu pembayaran akan muncul di sini."}
                     </p>
                     {hasFilter ? (
                       <Button
@@ -1060,7 +1114,7 @@ export default function PembayaranPaketPage() {
               {/* Payment / Process Action */}
               {selectedOrders.length > 0 && (
                 <div className="sticky bottom-4 z-20 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg shadow-blue-900/5 md:px-6">
-                  {!isCorporate && (
+                  {!isCorporate && pendingSubTab !== "cod" && (
                     <div className="flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:gap-3">
                       <span className="shrink-0 text-sm font-medium text-slate-700">
                         Metode Pembayaran:
@@ -1109,23 +1163,46 @@ export default function PembayaranPaketPage() {
                     </div>
                   )}
 
+                  {pendingSubTab === "cod" && (
+                    <p className="border-b border-slate-100 pb-4 text-xs text-slate-500">
+                      Tidak ada pembayaran di muka untuk COD — ongkir &amp;
+                      nilai barang ditagih tunai ke penerima saat pengiriman.
+                    </p>
+                  )}
+
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold text-slate-900">
-                        {isCorporate
-                          ? "Konfirmasi Proses ke Ekspedisi"
-                          : "Konfirmasi Pembayaran"}
+                        {pendingSubTab === "cod"
+                          ? "Konfirmasi Proses COD"
+                          : isCorporate
+                            ? "Konfirmasi Proses ke Ekspedisi"
+                            : "Konfirmasi Pembayaran"}
                       </h3>
                       <p className="text-sm text-slate-600">
-                        {selectedOrders.length} order dipilih - Total:{" "}
-                        <span className="font-semibold text-slate-900">
-                          {formatRupiah(getTotalAmount())}
-                        </span>
+                        {selectedOrders.length} order dipilih
+                        {pendingSubTab === "cod" ? (
+                          <>
+                            {" "}
+                            - Total COD ke penerima:{" "}
+                            <span className="font-semibold text-slate-900">
+                              {formatRupiah(getTotalCodValue())}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {" "}
+                            - Total:{" "}
+                            <span className="font-semibold text-slate-900">
+                              {formatRupiah(getTotalAmount())}
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
                     <Button
                       onClick={() =>
-                        void (isCorporate
+                        void (pendingSubTab === "cod" || isCorporate
                           ? handleBulkProcess()
                           : handleBulkPayment())
                       }
@@ -1135,7 +1212,14 @@ export default function PembayaranPaketPage() {
                       {actionLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          {isCorporate ? "Memproses..." : "Memproses Pembayaran..."}
+                          {pendingSubTab === "cod" || isCorporate
+                            ? "Memproses..."
+                            : "Memproses Pembayaran..."}
+                        </>
+                      ) : pendingSubTab === "cod" ? (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Proses COD
                         </>
                       ) : isCorporate ? (
                         <>
