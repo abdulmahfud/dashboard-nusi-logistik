@@ -43,30 +43,13 @@ import type { ExpeditionVendorSetting } from "@/types/expeditionVendorSettings";
 import type { ExpeditionGroup } from "@/types/expeditionGroup";
 import { formatDateIdLong } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { getVendorLogo } from "@/lib/vendorList";
 
 /** Value Select untuk "tanpa grup" — Radix Select tidak boleh value kosong. */
 const NO_GROUP = "__none__";
 
-/** Logo per vendor (kunci = `vendor` lowercase). Vendor tanpa logo memakai ikon truk. */
-const VENDOR_LOGO: Record<string, string> = {
-  anteraja: "/images/anteraja.png",
-  idexpress: "/images/idx.png",
-  jne: "/images/jne.png",
-  jntcargo: "/images/jnt-cargo.png",
-  jntexpress: "/images/jnt.png",
-  lion: "/images/lion.png",
-  ncs: "/images/ncs.png",
-  ninja: "/images/ninja.png",
-  ninjaexpress: "/images/ninja.png",
-  paxel: "/images/paxel.png",
-  posindonesia: "/images/pos-indonesia.png",
-  sap: "/images/sap-new.png",
-  sicepat: "/images/sicepat.png",
-  tiki: "/images/tiki.png",
-};
-
 function VendorCell({ vendor }: { vendor: string }) {
-  const logo = VENDOR_LOGO[vendor.trim().toLowerCase()];
+  const logo = getVendorLogo(vendor);
   return (
     <div className="flex items-center gap-3">
       {logo ? (

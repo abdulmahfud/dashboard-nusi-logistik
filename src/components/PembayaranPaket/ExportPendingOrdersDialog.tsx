@@ -28,7 +28,7 @@ import { AxiosError } from "axios";
 import { Download, Loader2 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
-import { VENDOR_OPTIONS } from "./vendorOptions";
+import { fetchAllVendors, type VendorOption } from "@/lib/vendorList";
 
 interface Props {
   open: boolean;
@@ -59,6 +59,17 @@ export default function ExportPendingOrdersDialog({
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [vendor, setVendor] = useState("all");
   const [exporting, setExporting] = useState(false);
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setVendorOptions(await fetchAllVendors());
+      } catch (error) {
+        console.error("Failed to fetch vendor options:", error);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -126,7 +137,7 @@ export default function ExportPendingOrdersDialog({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Ekspedisi</SelectItem>
-              {VENDOR_OPTIONS.map((o) => (
+              {vendorOptions.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {o.label}
                 </SelectItem>

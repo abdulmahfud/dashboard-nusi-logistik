@@ -73,9 +73,10 @@ import type { Order, OrderStatusFilter } from "@/types/laporanPengiriman";
 import EditOrderDialog from "@/components/PembayaranPaket/EditOrderDialog";
 import ExportPendingOrdersDialog from "@/components/PembayaranPaket/ExportPendingOrdersDialog";
 import {
-  VENDOR_OPTIONS,
+  fetchAllVendors,
   getVendorLogo,
-} from "@/components/PembayaranPaket/vendorOptions";
+  type VendorOption,
+} from "@/lib/vendorList";
 import { getDetail } from "@/components/PembayaranPaket/orderDetail";
 
 /** Filter tanggal yang sedang diterapkan (YYYY-MM-DD). */
@@ -357,6 +358,7 @@ export default function PembayaranPaketPage() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [vendorInput, setVendorInput] = useState("all");
   const [appliedVendor, setAppliedVendor] = useState("all");
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const hasFilter = Boolean(
     appliedRange.start ||
@@ -446,6 +448,16 @@ export default function PembayaranPaketPage() {
     paidPage,
     paidPerPage,
   ]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setVendorOptions(await fetchAllVendors());
+      } catch (error) {
+        console.error("Failed to fetch vendor options:", error);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (activeTab === "belum_diproses") void fetchPendingOrders();
@@ -829,7 +841,7 @@ export default function PembayaranPaketPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua Ekspedisi</SelectItem>
-                  {VENDOR_OPTIONS.map((o) => (
+                  {vendorOptions.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {o.label}
                     </SelectItem>

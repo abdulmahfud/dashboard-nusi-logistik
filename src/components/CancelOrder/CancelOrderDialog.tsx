@@ -56,25 +56,6 @@ export default function CancelOrderDialog({
       }
 
       const vendorLower = order.vendor.toLowerCase();
-      
-      // Supported vendors sesuai dokumentasi
-      const supportedVendors = [
-        "anteraja",
-        "jntexpress",
-        "paxel",
-        "posindonesia",
-        "jne",
-        "ninjaexpress",
-        "idexpress",
-        "jntcargo",
-        "gosend",
-        "lion",
-        "sap",
-      ];
-
-      if (!supportedVendors.includes(vendorLower)) {
-        throw new Error(`Vendor ${order.vendor} tidak didukung untuk cancel`);
-      }
 
       // Format standar sesuai dokumentasi: menggunakan awb_no untuk semua vendor
       const url = `/admin/expedition/${vendorLower}/cancel`;

@@ -27,20 +27,15 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getExpeditionVendorSettings, getOrdersPage } from "@/lib/apiClient";
+import { getOrdersPage } from "@/lib/apiClient";
 import { Order } from "@/types/laporanPengiriman";
 import {
   DateRangeField,
   toApiDate,
 } from "@/components/redesign/date-range-field";
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
-import { VENDOR_OPTIONS as VENDOR_LABEL_SOURCE } from "@/components/PembayaranPaket/vendorOptions";
+import { fetchAllVendors, type VendorOption } from "@/lib/vendorList";
 import CancelOrderDialog from "./CancelOrderDialog";
-
-/** Label ramah-baca per vendor key; daftar vendor itu sendiri selalu dari BE. */
-const VENDOR_LABELS: Record<string, string> = Object.fromEntries(
-  VENDOR_LABEL_SOURCE.map((o) => [o.value, o.label])
-);
 
 interface CancelOrderData {
   id: number;
@@ -56,21 +51,6 @@ interface CancelOrderData {
   receiver_name: string;
   created_at: string;
 }
-
-/** Vendor yang didukung pembatalan (sesuai dokumentasi API). */
-const SUPPORTED_VENDORS = [
-  "anteraja",
-  "jntexpress",
-  "paxel",
-  "posindonesia",
-  "jne",
-  "ninjaexpress",
-  "idexpress",
-  "jntcargo",
-  "gosend",
-  "lion",
-  "sap",
-];
 
 /** Batas aman saat mengambil semua order berstatus proses_pengiriman. */
 const FETCH_PAGE_SIZE = 100;
@@ -94,9 +74,7 @@ export default function CancelOrderTable() {
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [vendorFilter, setVendorFilter] = useState("all");
-  const [vendorOptions, setVendorOptions] = useState<
-    { value: string; label: string }[]
-  >([]);
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
   const [serviceFilter, setServiceFilter] = useState("all");
   const [range, setRange] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
@@ -175,15 +153,7 @@ export default function CancelOrderTable() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getExpeditionVendorSettings();
-        const rows = Array.isArray(res.data) ? res.data : [];
-        const opts = rows
-          .map((row) => {
-            const value = row.vendor.toLowerCase();
-            return { value, label: VENDOR_LABELS[value] ?? row.vendor };
-          })
-          .sort((a, b) => a.label.localeCompare(b.label));
-        setVendorOptions(opts);
+        setVendorOptions(await fetchAllVendors());
       } catch (error) {
         console.error("Error fetching vendor list:", error);
       }
@@ -377,9 +347,6 @@ export default function CancelOrderTable() {
                 </TableRow>
               ) : pageRows.length ? (
                 pageRows.map((row) => {
-                  const vendorLower = row.vendor.toLowerCase();
-                  const isCancelableVendor =
-                    SUPPORTED_VENDORS.includes(vendorLower);
                   const hasAwbNo = row.awb_no && row.awb_no.trim() !== "";
                   return (
                     <TableRow
@@ -435,13 +402,11 @@ export default function CancelOrderTable() {
                           variant="destructive"
                           size="sm"
                           onClick={() => handleCancelClick(row)}
-                          disabled={!isCancelableVendor || !hasAwbNo}
+                          disabled={!hasAwbNo}
                           className="h-9 gap-2 rounded-lg"
                           title={
                             !hasAwbNo
                               ? "AWB number tidak tersedia"
-                              : !isCancelableVendor
-                              ? `Vendor ${row.vendor} tidak didukung`
                               : "Batalkan pesanan"
                           }
                         >
