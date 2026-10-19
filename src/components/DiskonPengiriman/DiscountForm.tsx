@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,6 +120,27 @@ export function DiscountForm({
       .catch(() => toast.error("Gagal memuat daftar vendor"))
       .finally(() => setLoadingVendors(false));
   }, []);
+
+  // Diskon yang sudah ada bisa menyimpan vendor yang sekarang tidak lagi
+  // eligible_for_pricing_rules (mis. dinonaktifkan admin setelah diskon ini
+  // dibuat) — vendor itu tidak akan pernah muncul di fetchPricingEligibleVendors(),
+  // jadi dropdown terlihat kosong walau formData.vendor sudah benar. Tambahkan
+  // sebagai opsi tersendiri kalau itu terjadi, supaya edit tetap menampilkan
+  // vendor aslinya dan tidak memaksa user mengganti ke vendor lain.
+  const effectiveVendorOptions = useMemo(() => {
+    const currentVendor = discount?.vendor;
+    if (!currentVendor || vendorOptions.some((v) => v.value === currentVendor)) {
+      return vendorOptions;
+    }
+    return [
+      ...vendorOptions,
+      {
+        value: currentVendor,
+        label: `${currentVendor} (tidak lagi tersedia untuk diskon baru)`,
+        is_active: false,
+      },
+    ];
+  }, [vendorOptions, discount?.vendor]);
 
   useEffect(() => {
     if (discount) {
@@ -324,13 +345,14 @@ export function DiscountForm({
                   }
                 >
                   {
-                    vendorOptions.find((v) => v.value === formData.vendor)
-                      ?.label
+                    effectiveVendorOptions.find(
+                      (v) => v.value === formData.vendor
+                    )?.label
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {vendorOptions.map((vendor) => (
+                {effectiveVendorOptions.map((vendor) => (
                   <SelectItem key={vendor.value} value={vendor.value}>
                     {vendor.label}
                     {!vendor.is_active ? " (Nonaktif)" : ""}
