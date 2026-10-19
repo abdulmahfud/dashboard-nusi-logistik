@@ -108,6 +108,8 @@ type JntApiResult = {
     is_success?: string;
     message?: string;
   };
+  /** Sejajar dengan `data`, index-matched dengan array hasil parse `data.content`. */
+  shipping_costs_with_discount?: Array<Record<string, unknown>>;
 };
 
 type PaxelApiResult = {
@@ -370,33 +372,50 @@ export default function CalculationResults({
       const options: ShippingOption[] = [];
 
       // Process JNT results
+      // final_cost/flat_rate_applied/flat_rate_name TIDAK ada di data.content
+      // (tetap mentah, tidak pernah diubah BE) - ada di shipping_costs_with_discount,
+      // array terpisah sejajar dengan `data`, index-matched dengan hasil parse
+      // data.content. Sebelumnya field ini dibaca langsung dari item content
+      // (selalu undefined) dan price selalu dari item.cost mentah, jadi
+      // diskon/flat ongkir JNT Express tidak pernah ikut tampil. Lihat
+      // docs/be-fe/flat-ongkir-jawa-bali.md §2 untuk pola yang sama di JNE.
       if (combinedData.jnt && combinedData.jnt.status === "success") {
         const jntData = combinedData.jnt;
+        const jntDiscArr = jntData.shipping_costs_with_discount;
         if (jntData.data && typeof jntData.data.content === "string") {
           try {
             const contentArr = JSON.parse(jntData.data.content) as Array<{
               cost: string;
               name: string;
               productType: string;
-              flat_rate_applied?: boolean;
-              flat_rate_name?: string | null;
             }>;
 
             if (Array.isArray(contentArr) && contentArr.length > 0) {
               contentArr.forEach((item, index) => {
+                const discItem = Array.isArray(jntDiscArr)
+                  ? jntDiscArr[index]
+                  : undefined;
+                const priceValue =
+                  Number(discItem?.final_cost) || Number(item.cost) || 0;
+
                 options.push({
                   id: `jnt-${item.productType.toLowerCase()}`,
                   name: `J&T ${item.name}`,
                   logo: "/images/jnt.png",
-                  price: `Rp${Number(item.cost).toLocaleString("id-ID")}`,
+                  price: `Rp${priceValue.toLocaleString("id-ID")}`,
                   duration: "3-6 Hari",
                   available: true,
                   recommended: index === 0,
                   tags: [
                     { label: "Potensi retur Rendah", type: "success" as const },
                   ],
-                  flatRateApplied: item.flat_rate_applied,
-                  flatRateName: item.flat_rate_name,
+                  flatRateApplied: discItem?.flat_rate_applied as
+                    | boolean
+                    | undefined,
+                  flatRateName: discItem?.flat_rate_name as
+                    | string
+                    | null
+                    | undefined,
                 });
               });
             }
