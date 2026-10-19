@@ -13,6 +13,7 @@ import { SectionCard } from "@/components/redesign/section-card";
 import { StatusBadge } from "@/components/redesign/status-badge";
 import {
   ArrowLeft,
+  Building2,
   Edit,
   Landmark,
   Mail,
@@ -159,6 +160,41 @@ export default function UserProfilePage() {
             <div className="space-y-6">
               <SectionCard icon={UserCog} title="Status Akun">
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-600">
+                      Tipe Akun
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                        authUser?.account_type === "corporate"
+                          ? "bg-violet-50 text-violet-700"
+                          : "bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      {authUser?.account_type === "corporate" ? (
+                        <Building2 className="h-3.5 w-3.5" aria-hidden />
+                      ) : (
+                        <UserIcon className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      {authUser?.account_type === "corporate"
+                        ? "Corporate"
+                        : "Personal"}
+                    </span>
+                  </div>
+
+                  {authUser?.account_type === "corporate" && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-600">
+                        Mode Penagihan
+                      </span>
+                      <span className="text-sm text-slate-900">
+                        {authUser?.billing_mode === "postpaid"
+                          ? "Pascabayar (Kerja Sama)"
+                          : "Prabayar"}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-600">
                       Status Email
