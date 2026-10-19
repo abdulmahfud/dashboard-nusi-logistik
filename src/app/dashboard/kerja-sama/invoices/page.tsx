@@ -260,10 +260,10 @@ export default function KerjaSamaInvoicesPage() {
           <PageHeader
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
-              { label: "Invoice Kerja Sama" },
+              { label: "Invoice Customer Corporate" },
             ]}
             icon={ReceiptText}
-            title="Invoice Kerja Sama"
+            title="Invoice Customer Corporate"
             description="Tagihan bulanan untuk akun postpaid, dari transaksi confirmed yang belum ditagih."
             action={
               canGenerate || canExport ? (

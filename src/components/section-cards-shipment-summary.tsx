@@ -39,7 +39,7 @@ const STATUS_META: Record<
     match: (s) => s === "sampai_tujuan",
   },
   belum: {
-    label: "Belum di Kurir",
+    label: "Belum Proses",
     color: "#ef4444",
     match: (s) => s === "belum_proses" || s === "belum_di_expedisi",
   },

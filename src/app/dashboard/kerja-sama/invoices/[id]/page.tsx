@@ -181,7 +181,7 @@ export default function KerjaSamaInvoiceDetailPage() {
             breadcrumb={[
               { label: "Beranda", href: "/dashboard" },
               {
-                label: "Invoice Kerja Sama",
+                label: "Invoice Customer Corporate",
                 href: "/dashboard/kerja-sama/invoices",
               },
               { label: invoice?.invoice_no || "Detail" },

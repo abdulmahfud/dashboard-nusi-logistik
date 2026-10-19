@@ -49,7 +49,7 @@ const STATUS_OPTIONS = [
   { value: "void", label: "Dibatalkan" },
 ];
 
-/** Export Invoice Kerja Sama (docs/be-fe/export-invoice-kerjasama.md). Tanggal = tanggal invoice dibuat. */
+/** Export Customer Corporate (docs/be-fe/export-customer-corporate.md). Tanggal = tanggal invoice dibuat. */
 export default function ExportInvoicesDialog({
   open,
   onOpenChange,
@@ -137,7 +137,7 @@ export default function ExportInvoicesDialog({
               <Download className="h-5 w-5" aria-hidden />
             </span>
             <div className="text-left">
-              <DialogTitle>Export Invoice Kerja Sama</DialogTitle>
+              <DialogTitle>Export Customer Corporate</DialogTitle>
               <DialogDescription>
                 Pilih status dan rentang tanggal invoice dibuat. Kosongkan untuk
                 semua invoice.

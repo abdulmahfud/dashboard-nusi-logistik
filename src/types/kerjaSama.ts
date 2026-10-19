@@ -1,4 +1,4 @@
-// Tipe untuk fitur Akun Kerja Sama (postpaid/kredit) & Invoice Kerja Sama
+// Tipe untuk fitur Akun Kerja Sama (postpaid/kredit) & Invoice Customer Corporate
 // Lihat docs/be-fe/kerja-sama-akun-invoice.md
 
 export type KerjaSamaAccountType = "personal" | "corporate";
