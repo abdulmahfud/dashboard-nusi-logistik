@@ -70,7 +70,7 @@ export function SectionCardsCod({
         <InlineStat
           icon={BookX}
           tone="blue"
-          label="Belum di Ekspedisi"
+          label="Belum Proses"
           value={stats.belumDiEkspedisi}
           loading={loading}
         />

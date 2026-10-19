@@ -22,6 +22,11 @@ export const metadata: Metadata = {
     "jasa ekspedisi murah",
     "pengiriman cepat seluruh Indonesia",
   ],
+  icons: {
+    icon: "/images/favicon.png",
+    shortcut: "/images/favicon.png",
+    apple: "/images/favicon.png",
+  },
   openGraph: {
     title:
       "Bhisakirim - Jasa Kirim Paket Multi Ekspedisi Murah Seluruh Indonesia",
