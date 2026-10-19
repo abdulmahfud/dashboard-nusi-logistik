@@ -55,7 +55,13 @@ const STATUS_META: Record<
   },
 };
 
-const LINE_KEYS: StatusKey[] = ["proses", "sampai", "belum"];
+const LINE_KEYS: StatusKey[] = [
+  "proses",
+  "sampai",
+  "belum",
+  "dibatalkan",
+  "retur",
+];
 
 type DailyPoint = { date: string; label: string } & Record<StatusKey, number>;
 
