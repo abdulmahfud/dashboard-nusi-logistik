@@ -25,6 +25,11 @@ export interface ShippingOption {
     insuranceTax: number;
     totalFee: number;
   };
+  /** Diskon (ExpeditionDiscount) sudah diterapkan BE pada `price` ini — selalu false kalau flatRateApplied true (tidak stacking). */
+  discountApplied?: boolean;
+  discountType?: "percentage" | "fixed_amount" | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
 }
 
 export const shippingOptions: ShippingOption[] = [

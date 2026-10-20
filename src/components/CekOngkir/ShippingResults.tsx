@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Clock, Tag, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { ShippingOption } from "@/lib/shipping-data";
-import { DiscountCalculation } from "@/types/discount";
-import { getAvailableDiscounts } from "@/lib/apiClient";
 import {
   buildPosIndonesiaShippingOptions,
   isPosIndonesiaApiSuccess,
@@ -34,6 +32,55 @@ interface ShippingResultsProps {
 }
 
 type ApiErrorResult = { error: true; message?: string };
+
+/**
+ * Shape seragam `discount_info` yang disisipkan tiap vendor di
+ * getShipmentCost() (lihat calculateDiscountedCost() di BE) - sudah final,
+ * dibaca langsung dari respons cek ongkir awal, BUKAN dihitung ulang lewat
+ * panggilan API terpisah. Sebelumnya file ini memanggil getAvailableDiscounts()
+ * lagi per opsi menggunakan `option.price` (yang sudah final_cost BE,
+ * sudah termasuk diskon) sebagai order_value - diskon yang sama ditemukan
+ * lagi dan diterapkan KEDUA KALINYA di atas harga yang sudah terdiskon
+ * (double-discount, mis. JNT EZ asli Rp18.000 -> BE diskon 50% jadi
+ * Rp9.000 -> FE diskon lagi 50% dari Rp9.000 jadi Rp4.500 yang salah).
+ */
+type DiscountInfoRaw = {
+  has_discount?: boolean;
+  discount_type?: string | null;
+  discount_value?: number | string | null;
+  discount_amount?: number | string | null;
+  original_price?: number | string | null;
+};
+
+/** Flat ongkir selalu menang mutlak atas diskon (tidak stacking) - lihat
+ * docs/be-fe/flat-ongkir-jawa-bali.md §2 - jadi badge diskon disembunyikan
+ * total kalau `flatRateApplied` true. */
+function extractDiscountFields(
+  discountInfo: DiscountInfoRaw | null | undefined,
+  flatRateApplied: boolean | undefined
+): Pick<
+  ShippingOption,
+  "discountApplied" | "discountType" | "discountValue" | "discountAmount"
+> & { originalPriceLabel?: string } {
+  if (flatRateApplied || !discountInfo?.has_discount) {
+    return {};
+  }
+  const discountValue = Number(discountInfo.discount_value) || 0;
+  const discountAmount = Number(discountInfo.discount_amount) || 0;
+  const originalPrice = Number(discountInfo.original_price) || 0;
+  return {
+    discountApplied: true,
+    discountType:
+      (discountInfo.discount_type as "percentage" | "fixed_amount" | null) ??
+      null,
+    discountValue,
+    discountAmount,
+    originalPriceLabel:
+      originalPrice > 0
+        ? `Rp${originalPrice.toLocaleString("id-ID")}`
+        : undefined,
+  };
+}
 
 type JntApiResult = {
   status: string;
@@ -106,6 +153,7 @@ type PaxelApiResult = {
       fixed_size: string;
       flat_rate_applied?: boolean;
       flat_rate_name?: string | null;
+      discount_info?: DiscountInfoRaw;
     };
   };
   shipping_costs_with_discount: Array<unknown>;
@@ -121,6 +169,7 @@ type LionApiResult = {
     message?: string;
     flat_rate_applied?: boolean;
     flat_rate_name?: string | null;
+    discount_info?: DiscountInfoRaw;
   };
 };
 
@@ -150,6 +199,7 @@ type SapApiResult = {
       markup_percentage: string;
       flat_rate_applied?: boolean;
       flat_rate_name?: string | null;
+      discount_info?: DiscountInfoRaw;
     }>;
   };
 };
@@ -245,7 +295,7 @@ type JneApiResult = {
     final_cost?: number;
     flat_rate_applied?: boolean;
     flat_rate_name?: string | null;
-    discount_info?: { final_cost?: number };
+    discount_info?: DiscountInfoRaw & { final_cost?: number };
   }>;
 };
 
@@ -300,6 +350,7 @@ type AnterajaApiResult = {
   cost?: number;
   flat_rate_applied?: boolean;
   flat_rate_name?: string | null;
+  discount_info?: DiscountInfoRaw;
   response?: {
     status: number;
     info: string;
@@ -328,6 +379,7 @@ type NinjaApiResult = {
     discount_amount: number;
     flat_rate_applied?: boolean;
     flat_rate_name?: string | null;
+    discount_info?: DiscountInfoRaw;
     vendor_response?: {
       data?: {
         total_fee: number;
@@ -353,6 +405,7 @@ type JntCargoServiceItem = {
   sla?: string;
   flat_rate_applied?: boolean;
   flat_rate_name?: string | null;
+  discount_info?: DiscountInfoRaw;
 };
 
 type JntCargoApiResult = {
@@ -399,14 +452,6 @@ export default function ShippingResults({
   const [sortBy, setSortBy] = useState<"cheapest" | "expensive">("cheapest");
   const [showAll, setShowAll] = useState(false);
 
-  // Discount states
-  const [discountInfo, setDiscountInfo] = useState<
-    Record<string, DiscountCalculation | null>
-  >({});
-  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState<
-    Record<string, boolean>
-  >({});
-
   // Build shippingOptions from API result if present
   const shippingOptions: ShippingOption[] = useMemo(() => {
     const apiResult = result as ApiResult;
@@ -438,17 +483,26 @@ export default function ShippingResults({
               item.final_cost ??
               item.discount_info?.final_cost ??
               Number(item.cost);
+            const discountFields = extractDiscountFields(
+              item.discount_info,
+              item.flat_rate_applied
+            );
             options.push({
               id: `jnt-${item.productType.toLowerCase()}`,
               name: `J&T ${item.name}`,
               logo: "/images/jnt.png",
               price: `Rp${priceValue.toLocaleString("id-ID")}`,
+              originalPrice: discountFields.originalPriceLabel,
               duration: "1-3 Hari",
               available: true,
               recommended: index === 0,
               tags: [{ label: "Potensi retur Rendah", type: "info" }],
               flatRateApplied: item.flat_rate_applied,
               flatRateName: item.flat_rate_name,
+              discountApplied: discountFields.discountApplied,
+              discountType: discountFields.discountType,
+              discountValue: discountFields.discountValue,
+              discountAmount: discountFields.discountAmount,
             });
           });
         }
@@ -492,17 +546,26 @@ export default function ShippingResults({
         if (paxelData) {
           // Only show fixed_price option for Paxel
           if (paxelData.fixed_price && paxelData.fixed_price > 0) {
+            const discountFields = extractDiscountFields(
+              paxelData.discount_info,
+              paxelData.flat_rate_applied
+            );
             options.push({
               id: "paxel-regular",
               name: "Paxel Express",
               logo: "/images/paxel.png",
               price: `Rp${paxelData.fixed_price.toLocaleString("id-ID")}`,
+              originalPrice: discountFields.originalPriceLabel,
               duration: "1-3 Hari",
               available: true,
               recommended: false,
               tags: [{ label: "Fast Delivery", type: "info" }],
               flatRateApplied: paxelData.flat_rate_applied,
               flatRateName: paxelData.flat_rate_name,
+              discountApplied: discountFields.discountApplied,
+              discountType: discountFields.discountType,
+              discountValue: discountFields.discountValue,
+              discountAmount: discountFields.discountAmount,
             });
           }
         }
@@ -515,18 +578,27 @@ export default function ShippingResults({
           const shippingCost = lionData.shipping_cost;
           const estimatedDays = lionData.estimated_days || 5;
           const productName = lionData.product || "REGPACK";
+          const discountFields = extractDiscountFields(
+            lionData.discount_info,
+            lionData.flat_rate_applied
+          );
 
           options.push({
             id: "lion-regular",
             name: `Lion Parcel ${productName}`,
             logo: "/images/lion.png",
             price: `Rp${shippingCost.toLocaleString("id-ID")}`,
+            originalPrice: discountFields.originalPriceLabel,
             duration: `${estimatedDays}-${estimatedDays + 2} Hari`,
             available: true,
             recommended: false,
             tags: [{ label: "Reliable Service", type: "info" }],
             flatRateApplied: lionData.flat_rate_applied,
             flatRateName: lionData.flat_rate_name,
+            discountApplied: discountFields.discountApplied,
+            discountType: discountFields.discountType,
+            discountValue: discountFields.discountValue,
+            discountAmount: discountFields.discountAmount,
           });
         }
       }
@@ -541,17 +613,26 @@ export default function ShippingResults({
         ) {
           sapData.services.forEach((service, index) => {
             if (service.total_cost && service.total_cost > 0) {
+              const discountFields = extractDiscountFields(
+                service.discount_info,
+                service.flat_rate_applied
+              );
               options.push({
                 id: `sap-${service.service_type_code.toLowerCase()}`,
                 name: `SAP ${service.service_type_name}`,
                 logo: "/images/sap-new.png",
                 price: `Rp${service.total_cost.toLocaleString("id-ID")}`,
+                originalPrice: discountFields.originalPriceLabel,
                 duration: service.sla || "2-4 Hari",
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "Pengiriman Cepat", type: "info" }],
                 flatRateApplied: service.flat_rate_applied,
                 flatRateName: service.flat_rate_name,
+                discountApplied: discountFields.discountApplied,
+                discountType: discountFields.discountType,
+                discountValue: discountFields.discountValue,
+                discountAmount: discountFields.discountAmount,
               });
             }
           });
@@ -579,6 +660,10 @@ export default function ShippingResults({
               : {}),
             flatRateApplied: pos.flatRateApplied,
             flatRateName: pos.flatRateName,
+            discountApplied: pos.discountApplied,
+            discountType: pos.discountType,
+            discountValue: pos.discountValue,
+            discountAmount: pos.discountAmount,
           });
         }
       }
@@ -606,18 +691,27 @@ export default function ShippingResults({
               const etdFrom = item.etd_from || "2";
               const etdThru = item.etd_thru || "3";
               const duration = `${etdFrom}-${etdThru} Hari`;
+              const discountFields = extractDiscountFields(
+                discItem?.discount_info,
+                discItem?.flat_rate_applied
+              );
 
               options.push({
                 id: `jne-${item.service_code.toLowerCase()}`,
                 name: `JNE ${item.service_display}`,
                 logo: "/images/jne.png",
                 price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                originalPrice: discountFields.originalPriceLabel,
                 duration: duration,
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "JNE Express", type: "info" }],
                 flatRateApplied: discItem?.flat_rate_applied,
                 flatRateName: discItem?.flat_rate_name,
+                discountApplied: discountFields.discountApplied,
+                discountType: discountFields.discountType,
+                discountValue: discountFields.discountValue,
+                discountAmount: discountFields.discountAmount,
               });
             }
           });
@@ -650,18 +744,27 @@ export default function ShippingResults({
               const minSla = item.min_sla ?? item.minSla ?? 1;
               const maxSla = item.max_sla ?? item.maxSla ?? 2;
               const duration = `${minSla}-${maxSla} Hari`;
+              const discountFields = extractDiscountFields(
+                item.discount_info,
+                item.flat_rate_applied
+              );
 
               options.push({
                 id: `idexpress-${item.service_code?.toLowerCase() ?? "regular"}`,
                 name: "ID Express",
                 logo: "/images/idx.png",
                 price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                originalPrice: discountFields.originalPriceLabel,
                 duration: duration,
                 available: true,
                 recommended: index === 0,
                 tags: [{ label: "ID Express", type: "info" }],
                 flatRateApplied: item.flat_rate_applied,
                 flatRateName: item.flat_rate_name,
+                discountApplied: discountFields.discountApplied,
+                discountType: discountFields.discountType,
+                discountValue: discountFields.discountValue,
+                discountAmount: discountFields.discountAmount,
               });
             }
           });
@@ -715,18 +818,27 @@ export default function ShippingResults({
         if (cost && cost > 0) {
           const etd = service?.etd || "5 - 9 Day";
           const productName = service?.product_name || "Anteraja Regular";
+          const discountFields = extractDiscountFields(
+            anterajaData.discount_info,
+            anterajaData.flat_rate_applied
+          );
 
           options.push({
             id: "anteraja-regular",
             name: productName,
             logo: "/images/anteraja.png",
             price: `Rp${cost.toLocaleString("id-ID")}`,
+            originalPrice: discountFields.originalPriceLabel,
             duration: etd,
             available: true,
             recommended: false,
             tags: [{ label: "Anteraja", type: "info" }],
             flatRateApplied: anterajaData.flat_rate_applied,
             flatRateName: anterajaData.flat_rate_name,
+            discountApplied: discountFields.discountApplied,
+            discountType: discountFields.discountType,
+            discountValue: discountFields.discountValue,
+            discountAmount: discountFields.discountAmount,
           });
         }
       }
@@ -735,17 +847,26 @@ export default function ShippingResults({
       if (combinedData.ninja && combinedData.ninja.status === "success") {
         const ninjaData = combinedData.ninja.data;
         if (ninjaData?.final_cost && ninjaData.final_cost > 0) {
+          const discountFields = extractDiscountFields(
+            ninjaData.discount_info,
+            ninjaData.flat_rate_applied
+          );
           options.push({
             id: "ninja-regular",
             name: "Ninja Express",
             logo: "/images/ninja.png",
             price: `Rp${ninjaData.final_cost.toLocaleString("id-ID")}`,
+            originalPrice: discountFields.originalPriceLabel,
             duration: "2-4 Hari",
             available: true,
             recommended: false,
             tags: [{ label: "Ninja Express", type: "info" }],
             flatRateApplied: ninjaData.flat_rate_applied,
             flatRateName: ninjaData.flat_rate_name,
+            discountApplied: discountFields.discountApplied,
+            discountType: discountFields.discountType,
+            discountValue: discountFields.discountValue,
+            discountAmount: discountFields.discountAmount,
           });
         }
       }
@@ -799,17 +920,27 @@ export default function ShippingResults({
           );
           if (!priceValue || priceValue <= 0) return;
 
+          const discountFields = extractDiscountFields(
+            service.discount_info,
+            service.flat_rate_applied
+          );
+
           options.push({
             id: serviceId,
             name: `J&T Cargo ${serviceLabel}`.trim(),
             logo: "/images/jnt-cargo.png",
             price: `Rp${priceValue.toLocaleString("id-ID")}`,
+            originalPrice: discountFields.originalPriceLabel,
             duration: service.sla || service.etd || "-",
             available: true,
             recommended: false,
             tags: [{ label: "J&T Cargo", type: "info" }],
             flatRateApplied: service.flat_rate_applied,
             flatRateName: service.flat_rate_name,
+            discountApplied: discountFields.discountApplied,
+            discountType: discountFields.discountType,
+            discountValue: discountFields.discountValue,
+            discountAmount: discountFields.discountAmount,
           });
         });
       }
@@ -878,86 +1009,6 @@ export default function ShippingResults({
     }
     return [];
   }, [result]);
-
-  // Function to fetch discount for a specific option
-  const fetchDiscountForOption = async (option: ShippingOption) => {
-    // Flat rate menang mutlak atas diskon — diskon diabaikan total kalau
-    // match flat rate, jadi tidak perlu dicek sama sekali.
-    // Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 & §3.
-    if (option.flatRateApplied) {
-      setDiscountInfo((prev) => ({ ...prev, [option.id]: null }));
-      return;
-    }
-    try {
-      setIsLoadingDiscounts((prev) => ({ ...prev, [option.id]: true }));
-
-      // Extract cost from price string
-      const shippingCost = parseInt(option.price.replace(/[^\d]/g, ""));
-
-      // Determine vendor based on option ID
-      let vendor = "JNTEXPRESS";
-      if (option.id.startsWith("paxel")) {
-        vendor = "PAXEL";
-      } else if (option.id.startsWith("lion")) {
-        vendor = "LION";
-      } else if (option.id.startsWith("sap")) {
-        vendor = "SAP";
-      } else if (option.id.startsWith("posindonesia")) {
-        vendor = "POSINDONESIA";
-      } else if (option.id.startsWith("jne")) {
-        vendor = "JNE";
-      } else if (option.id.startsWith("idexpress")) {
-        vendor = "IDEXPRESS";
-      } else if (option.id.startsWith("anteraja")) {
-        vendor = "ANTERAJA";
-      } else if (option.id.startsWith("ninja")) {
-        vendor = "NINJA";
-      } else if (option.id.startsWith("jntcargo")) {
-        vendor = "JNTCARGO";
-      }
-
-      // Get discount for the selected vendor
-      const discountResponse = await getAvailableDiscounts({
-        vendor: vendor,
-        order_value: shippingCost,
-      });
-
-      if (
-        discountResponse.status === "success" &&
-        discountResponse.data.best_discount
-      ) {
-        setDiscountInfo((prev) => ({
-          ...prev,
-          [option.id]: discountResponse.data
-            .best_discount as DiscountCalculation,
-        }));
-      } else {
-        setDiscountInfo((prev) => ({
-          ...prev,
-          [option.id]: null,
-        }));
-      }
-    } catch {
-      setDiscountInfo((prev) => ({
-        ...prev,
-        [option.id]: null,
-      }));
-    } finally {
-      setIsLoadingDiscounts((prev) => ({ ...prev, [option.id]: false }));
-    }
-  };
-
-  // Auto-fetch discounts when shipping options change
-  useEffect(() => {
-    if (shippingOptions.length > 0) {
-      // Fetch discounts for all options yang benar-benar tersedia
-      shippingOptions
-        .filter((option) => option.available !== false)
-        .forEach((option) => {
-          fetchDiscountForOption(option);
-        });
-    }
-  }, [shippingOptions]);
 
   function isApiErrorResult(obj: unknown): obj is ApiErrorResult {
     return (
@@ -1035,17 +1086,8 @@ export default function ShippingResults({
     return null;
   }
 
-  const formatRp = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
-
-  /** Harga akhir untuk pengurutan: harga setelah diskon bila ada. */
+  /** Harga akhir untuk pengurutan - `option.price` BE selalu final_cost (sudah termasuk diskon/flat ongkir). */
   const finalPrice = (option: ShippingOption): number => {
-    const disc = discountInfo[option.id];
-    if (disc?.has_discount) return disc.discounted_price;
     const n = parseInt(option.price.replace(/[^\d]/g, ""), 10);
     return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
   };
@@ -1100,8 +1142,6 @@ export default function ShippingResults({
           <TableBody>
             {visibleOptions.map((option) => {
               const unavailable = option.available === false;
-              const disc = discountInfo[option.id];
-              const loadingDisc = isLoadingDiscounts[option.id] || false;
               return (
                 <TableRow
                   key={option.id}
@@ -1175,28 +1215,25 @@ export default function ShippingResults({
                           </span>
                         </div>
                       </div>
-                    ) : loadingDisc ? (
-                      <div className="flex items-center gap-2">
-                        <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
-                        <span className="text-xs text-slate-500">
-                          Mengecek diskon...
-                        </span>
-                      </div>
-                    ) : disc?.has_discount ? (
+                    ) : option.discountApplied &&
+                      option.discountType &&
+                      option.discountValue != null ? (
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold text-blue-600">
-                            {formatRp(disc.discounted_price)}
+                            {option.price}
                           </span>
-                          <span className="text-xs text-slate-400 line-through">
-                            {formatRp(disc.original_price)}
-                          </span>
+                          {option.originalPrice && (
+                            <span className="text-xs text-slate-400 line-through">
+                              {option.originalPrice}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1">
                           <DiscountBadge
-                            discountType={disc.discount_type}
-                            discountValue={disc.discount_value}
-                            discountAmount={disc.discount_amount}
+                            discountType={option.discountType}
+                            discountValue={option.discountValue}
+                            discountAmount={option.discountAmount ?? 0}
                             showAmount={false}
                             className="text-xs"
                           />
