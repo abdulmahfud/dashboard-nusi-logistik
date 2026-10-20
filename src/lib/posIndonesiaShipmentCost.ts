@@ -33,6 +33,10 @@ export type PosIndonesiaMappedOption = {
   /** Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */
   flatRateApplied?: boolean;
   flatRateName?: string | null;
+  discountApplied?: boolean;
+  discountType?: "percentage" | "fixed_amount" | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
 };
 
 function extractFlatRateFields(row: Record<string, unknown>): {
@@ -44,6 +48,38 @@ function extractFlatRateFields(row: Record<string, unknown>): {
     flatRateApplied: true,
     flatRateName:
       typeof row.flat_rate_name === "string" ? row.flat_rate_name : null,
+  };
+}
+
+/** Sama seperti helper lain di CalculationResults.tsx - diduplikasi lokal di
+ * sini (bukan di-import) karena file ini berdiri sendiri tanpa ketergantungan
+ * ke komponen. Baca `discount_info` yang disisipkan BE di getShipmentCost(). */
+function extractDiscountFields(
+  row: Record<string, unknown>,
+  flatRateApplied: boolean | undefined
+): {
+  originalPrice?: string;
+  discountApplied?: boolean;
+  discountType?: "percentage" | "fixed_amount" | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
+} {
+  const discountInfo = row.discount_info as Record<string, unknown> | undefined;
+  if (flatRateApplied || !discountInfo || discountInfo.has_discount !== true) {
+    return {};
+  }
+  const originalPrice = Number(discountInfo.original_price) || 0;
+  return {
+    originalPrice:
+      originalPrice > 0
+        ? `Rp${originalPrice.toLocaleString("id-ID")}`
+        : undefined,
+    discountApplied: true,
+    discountType:
+      (discountInfo.discount_type as "percentage" | "fixed_amount" | null) ??
+      null,
+    discountValue: Number(discountInfo.discount_value) || null,
+    discountAmount: Number(discountInfo.discount_amount) || null,
   };
 }
 
@@ -195,24 +231,19 @@ function mapRowToOption(
   );
   if (!Number.isFinite(finalCost) || finalCost <= 0) return null;
 
-  const originalCost = Number(row.original_cost);
   const estimation = String(row.estimation ?? "2-4 Hari");
   const posting = extractPosIndonesiaPostingSnapshot(row);
   const flat = extractFlatRateFields(row);
+  const discount = extractDiscountFields(row, flat.flatRateApplied);
 
   return {
     id: `posindonesia-${serviceCode}`,
     name: POS_INDONESIA_DISPLAY_NAME,
     price: `Rp${finalCost.toLocaleString("id-ID")}`,
-    ...(!flat.flatRateApplied &&
-    Number.isFinite(originalCost) &&
-    originalCost > finalCost &&
-    row.discount_applied === true
-      ? { originalPrice: `Rp${originalCost.toLocaleString("id-ID")}` }
-      : {}),
     duration: estimation,
     ...(posting ? { posIndonesiaPosting: posting } : {}),
     ...flat,
+    ...discount,
   };
 }
 

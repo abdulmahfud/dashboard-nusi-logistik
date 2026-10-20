@@ -133,6 +133,11 @@ export interface ShippingOption {
   /** Harga ini hasil program Flat Ongkir (bukan hitungan vendor) — diskon diabaikan total kalau true. Lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */
   flatRateApplied?: boolean;
   flatRateName?: string | null;
+  /** Diskon (ExpeditionDiscount) sudah diterapkan BE pada `price` ini — selalu false kalau flatRateApplied true (tidak stacking). */
+  discountApplied?: boolean;
+  discountType?: "percentage" | "fixed_amount" | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
 }
 
 // Service types for tabs

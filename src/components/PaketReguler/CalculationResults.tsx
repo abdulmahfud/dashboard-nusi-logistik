@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ShippingOption } from "@/types/dataRegulerForm";
-import { DiscountCalculation } from "@/types/discount";
 import Image from "next/image";
 import {
   CirclePlus,
@@ -29,7 +28,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createOrder, getAvailableDiscounts } from "@/lib/apiClient";
+import { createOrder } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { DiscountBadge } from "@/components/ui/discount-badge";
 import { StatusBadge } from "@/components/redesign/status-badge";
@@ -128,6 +127,7 @@ type PaxelApiResult = {
       }>;
       flat_rate_applied?: boolean;
       flat_rate_name?: string | null;
+      discount_info?: DiscountInfoRaw | null;
     };
   };
   shipping_costs_with_discount?: Array<unknown>;
@@ -143,6 +143,7 @@ type LionApiResult = {
     message?: string;
     flat_rate_applied?: boolean;
     flat_rate_name?: string | null;
+    discount_info?: DiscountInfoRaw | null;
   };
 };
 
@@ -172,6 +173,7 @@ type JntCargoServiceItem = {
   sla?: string;
   flat_rate_applied?: boolean;
   flat_rate_name?: string | null;
+  discount_info?: DiscountInfoRaw | null;
 };
 
 type JntCargoApiResult = {
@@ -294,6 +296,53 @@ function resolveGroupEstimasi(
 
 type ApiResult = JntApiResult | PaxelApiResult | CombinedApiResult;
 
+/**
+ * Shape seragam `discount_info` yang sekarang disisipkan tiap vendor di
+ * getShipmentCost() (lihat calculateDiscountedCost() di BE) - sudah final,
+ * tidak perlu panggilan API terpisah lagi. Dibaca langsung dari respons cek
+ * ongkir awal, bukan dihitung ulang di FE (menghindari risiko double-count
+ * karena `price` tiap opsi sudah termasuk diskon ini).
+ */
+type DiscountInfoRaw = {
+  has_discount?: boolean;
+  discount_type?: "percentage" | "fixed_amount" | null;
+  discount_value?: number | string | null;
+  discount_amount?: number | string | null;
+  original_price?: number | string | null;
+};
+
+/**
+ * Field diskon untuk ditempel ke satu `ShippingOption`. Flat ongkir selalu
+ * menang mutlak atas diskon (tidak stacking) - lihat
+ * docs/be-fe/flat-ongkir-jawa-bali.md §2 - jadi badge diskon disembunyikan
+ * total kalau `flatRateApplied` true, walau `discount_info.has_discount`
+ * BE tetap true (dihitung independen dari flat rate).
+ */
+function extractDiscountFields(
+  discountInfo: DiscountInfoRaw | null | undefined,
+  flatRateApplied: boolean | undefined
+): Pick<
+  ShippingOption,
+  "discountApplied" | "discountType" | "discountValue" | "discountAmount"
+> & { originalPriceLabel?: string } {
+  if (flatRateApplied || !discountInfo?.has_discount) {
+    return {};
+  }
+  const discountValue = Number(discountInfo.discount_value) || 0;
+  const discountAmount = Number(discountInfo.discount_amount) || 0;
+  const originalPrice = Number(discountInfo.original_price) || 0;
+  return {
+    discountApplied: true,
+    discountType: discountInfo.discount_type ?? null,
+    discountValue,
+    discountAmount,
+    originalPriceLabel:
+      originalPrice > 0
+        ? `Rp${originalPrice.toLocaleString("id-ID")}`
+        : undefined,
+  };
+}
+
 export default function CalculationResults({
   isSearching,
   result,
@@ -325,11 +374,6 @@ export default function CalculationResults({
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Discount states
-  const [discountInfo, setDiscountInfo] = useState<DiscountCalculation | null>(
-    null
-  );
-  const [isLoadingDiscount, setIsLoadingDiscount] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   const { user } = useAuth();
@@ -345,7 +389,6 @@ export default function CalculationResults({
     // Reset all selection states when new data comes in
     setSelectedOption(null);
     setShowPaymentSection(false);
-    setDiscountInfo(null);
     setIsInsured(false);
     setOrderResult(null);
     setShowSuccessDialog(false);
@@ -397,25 +440,35 @@ export default function CalculationResults({
                   : undefined;
                 const priceValue =
                   Number(discItem?.final_cost) || Number(item.cost) || 0;
+                const flatRateApplied = discItem?.flat_rate_applied as
+                  | boolean
+                  | undefined;
+                const discountFields = extractDiscountFields(
+                  discItem?.discount_info as DiscountInfoRaw | undefined,
+                  flatRateApplied
+                );
 
                 options.push({
                   id: `jnt-${item.productType.toLowerCase()}`,
                   name: `J&T ${item.name}`,
                   logo: "/images/jnt.png",
                   price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                  originalPrice: discountFields.originalPriceLabel,
                   duration: "3-6 Hari",
                   available: true,
                   recommended: index === 0,
                   tags: [
                     { label: "Potensi retur Rendah", type: "success" as const },
                   ],
-                  flatRateApplied: discItem?.flat_rate_applied as
-                    | boolean
-                    | undefined,
+                  flatRateApplied,
                   flatRateName: discItem?.flat_rate_name as
                     | string
                     | null
                     | undefined,
+                  discountApplied: discountFields.discountApplied,
+                  discountType: discountFields.discountType,
+                  discountValue: discountFields.discountValue,
+                  discountAmount: discountFields.discountAmount,
                 });
               });
             }
@@ -439,6 +492,16 @@ export default function CalculationResults({
             flatRateApplied: paxelData.flat_rate_applied,
             flatRateName: paxelData.flat_rate_name,
           };
+          // Catatan: discount_info BE untuk Paxel sama seperti flat_rate_applied
+          // di atas - ada di tipe tapi BE menulisnya ke struktur respons yang
+          // tidak pernah dibaca di sini (bug lama yang sudah didokumentasikan,
+          // lihat komentar di atas). Tetap dibaca di sini demi konsistensi kode
+          // dengan vendor lain; akan otomatis berfungsi begitu bug BE-nya
+          // diperbaiki tanpa perlu ubah FE lagi.
+          const paxelDiscountFields = extractDiscountFields(
+            paxelData.discount_info,
+            paxelFlat.flatRateApplied
+          );
 
           // Add same-day service if available
           if (
@@ -456,6 +519,11 @@ export default function CalculationResults({
               recommended: true,
               tags: [{ label: "Same Day Delivery", type: "success" as const }],
               ...paxelFlat,
+              originalPrice: paxelDiscountFields.originalPriceLabel,
+              discountApplied: paxelDiscountFields.discountApplied,
+              discountType: paxelDiscountFields.discountType,
+              discountValue: paxelDiscountFields.discountValue,
+              discountAmount: paxelDiscountFields.discountAmount,
             });
           }
 
@@ -475,6 +543,11 @@ export default function CalculationResults({
               recommended: false,
               tags: [{ label: "Pengiriman Cepat", type: "success" as const }],
               ...paxelFlat,
+              originalPrice: paxelDiscountFields.originalPriceLabel,
+              discountApplied: paxelDiscountFields.discountApplied,
+              discountType: paxelDiscountFields.discountType,
+              discountValue: paxelDiscountFields.discountValue,
+              discountAmount: paxelDiscountFields.discountAmount,
             });
           }
 
@@ -495,6 +568,11 @@ export default function CalculationResults({
               recommended: true,
               tags: [{ label: "Fast Delivery", type: "success" as const }],
               ...paxelFlat,
+              originalPrice: paxelDiscountFields.originalPriceLabel,
+              discountApplied: paxelDiscountFields.discountApplied,
+              discountType: paxelDiscountFields.discountType,
+              discountValue: paxelDiscountFields.discountValue,
+              discountAmount: paxelDiscountFields.discountAmount,
             });
           }
         }
@@ -507,6 +585,10 @@ export default function CalculationResults({
           const shippingCost = lionData.shipping_cost;
           const estimatedDays = lionData.estimated_days || 5;
           const productName = lionData.product || "REGPACK";
+          const lionDiscountFields = extractDiscountFields(
+            lionData.discount_info,
+            lionData.flat_rate_applied
+          );
 
           options.push({
             id: "lion-regular",
@@ -522,6 +604,11 @@ export default function CalculationResults({
             ],
             flatRateApplied: lionData.flat_rate_applied,
             flatRateName: lionData.flat_rate_name,
+            originalPrice: lionDiscountFields.originalPriceLabel,
+            discountApplied: lionDiscountFields.discountApplied,
+            discountType: lionDiscountFields.discountType,
+            discountValue: lionDiscountFields.discountValue,
+            discountAmount: lionDiscountFields.discountAmount,
           });
         }
       }
@@ -537,24 +624,35 @@ export default function CalculationResults({
           sapData.services.forEach(
             (service: Record<string, unknown>, index: number) => {
               if (service.total_cost && Number(service.total_cost) > 0) {
+                const sapFlatRateApplied = service.flat_rate_applied as
+                  | boolean
+                  | undefined;
+                const sapDiscountFields = extractDiscountFields(
+                  service.discount_info as DiscountInfoRaw | undefined,
+                  sapFlatRateApplied
+                );
+
                 options.push({
                   id: `sap-${String(service.service_type_code || "regular").toLowerCase()}`,
                   name: `SAP ${String(service.service_type_name || "REGULER")}`,
                   logo: "/images/sap-new.png",
                   price: `Rp${Number(service.total_cost).toLocaleString("id-ID")}`,
+                  originalPrice: sapDiscountFields.originalPriceLabel,
                   duration: String(service.sla || "2-4 Hari"),
                   available: true,
                   recommended: index === 0,
                   tags: [
                     { label: "Pengiriman Cepat", type: "success" as const },
                   ],
-                  flatRateApplied: service.flat_rate_applied as
-                    | boolean
-                    | undefined,
+                  flatRateApplied: sapFlatRateApplied,
                   flatRateName: service.flat_rate_name as
                     | string
                     | null
                     | undefined,
+                  discountApplied: sapDiscountFields.discountApplied,
+                  discountType: sapDiscountFields.discountType,
+                  discountValue: sapDiscountFields.discountValue,
+                  discountAmount: sapDiscountFields.discountAmount,
                 });
               }
             }
@@ -641,23 +739,33 @@ export default function CalculationResults({
                 const etdFrom = String(item.etd_from || "2");
                 const etdThru = String(item.etd_thru || "3");
                 const duration = `${etdFrom}-${etdThru} Hari`;
+                const jneFlatRateApplied = discItem?.flat_rate_applied as
+                  | boolean
+                  | undefined;
+                const jneDiscountFields = extractDiscountFields(
+                  discItem?.discount_info as DiscountInfoRaw | undefined,
+                  jneFlatRateApplied
+                );
 
                 options.push({
                   id: `jne-${String(item.service_code || "regular").toLowerCase()}`,
                   name: `JNE ${String(item.service_display || "REG")}`,
                   logo: "/images/jne.png",
                   price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                  originalPrice: jneDiscountFields.originalPriceLabel,
                   duration: duration,
                   available: true,
                   recommended: index === 0,
                   tags: [{ label: "JNE Express", type: "info" as const }],
-                  flatRateApplied: discItem?.flat_rate_applied as
-                    | boolean
-                    | undefined,
+                  flatRateApplied: jneFlatRateApplied,
                   flatRateName: discItem?.flat_rate_name as
                     | string
                     | null
                     | undefined,
+                  discountApplied: jneDiscountFields.discountApplied,
+                  discountType: jneDiscountFields.discountType,
+                  discountValue: jneDiscountFields.discountValue,
+                  discountAmount: jneDiscountFields.discountAmount,
                 });
               }
             }
@@ -693,23 +801,33 @@ export default function CalculationResults({
                 const minSla = Number(item.min_sla || item.minSla || 1);
                 const maxSla = Number(item.max_sla || item.maxSla || 2);
                 const duration = `${minSla}-${maxSla} Hari`;
+                const idexpressFlatRateApplied = item.flat_rate_applied as
+                  | boolean
+                  | undefined;
+                const idexpressDiscountFields = extractDiscountFields(
+                  item.discount_info as DiscountInfoRaw | undefined,
+                  idexpressFlatRateApplied
+                );
 
                 options.push({
                   id: `idexpress-${String(item.service_code || "regular").toLowerCase()}`,
                   name: "ID Express",
                   logo: "/images/idx.png",
                   price: `Rp${priceValue.toLocaleString("id-ID")}`,
+                  originalPrice: idexpressDiscountFields.originalPriceLabel,
                   duration: duration,
                   available: true,
                   recommended: index === 0,
                   tags: [{ label: "ID Express", type: "info" as const }],
-                  flatRateApplied: item.flat_rate_applied as
-                    | boolean
-                    | undefined,
+                  flatRateApplied: idexpressFlatRateApplied,
                   flatRateName: item.flat_rate_name as
                     | string
                     | null
                     | undefined,
+                  discountApplied: idexpressDiscountFields.discountApplied,
+                  discountType: idexpressDiscountFields.discountType,
+                  discountValue: idexpressDiscountFields.discountValue,
+                  discountAmount: idexpressDiscountFields.discountAmount,
                 });
               }
             }
@@ -780,22 +898,33 @@ export default function CalculationResults({
             service?.product_name || "Anteraja Regular"
           );
 
+          const anterajaFlatRateApplied = anterajaData.flat_rate_applied as
+            | boolean
+            | undefined;
+          const anterajaDiscountFields = extractDiscountFields(
+            anterajaData.discount_info as DiscountInfoRaw | undefined,
+            anterajaFlatRateApplied
+          );
+
           options.push({
             id: "anteraja-regular",
             name: productName,
             logo: "/images/anteraja.png",
             price: `Rp${cost.toLocaleString("id-ID")}`,
+            originalPrice: anterajaDiscountFields.originalPriceLabel,
             duration: etd,
             available: true,
             recommended: false,
             tags: [{ label: "Anteraja", type: "info" as const }],
-            flatRateApplied: anterajaData.flat_rate_applied as
-              | boolean
-              | undefined,
+            flatRateApplied: anterajaFlatRateApplied,
             flatRateName: anterajaData.flat_rate_name as
               | string
               | null
               | undefined,
+            discountApplied: anterajaDiscountFields.discountApplied,
+            discountType: anterajaDiscountFields.discountType,
+            discountValue: anterajaDiscountFields.discountValue,
+            discountAmount: anterajaDiscountFields.discountAmount,
           });
         }
       }
@@ -804,22 +933,33 @@ export default function CalculationResults({
       if (combinedData.ninja && combinedData.ninja.status === "success") {
         const ninjaData = combinedData.ninja.data as Record<string, unknown>;
         if (ninjaData?.final_cost && Number(ninjaData.final_cost) > 0) {
+          const ninjaFlatRateApplied = ninjaData.flat_rate_applied as
+            | boolean
+            | undefined;
+          const ninjaDiscountFields = extractDiscountFields(
+            ninjaData.discount_info as DiscountInfoRaw | undefined,
+            ninjaFlatRateApplied
+          );
+
           options.push({
             id: "ninja-regular",
             name: "Ninja Express",
             logo: "/images/ninja.png",
             price: `Rp${Number(ninjaData.final_cost).toLocaleString("id-ID")}`,
+            originalPrice: ninjaDiscountFields.originalPriceLabel,
             duration: "2-4 Hari",
             available: true,
             recommended: false,
             tags: [{ label: "Ninja Express", type: "info" as const }],
-            flatRateApplied: ninjaData.flat_rate_applied as
-              | boolean
-              | undefined,
+            flatRateApplied: ninjaFlatRateApplied,
             flatRateName: ninjaData.flat_rate_name as
               | string
               | null
               | undefined,
+            discountApplied: ninjaDiscountFields.discountApplied,
+            discountType: ninjaDiscountFields.discountType,
+            discountValue: ninjaDiscountFields.discountValue,
+            discountAmount: ninjaDiscountFields.discountAmount,
           });
         }
       }
@@ -852,17 +992,27 @@ export default function CalculationResults({
           );
           if (!priceValue || priceValue <= 0) return;
 
+          const jntCargoDiscountFields = extractDiscountFields(
+            service.discount_info,
+            service.flat_rate_applied
+          );
+
           options.push({
             id: serviceId,
             name: `J&T Cargo ${serviceLabel}`.trim(),
             logo: "/images/jnt-cargo.png",
             price: `Rp${priceValue.toLocaleString("id-ID")}`,
+            originalPrice: jntCargoDiscountFields.originalPriceLabel,
             duration: service.sla || service.etd || "-",
             available: true,
             recommended: false,
             tags: [{ label: "J&T Cargo", type: "info" as const }],
             flatRateApplied: service.flat_rate_applied,
             flatRateName: service.flat_rate_name,
+            discountApplied: jntCargoDiscountFields.discountApplied,
+            discountType: jntCargoDiscountFields.discountType,
+            discountValue: jntCargoDiscountFields.discountValue,
+            discountAmount: jntCargoDiscountFields.discountAmount,
           });
         });
       }
@@ -922,19 +1072,20 @@ export default function CalculationResults({
         );
 
   // Laporkan layanan terpilih (nama + ongkir, sudah memperhitungkan diskon
-  // kalau ada) ke parent — dipakai kartu "Ringkasan Pengiriman" di halaman.
+  // kalau ada — `price` BE selalu final_cost, sudah termasuk diskon/flat
+  // ongkir) ke parent — dipakai kartu "Ringkasan Pengiriman" di halaman.
   useEffect(() => {
     if (!onSelectedOptionChange) return;
     if (!selectedShippingOption) {
       onSelectedOptionChange(null);
       return;
     }
-    const price = discountInfo?.has_discount
-      ? `Rp${discountInfo.discounted_price.toLocaleString("id-ID")}`
-      : selectedShippingOption.price;
-    onSelectedOptionChange({ name: selectedShippingOption.name, price });
+    onSelectedOptionChange({
+      name: selectedShippingOption.name,
+      price: selectedShippingOption.price,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedShippingOption, discountInfo]);
+  }, [selectedShippingOption]);
 
   function isApiErrorResult(obj: unknown): obj is ApiErrorResult {
     return (
@@ -1041,88 +1192,17 @@ export default function CalculationResults({
       return;
     }
 
-    // Reset discount info first
-    setDiscountInfo(null);
-
-    // Set new selection
     setSelectedOption(optionId);
     setShowPaymentSection(true);
-
-    // Calculate discount when shipping option is selected
-    calculateDiscount(optionId);
-  };
-
-  // Function to calculate discount for selected shipping option
-  const calculateDiscount = async (optionId: string) => {
-    const option = shippingOptions.find((opt) => opt.id === optionId);
-    if (!option) return;
-
-    // Flat rate menang mutlak atas diskon — diabaikan total kalau match
-    // flat rate, jadi tidak perlu dicek. Lihat
-    // docs/be-fe/flat-ongkir-jawa-bali.md §2 & §3.
-    if (option.flatRateApplied) {
-      setDiscountInfo(null);
-      return;
-    }
-
-    try {
-      setIsLoadingDiscount(true);
-
-      // Extract cost from price string
-      const shippingCost = parseInt(option.price.replace(/[^\d]/g, ""));
-
-      // Determine vendor based on option ID - support all vendors
-      let vendor = "JNTEXPRESS";
-      if (optionId.startsWith("paxel")) {
-        vendor = "PAXEL";
-      } else if (optionId.startsWith("lion")) {
-        vendor = "LION";
-      } else if (optionId.startsWith("sap")) {
-        vendor = "SAP";
-      } else if (optionId.startsWith("posindonesia")) {
-        vendor = "POSINDONESIA";
-      } else if (optionId.startsWith("jne")) {
-        vendor = "JNE";
-      } else if (optionId.startsWith("idexpress")) {
-        vendor = "IDEXPRESS";
-      } else if (optionId.startsWith("anteraja")) {
-        vendor = "ANTERAJA";
-      } else if (optionId.startsWith("ninja")) {
-        vendor = "NINJA";
-      }
-
-      // Get discount for the selected vendor
-      // Don't send service_type to match discounts with null service_type (applies to all services)
-      const discountParams = {
-        vendor: vendor,
-        order_value: shippingCost,
-      };
-
-      const discountResponse = await getAvailableDiscounts(discountParams);
-
-      if (
-        discountResponse.status === "success" &&
-        discountResponse.data.best_discount
-      ) {
-        setDiscountInfo(discountResponse.data.best_discount);
-      } else {
-        setDiscountInfo(null);
-      }
-    } catch (error) {
-      console.error("Error fetching discount:", error);
-      setDiscountInfo(null);
-    } finally {
-      setIsLoadingDiscount(false);
-    }
   };
 
   const calculateTotal = () => {
     if (!selectedShippingOption) return 0;
 
-    // Use discounted price if available, otherwise use original price
-    const shippingCost = discountInfo?.has_discount
-      ? discountInfo.discounted_price
-      : parseInt(selectedShippingOption.price.replace(/[^\d]/g, ""));
+    // `price` BE selalu final_cost (sudah termasuk diskon/flat ongkir).
+    const shippingCost = parseInt(
+      selectedShippingOption.price.replace(/[^\d]/g, "")
+    );
 
     const itemValue = parseInt(formData?.itemValue || "0");
     const isCOD = formData?.paymentMethod === "cod";
@@ -1532,35 +1612,17 @@ export default function CalculationResults({
                     {option.name}
                   </h3>
                   <div className="flex items-center space-x-2">
-                    {/* Show discounted price if available and this option is selected */}
-                    {selectedOption === option.id &&
-                    discountInfo?.has_discount ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-lg font-bold text-green-600">
-                          Rp{" "}
-                          {discountInfo.discounted_price.toLocaleString(
-                            "id-ID"
-                          )}
-                        </span>
-                        <span className="text-sm text-gray-500 line-through">
-                          Rp{" "}
-                          {discountInfo.original_price.toLocaleString("id-ID")}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-lg font-bold text-gray-900">
-                        {option.price}
+                    {/* `option.price` selalu final_cost BE (sudah termasuk
+                        diskon/flat ongkir) - tidak lagi tergantung seleksi,
+                        jadi harga coret tampil langsung di semua opsi. */}
+                    <span className="text-lg font-bold text-gray-900">
+                      {option.price}
+                    </span>
+                    {option.originalPrice && (
+                      <span className="text-sm text-gray-500 line-through">
+                        {option.originalPrice}
                       </span>
                     )}
-                    {option.originalPrice &&
-                      !(
-                        selectedOption === option.id &&
-                        discountInfo?.has_discount
-                      ) && (
-                        <span className="text-sm text-gray-500 line-through">
-                          {option.originalPrice}
-                        </span>
-                      )}
                   </div>
 
                   {/* Flat ongkir menang mutlak atas diskon — lihat docs/be-fe/flat-ongkir-jawa-bali.md §2 */}
@@ -1574,29 +1636,22 @@ export default function CalculationResults({
                     </div>
                   )}
 
-                  {/* Show discount badge if available and this option is selected */}
-                  {selectedOption === option.id &&
-                    discountInfo?.has_discount && (
+                  {/* Badge diskon tampil di semua opsi (bukan cuma yang
+                      dipilih) - dibaca langsung dari respons cek ongkir awal,
+                      tidak ada panggilan API terpisah lagi. */}
+                  {option.discountApplied &&
+                    option.discountType &&
+                    option.discountValue != null && (
                       <div className="mt-1">
                         <DiscountBadge
-                          discountType={discountInfo.discount_type}
-                          discountValue={discountInfo.discount_value}
-                          discountAmount={discountInfo.discount_amount}
+                          discountType={option.discountType}
+                          discountValue={option.discountValue}
+                          discountAmount={option.discountAmount ?? 0}
                           showAmount={true}
                           className="text-xs"
                         />
                       </div>
                     )}
-
-                  {/* Show loading discount indicator */}
-                  {selectedOption === option.id && isLoadingDiscount && (
-                    <div className="mt-1 flex items-center space-x-1">
-                      <Tag className="h-3 w-3 animate-pulse text-gray-400" />
-                      <span className="text-xs text-gray-500">
-                        Mengecek diskon...
-                      </span>
-                    </div>
-                  )}
                   {option.tags && option.tags.length > 0 && (
                     <div className="flex space-x-1 mt-1">
                       {option.tags.map((tag, index) => (
@@ -1763,18 +1818,16 @@ export default function CalculationResults({
                     )}
                   </span>
                   <div className="text-right">
-                    {discountInfo?.has_discount ? (
+                    {selectedShippingOption.discountApplied ? (
                       <div className="space-y-1">
                         <div className="font-medium text-green-600">
-                          Rp{" "}
-                          {discountInfo.discounted_price.toLocaleString(
-                            "id-ID"
-                          )}
+                          {selectedShippingOption.price}
                         </div>
-                        <div className="text-xs text-gray-500 line-through">
-                          Rp{" "}
-                          {discountInfo.original_price.toLocaleString("id-ID")}
-                        </div>
+                        {selectedShippingOption.originalPrice && (
+                          <div className="text-xs text-gray-500 line-through">
+                            {selectedShippingOption.originalPrice}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="font-medium">
@@ -1785,11 +1838,14 @@ export default function CalculationResults({
                 </div>
 
                 {/* Show discount savings */}
-                {discountInfo?.has_discount && (
+                {selectedShippingOption.discountApplied && (
                   <div className="flex justify-between text-green-600">
                     <span className="text-sm">Hemat Diskon</span>
                     <span className="font-medium text-sm">
-                      -Rp {discountInfo.discount_amount.toLocaleString("id-ID")}
+                      -Rp{" "}
+                      {(
+                        selectedShippingOption.discountAmount ?? 0
+                      ).toLocaleString("id-ID")}
                     </span>
                   </div>
                 )}
