@@ -290,7 +290,12 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
               onValueChange={(value) => handleInputChange("priority", value)}
             >
               <SelectTrigger id="priority" className={fieldCls}>
-                <SelectValue />
+                <SelectValue>
+                  {
+                    PRIORITY_OPTIONS.find((opt) => opt.value === formData.priority)
+                      ?.label
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {PRIORITY_OPTIONS.map((opt) => (
@@ -315,7 +320,9 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
               onValueChange={(value) => handleInputChange("user_type", value)}
             >
               <SelectTrigger id="user_type" className={fieldCls}>
-                <SelectValue placeholder="Pilih tipe akun" />
+                <SelectValue placeholder="Pilih tipe akun">
+                  {USER_TYPES.find((t) => t.value === formData.user_type)?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {USER_TYPES.map((type) => (

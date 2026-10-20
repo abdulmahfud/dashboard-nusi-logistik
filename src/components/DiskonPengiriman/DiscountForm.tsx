@@ -374,7 +374,15 @@ export function DiscountForm({
               }
             >
               <SelectTrigger id="discount_type" className={fieldCls}>
-                <SelectValue />
+                {/* SelectValue cuma resolve label otomatis dari SelectItem yang
+                    sudah pernah mount (dropdown dibuka) - value yang diisi
+                    lewat kode (edit) sebelum itu tidak pernah dapat label.
+                    Sama seperti field Vendor/Tipe Akun/Prioritas di bawah. */}
+                <SelectValue>
+                  {formData.discount_type === "percentage"
+                    ? "Persentase (%)"
+                    : "Nilai Tetap (Rp)"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="percentage">Persentase (%)</SelectItem>
@@ -482,7 +490,9 @@ export function DiscountForm({
               onValueChange={(value) => handleInputChange("user_type", value)}
             >
               <SelectTrigger id="user_type" className={fieldCls}>
-                <SelectValue placeholder="Pilih tipe akun" />
+                <SelectValue placeholder="Pilih tipe akun">
+                  {USER_TYPES.find((t) => t.value === formData.user_type)?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {USER_TYPES.map((type) => (
@@ -505,7 +515,12 @@ export function DiscountForm({
               onValueChange={(value) => handleInputChange("priority", value)}
             >
               <SelectTrigger id="priority" className={fieldCls}>
-                <SelectValue />
+                <SelectValue>
+                  {
+                    PRIORITY_OPTIONS.find((opt) => opt.value === formData.priority)
+                      ?.label
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {PRIORITY_OPTIONS.map((opt) => (
