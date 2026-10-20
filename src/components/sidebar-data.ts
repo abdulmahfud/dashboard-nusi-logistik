@@ -205,6 +205,8 @@ export const sidebarData = {
       url: "/dashboard/laporan/ringkasan-pengiriman",
       icon: Activity,
       permission: "users.index",
+      // Section Kredit Kerja Sama di halaman ini cuma relevan untuk akun corporate.
+      requiresAccountType: "corporate" as const,
     },
   ],
   downloadReport: [

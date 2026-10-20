@@ -73,6 +73,15 @@ export default function RingkasanPengirimanPage() {
   // Yang boleh melihat semua akun boleh membatasi export ke satu akun.
   const canPickAccount = hasPermission("orders.view_all");
 
+  // Halaman ini khusus akun corporate (section Kredit Kerja Sama tidak
+  // relevan untuk personal) - lihat juga requiresAccountType di sidebar-data.ts
+  // yang menyembunyikan link-nya dari sidebar untuk personal.
+  useEffect(() => {
+    if (!authLoading && user && user.account_type !== "corporate") {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, user, router]);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -165,6 +174,10 @@ export default function RingkasanPengirimanPage() {
         </SidebarInset>
       </SidebarProvider>
     );
+  }
+
+  if (user && user.account_type !== "corporate") {
+    return null;
   }
 
   return (
