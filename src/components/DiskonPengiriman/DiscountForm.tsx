@@ -152,7 +152,7 @@ export function DiscountForm({
         );
       }
 
-      setFormData({
+      const nextFormData = {
         vendor: discount.vendor || "",
         discount_type: discount.discount_type,
         discount_value: discount.discount_value.toString(),
@@ -166,7 +166,23 @@ export function DiscountForm({
         description: discount.description || "",
         usage_limit: discount.usage_limit?.toString() || "",
         priority: discount.priority?.toString() || DEFAULT_PRIORITY,
-      });
+      };
+
+      // Radix Select merender hidden native <select> (form-compat) tiap kali
+      // Select ada di dalam <form> - lihat SelectBubbleInput di
+      // @radix-ui/react-select. Komponen itu sync value terkontrol ke native
+      // select via effect sendiri, TAPI <option>-nya baru ter-registrasi
+      // belakangan (SelectContent me-mount SelectItem lewat DocumentFragment
+      // dua render-cycle setelah mount awal). Kalau value diisi (vendor/
+      // prioritas/tipe akun/jenis diskon) SEBELUM <option> itu registrasi,
+      // assignment native-nya gagal diam-diam, Radix deteksi value "berubah
+      // jadi kosong" dari situ, lalu onValueChange("") kepanggil dan
+      // menimpa balik state kita ke "" satu render setelahnya - persis pola
+      // yang kelihatan di log (vendor benar, lalu kosong lagi). setTimeout
+      // menunda commit ini sampai lewat tick itu supaya <option>-nya sudah
+      // ter-registrasi duluan.
+      const timer = setTimeout(() => setFormData(nextFormData), 0);
+      return () => clearTimeout(timer);
     }
   }, [discount]);
 

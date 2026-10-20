@@ -86,7 +86,7 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
 
   useEffect(() => {
     if (rate) {
-      setFormData({
+      const nextFormData = {
         name: rate.name || "",
         vendor: rate.vendor || "all",
         user_type: rate.user_type || "all",
@@ -100,8 +100,18 @@ export function FlatRateForm({ rate, onSubmit, onCancel }: FlatRateFormProps) {
         valid_until: rate.valid_until || "",
         priority: rate.priority != null ? String(rate.priority) : DEFAULT_PRIORITY,
         description: rate.description || "",
-      });
+      };
       setCoveredProvinces(rate.covered_provinces || []);
+
+      // Radix Select merender hidden native <select> (form-compat) karena
+      // Select ini ada di dalam <form> - lihat SelectBubbleInput di
+      // @radix-ui/react-select. <option>-nya baru ter-registrasi beberapa
+      // render-cycle setelah mount. Kalau value (vendor/prioritas/tipe akun)
+      // diisi SEBELUM itu, assignment native-nya gagal diam-diam dan Radix
+      // balas menimpa value kita jadi "" lewat onValueChange. setTimeout
+      // menunda commit ini sampai lewat tick itu.
+      const timer = setTimeout(() => setFormData(nextFormData), 0);
+      return () => clearTimeout(timer);
     }
   }, [rate]);
 
