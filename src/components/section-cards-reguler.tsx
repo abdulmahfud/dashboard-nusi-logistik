@@ -85,7 +85,7 @@ export function SectionCardsReguler({
         <InlineStat
           icon={Box}
           tone="slate"
-          label="Paket Belum Dibayar"
+          label="Belum Proses"
           value={stats.belumDibayar}
           loading={loading}
         />
