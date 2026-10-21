@@ -1617,8 +1617,9 @@ export const createOrderWithPendingPayment = async (data: {
 
 // ✅ Unified order creation - satu endpoint untuk semua kombinasi akun/metode
 // bayar (COD/non-COD, personal/corporate). BE menentukan status order lewat
-// resolvePaymentPlan(): COD diproses langsung (awb_no terisi), non-COD
-// disimpan untuk direview di halaman Pembayaran Paket (awb_no kosong).
+// resolvePaymentPlan(): order selalu disimpan dulu (awb_no kosong) untuk
+// direview & diproses manual di halaman Pembayaran Paket - termasuk COD,
+// yang tidak lagi langsung diproses ke vendor saat dibuat di sini.
 export const createOrder = async (
   vendor: string,
   data: { shipping_data: Record<string, unknown>; amount: number }

@@ -1484,10 +1484,11 @@ export default function CalculationResults({
       }
 
       // Satu endpoint untuk semua kombinasi akun/metode bayar - BE yang
-      // menentukan status order lewat resolvePaymentPlan(): COD diproses
-      // langsung ke vendor (awb_no terisi), non-COD (personal maupun
-      // corporate) disimpan untuk direview di halaman Pembayaran Paket
-      // (awb_no kosong). Tidak ada pembayaran di halaman ini.
+      // menentukan status order lewat resolvePaymentPlan(): order SELALU
+      // disimpan dulu (awb_no kosong) untuk direview di halaman Pembayaran
+      // Paket, termasuk COD - tidak langsung diproses ke vendor di sini lagi
+      // (lihat resolvePaymentPlan() commit_now). Tidak ada pembayaran di
+      // halaman ini.
       const response = await createOrder(shippingData.vendor, {
         shipping_data: shippingData,
         amount: isCOD ? 0 : calculateTotal(),
@@ -1547,9 +1548,11 @@ export default function CalculationResults({
       success: true,
       message: processedNow
         ? "Pengiriman COD Anda sedang diproses. Detail pesanan tercantum di bawah."
-        : isCorporate
-          ? "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk diproses ke ekspedisi menggunakan limit kredit."
-          : "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk melakukan pembayaran.",
+        : isCOD
+          ? "Paket COD Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk memproses pengiriman ke ekspedisi."
+          : isCorporate
+            ? "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk diproses ke ekspedisi menggunakan limit kredit."
+            : "Paket Anda sudah disimpan. Lanjutkan ke halaman Pembayaran Paket untuk melakukan pembayaran.",
       awb_no: order.awb_no ?? undefined,
       order_id: order.id,
       reference_no: order.reference_no,
@@ -2059,7 +2062,9 @@ export default function CalculationResults({
                 <StatusBadge
                   status="pending"
                   label={
-                    isCorporate ? "Belum Diproses" : "Menunggu Pembayaran"
+                    isCOD || isCorporate
+                      ? "Belum Diproses"
+                      : "Menunggu Pembayaran"
                   }
                 />
               )}
@@ -2097,7 +2102,9 @@ export default function CalculationResults({
                 className="h-11 gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 font-semibold text-white hover:from-blue-600 hover:to-indigo-600"
               >
                 <CreditCard className="h-4 w-4" />
-                {isCorporate ? "Lihat & Proses Paket" : "Lakukan Pembayaran"}
+                {isCOD || isCorporate
+                  ? "Lihat & Proses Paket"
+                  : "Lakukan Pembayaran"}
               </Button>
 
               <Button
