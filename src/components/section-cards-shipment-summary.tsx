@@ -31,7 +31,15 @@ const STATUS_META: Record<
   belum: {
     label: "Belum Proses",
     color: "#ef4444",
-    match: (s) => s === "belum_proses" || s === "belum_di_expedisi",
+    // Termasuk menunggu_pembayaran (status order personal non-COD yang
+    // belum bayar) - tanpa ini order personal yang masih menunggu
+    // pembayaran tidak terhitung di kartu mana pun, sama seperti perbaikan
+    // di laporan-pengiriman (count("Belum Proses") + count("Menunggu
+    // Pembayaran")).
+    match: (s) =>
+      s === "belum_proses" ||
+      s === "belum_di_expedisi" ||
+      s === "menunggu_pembayaran",
   },
   proses: {
     label: "Proses Pengiriman",
