@@ -16,11 +16,19 @@ export default function DiskonPengirimanPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  // Halaman kelola diskon ini khusus admin/superadmin. discounts.view saja
+  // tidak cukup untuk menggate - permission itu juga diberikan ke role user/
+  // finance/sales hanya untuk menampilkan badge diskon di hasil cek ongkir
+  // (lihat ShippingResults.tsx), bukan untuk akses CRUD admin ini. Yang cuma
+  // dipunyai admin/superadmin (lihat AdminRolePermissionSeeder) adalah
+  // discounts.create.
+  const canAccessPage = hasPermission("discounts.create");
+
   useEffect(() => {
-    if (!authLoading && !hasPermission("discounts.view")) {
+    if (!authLoading && !canAccessPage) {
       router.replace("/dashboard");
     }
-  }, [authLoading, hasPermission, router]);
+  }, [authLoading, canAccessPage, router]);
 
   if (authLoading) {
     return (
@@ -36,7 +44,7 @@ export default function DiskonPengirimanPage() {
     );
   }
 
-  if (!hasPermission("discounts.view")) {
+  if (!canAccessPage) {
     return null;
   }
 

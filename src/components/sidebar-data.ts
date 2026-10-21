@@ -150,10 +150,12 @@ export const sidebarData = {
       title: "Diskon Pengiriman",
       url: "/dashboard/paket/diskon-pengiriman",
       icon: BadgePercent,
-      // Match BE & halaman itu sendiri: GET /expedition-discounts butuh
-      // discounts.view, bukan discounts.create (itu khusus tombol Tambah -
-      // digate terpisah di tombolnya sendiri lewat canCreate).
-      permission: "discounts.view",
+      // Halaman ini khusus admin/superadmin (CRUD diskon). discounts.view
+      // sengaja juga diberikan ke role user/finance/sales (lihat seeder
+      // masing-masing) hanya untuk badge diskon di hasil cek ongkir, bukan
+      // untuk akses halaman kelola ini - jadi gate di sini & di halamannya
+      // sendiri pakai discounts.create (cuma dipunyai admin/superadmin).
+      permission: "discounts.create",
     },
     {
       title: "Flat Ongkir",
