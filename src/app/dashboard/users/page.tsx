@@ -76,12 +76,19 @@ export default function UsersPage() {
 
   const { hasPermission, loading: authLoading } = useAuth();
   const router = useRouter();
+  // BE: Route::apiResource('/users', ...)->middleware('permission:users.index|users.store|users.update')
+  // Sebelumnya digate "roles.index" di sini - permission yang tidak terkait
+  // sama sekali dengan apa yang sungguhan dibutuhkan BE untuk endpoint ini.
+  const canManageUsers =
+    hasPermission("users.index") ||
+    hasPermission("users.store") ||
+    hasPermission("users.update");
 
   useEffect(() => {
-    if (!authLoading && !hasPermission("roles.index")) {
+    if (!authLoading && !canManageUsers) {
       router.replace("/dashboard");
     }
-  }, [authLoading, hasPermission, router]);
+  }, [authLoading, canManageUsers, router]);
 
   const fetchUsers = async (
     page = 1,
@@ -151,7 +158,7 @@ export default function UsersPage() {
   };
 
   if (authLoading) return null;
-  if (!hasPermission("roles.index")) return null;
+  if (!canManageUsers) return null;
 
   return (
     <SidebarProvider>

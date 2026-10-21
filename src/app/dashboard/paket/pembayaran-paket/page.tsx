@@ -69,6 +69,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/currency";
 import { formatDateTimeId } from "@/lib/date";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { DateRange } from "react-day-picker";
 import type { Order, OrderStatusFilter } from "@/types/laporanPengiriman";
@@ -312,8 +313,19 @@ function OrderRow({
 }
 
 export default function PembayaranPaketPage() {
-  const { user } = useAuth();
+  const { user, hasPermission, loading: authLoading } = useAuth();
+  const router = useRouter();
   const isCorporate = user?.account_type === "corporate";
+
+  // Halaman ini memuat GET /admin/list-orders (permission orders.index) lalu
+  // membuka aksi bayar/proses/hapus (orders.create di BE) - gate di sini
+  // supaya akun tanpa orders.index tidak melihat shell halaman ini sama
+  // sekali, meski aksinya sendiri sudah independen digate BE.
+  useEffect(() => {
+    if (!authLoading && !hasPermission("orders.index")) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, hasPermission, router]);
 
   // Status order yang dipakai tiap tab berbeda per tipe akun — lihat
   // docs/be-fe/review-sebelum-proses-corporate.md §0. Personal tidak pernah
@@ -713,6 +725,24 @@ export default function PembayaranPaketPage() {
 
   const isPendingTab = activeTab === "belum_diproses";
   const currentLoading = isPendingTab ? loading : paidLoading;
+
+  if (authLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat…</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
+  if (!hasPermission("orders.index")) {
+    return null;
+  }
 
   return (
     <SidebarProvider>

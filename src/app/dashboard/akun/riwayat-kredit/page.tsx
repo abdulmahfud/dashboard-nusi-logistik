@@ -44,6 +44,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import ExportLedgerDialog from "./export-ledger-dialog";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -76,10 +77,25 @@ function ledgerStatusBadge(status: string) {
 
 export default function RiwayatKreditSayaPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
+  const router = useRouter();
   // Boleh export bila punya salah satu; pemilihan akun hanya untuk pemegang `.view`.
   const canPickAccount = hasPermission("kerja-sama.accounts.view");
+  // Permission yang sama ini juga satu-satunya syarat BE untuk
+  // GET /kerja-sama/accounts/{user}/ledger (permission:kerja-sama.accounts.view|view-own)
+  // - dipakai juga sebagai gate akses halaman, bukan cuma tombol export.
   const canExport =
     canPickAccount || hasPermission("kerja-sama.accounts.view-own");
+  // Halaman ini (riwayat kredit kerja sama) cuma relevan untuk akun corporate
+  // - lihat requiresAccountType di sidebar-data.ts. Sebelumnya hanya
+  // disembunyikan dari sidebar tanpa digate di halamannya sendiri, jadi akun
+  // personal atau tanpa permission tetap bisa buka lewat URL langsung.
+  const canAccessPage = canExport && user?.account_type === "corporate";
+
+  useEffect(() => {
+    if (!authLoading && !canAccessPage) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, canAccessPage, router]);
 
   const [ledger, setLedger] = useState<KerjaSamaLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,6 +153,10 @@ export default function RiwayatKreditSayaPage() {
         </SidebarInset>
       </SidebarProvider>
     );
+  }
+
+  if (!canAccessPage) {
+    return null;
   }
 
   return (

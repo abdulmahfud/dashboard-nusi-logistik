@@ -94,6 +94,13 @@ export default function UserDetailPage() {
   const params = useParams();
   const userId = parseInt(params.id as string);
   const { hasPermission, loading: authLoading } = useAuth();
+  // BE: Route::apiResource('/users', ...)->middleware('permission:users.index|users.store|users.update')
+  // Sebelumnya digate "roles.index" di sini - permission yang tidak terkait
+  // sama sekali dengan apa yang sungguhan dibutuhkan BE untuk endpoint ini.
+  const canManageUsers =
+    hasPermission("users.index") ||
+    hasPermission("users.store") ||
+    hasPermission("users.update");
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,10 +120,10 @@ export default function UserDetailPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && !hasPermission("roles.index")) {
+    if (!authLoading && !canManageUsers) {
       router.replace("/dashboard");
     }
-    }, [authLoading, hasPermission, router]);
+  }, [authLoading, canManageUsers, router]);
 
   useEffect(() => {
     if (userId) {
@@ -125,7 +132,7 @@ export default function UserDetailPage() {
   }, [userId]);
 
   if (authLoading) return null;
-  if (!hasPermission("roles.index")) return null;
+  if (!canManageUsers) return null;
 
   if (loading) {
     return (

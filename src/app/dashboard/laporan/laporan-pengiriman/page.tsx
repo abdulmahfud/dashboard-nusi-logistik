@@ -55,6 +55,7 @@ import { createExport, getOrders } from "@/lib/apiClient";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import {
   Order,
   DeliveryReport,
@@ -267,6 +268,13 @@ const LaporanPengiriman = () => {
   );
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const { hasPermission, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !hasPermission("expedition.orders.list")) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, hasPermission, router]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -424,6 +432,24 @@ const LaporanPengiriman = () => {
     Retur: { icon: RefreshCw, tone: "violet" },
     Dibatalkan: { icon: XCircle, tone: "rose" },
   };
+
+  if (authLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat…</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
+  if (!hasPermission("expedition.orders.list")) {
+    return null;
+  }
 
   return (
     <SidebarProvider>

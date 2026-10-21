@@ -16,6 +16,8 @@ import CalculationResults, {
 } from "@/components/PaketReguler/CalculationResults";
 import { getExpeditionGroups } from "@/lib/apiClient";
 import type { ExpeditionGroup } from "@/types/expeditionGroup";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -29,6 +31,15 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 const PaketReguler = () => {
+  const { hasPermission, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !hasPermission("expedition.orders.create")) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, hasPermission, router]);
+
   const [formResetKey, setFormResetKey] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("all");
@@ -144,6 +155,24 @@ const PaketReguler = () => {
     [detail?.district, detail?.regency, detail?.province]
       .filter(Boolean)
       .join(", ") || "-";
+
+  if (authLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <div className="flex min-h-[40vh] items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span>Memuat…</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
+  if (!hasPermission("expedition.orders.create")) {
+    return null;
+  }
 
   return (
     <SidebarProvider>

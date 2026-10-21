@@ -112,7 +112,9 @@ export const sidebarData = {
       title: "Riwayat Kredit",
       url: "/dashboard/akun/riwayat-kredit",
       icon: CreditCard,
-      permission: "users.index",
+      // Match BE: GET /kerja-sama/accounts/{user}/ledger
+      // membutuhkan permission:kerja-sama.accounts.view|view-own, bukan users.index.
+      permissionAny: ["kerja-sama.accounts.view", "kerja-sama.accounts.view-own"],
       // Riwayat kredit kerja sama cuma relevan untuk akun corporate.
       requiresAccountType: "corporate" as const,
     },
@@ -128,7 +130,9 @@ export const sidebarData = {
       title: "Pembayaran Paket",
       url: "/dashboard/paket/pembayaran-paket",
       icon: Wallet,
-      permission: "payments.view",
+      // Match BE: GET /list-orders (yang dimuat halaman ini) butuh
+      // orders.index, bukan payments.view.
+      permission: "orders.index",
     },
     {
       title: "Katalog Produk",
@@ -146,7 +150,10 @@ export const sidebarData = {
       title: "Diskon Pengiriman",
       url: "/dashboard/paket/diskon-pengiriman",
       icon: BadgePercent,
-      permission: "discounts.create",
+      // Match BE & halaman itu sendiri: GET /expedition-discounts butuh
+      // discounts.view, bukan discounts.create (itu khusus tombol Tambah -
+      // digate terpisah di tombolnya sendiri lewat canCreate).
+      permission: "discounts.view",
     },
     {
       title: "Flat Ongkir",

@@ -46,6 +46,13 @@ export default function CreateUserPage() {
   const [roles, setRoles] = useState<SimpleRole[]>([]);
   const { user, hasPermission, loading: authLoading } = useAuth();
   const isSuperAdmin = user?.roles?.includes("superadmin") ?? false;
+  // BE: Route::apiResource('/users', ...)->middleware('permission:users.index|users.store|users.update')
+  // Sebelumnya digate "roles.index" di sini - permission yang tidak terkait
+  // sama sekali dengan apa yang sungguhan dibutuhkan BE untuk endpoint ini.
+  const canManageUsers =
+    hasPermission("users.index") ||
+    hasPermission("users.store") ||
+    hasPermission("users.update");
 
   const [formData, setFormData] = useState<UserCreateRequest>({
     name: "",
@@ -67,10 +74,10 @@ export default function CreateUserPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && !hasPermission("roles.index")) {
+    if (!authLoading && !canManageUsers) {
       router.replace("/dashboard");
     }
-    }, [authLoading, hasPermission, router]);
+  }, [authLoading, canManageUsers, router]);
 
   useEffect(() => {
     // Role picker hanya untuk superadmin — BE mengabaikan field `roles`
@@ -221,7 +228,7 @@ export default function CreateUserPage() {
   };
 
   if (authLoading) return null;
-  if (!hasPermission("roles.index")) return null;
+  if (!canManageUsers) return null;
 
   return (
     <SidebarProvider>
