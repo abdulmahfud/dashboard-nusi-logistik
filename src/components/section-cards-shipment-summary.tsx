@@ -27,7 +27,12 @@ type StatusKey = "proses" | "sampai" | "belum" | "dibatalkan" | "retur";
 const STATUS_META: Record<
   StatusKey,
   { label: string; color: string; match: (status: string) => boolean }
-> = {
+> = {  
+  belum: {
+    label: "Belum Proses",
+    color: "#ef4444",
+    match: (s) => s === "belum_proses" || s === "belum_di_expedisi",
+  },
   proses: {
     label: "Proses Pengiriman",
     color: "#2563eb",
@@ -37,11 +42,6 @@ const STATUS_META: Record<
     label: "Sampai Tujuan",
     color: "#10b981",
     match: (s) => s === "sampai_tujuan",
-  },
-  belum: {
-    label: "Belum Proses",
-    color: "#ef4444",
-    match: (s) => s === "belum_proses" || s === "belum_di_expedisi",
   },
   dibatalkan: {
     label: "Dibatalkan",
