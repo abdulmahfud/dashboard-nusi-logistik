@@ -40,7 +40,7 @@ export function SectionCardsCredit({ user }: { user: UserData }) {
           <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
         </div>
         <CardTitle className="pl-2 sm:pl-3 text-lg sm:text-xl lg:text-2xl xl:text-3xl font-semibold tabular-nums">
-          Limit Kredit Kerja Sama
+          Limit Kredit
         </CardTitle>
       </div>
 
