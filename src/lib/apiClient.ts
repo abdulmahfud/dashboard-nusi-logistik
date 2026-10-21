@@ -942,6 +942,9 @@ export const getOrderStatistics = async (
     regular_package_stats: {
       total: number;
       belum_proses: number;
+      // Status khusus akun personal non-COD yang belum bayar - gabungkan dengan
+      // belum_proses untuk angka "belum dibayar" (lihat section-cards-reguler.tsx).
+      menunggu_pembayaran: number;
       belum_di_expedisi: number;
       proses_pengiriman: number;
       kendala_pengiriman: number;

@@ -17,7 +17,7 @@ import { InlineStat } from "@/components/redesign/inline-stat";
 import { getOrderStatistics } from "@/lib/apiClient";
 
 interface RegularStats {
-  totalPaket: number;
+  belumDibayar: number;
   prosesPengiriman: number;
   kendalaPengiriman: number;
   sampaiTujuan: number;
@@ -31,7 +31,7 @@ export function SectionCardsReguler({
   dateRange: DateRange | undefined;
 }) {
   const [stats, setStats] = useState<RegularStats>({
-    totalPaket: 0,
+    belumDibayar: 0,
     prosesPengiriman: 0,
     kendalaPengiriman: 0,
     sampaiTujuan: 0,
@@ -54,8 +54,13 @@ export function SectionCardsReguler({
       const response = await getOrderStatistics(startDate, endDate);
       const regularPackageStats = response.data.regular_package_stats;
 
+      // "Paket Belum Dibayar" = belum_proses (akun corporate) + menunggu_pembayaran
+      // (akun personal) - sama seperti kartu Status Pengiriman di laporan-pengiriman,
+      // bukan regularPackageStats.total (itu total SEMUA status, bukan khusus unpaid).
       setStats({
-        totalPaket: regularPackageStats.total,
+        belumDibayar:
+          regularPackageStats.belum_proses +
+          regularPackageStats.menunggu_pembayaran,
         prosesPengiriman: regularPackageStats.proses_pengiriman,
         kendalaPengiriman: regularPackageStats.kendala_pengiriman,
         sampaiTujuan: regularPackageStats.sampai_tujuan,
@@ -80,8 +85,8 @@ export function SectionCardsReguler({
         <InlineStat
           icon={Box}
           tone="slate"
-          label="Belum Proses"
-          value={stats.totalPaket}
+          label="Paket Belum Dibayar"
+          value={stats.belumDibayar}
           loading={loading}
         />
         <InlineStat
