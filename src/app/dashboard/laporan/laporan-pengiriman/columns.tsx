@@ -116,12 +116,8 @@ export const columns: ColumnDef<DeliveryReport>[] = [
     header: "AKSI",
     cell: ({ row }) => {
       const order = row.original;
-      const hasAwb =
-        order.shipmentNo &&
-        order.shipmentNo !== "-" &&
-        order.status !== "Menunggu Pembayaran";
 
-      if (!hasAwb) {
+      if (!order.hasAwb) {
         return (
           <Button
             variant="outline"

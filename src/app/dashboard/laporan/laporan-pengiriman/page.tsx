@@ -115,6 +115,7 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
     service,
     status,
     vendor: order.vendor,
+    hasAwb: Boolean(order.awb_no),
   };
 };
 

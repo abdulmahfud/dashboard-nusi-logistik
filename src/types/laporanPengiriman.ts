@@ -86,6 +86,10 @@ export interface DeliveryReport {
   service: "DROPOFF" | "PICKUP";
   status: string;
   vendor: string; // Add vendor field for label URL functionality
+  /** AWB sudah benar-benar terbit (order.awb_no tidak kosong) - dipakai untuk
+   * menentukan aksi Lacak/Cetak Resi vs "Belum Tersedia", bukan status atau
+   * shipmentNo (shipmentNo selalu ada karena fallback ke reference_no). */
+  hasAwb: boolean;
 }
 
 // Status mapping
