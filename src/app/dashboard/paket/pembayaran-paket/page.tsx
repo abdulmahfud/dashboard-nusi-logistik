@@ -56,6 +56,7 @@ import {
   Send,
   Trash2,
   Wallet,
+  CreditCardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -841,7 +842,7 @@ export default function PembayaranPaketPage() {
                 }
               />
               <StatCard
-                icon={CreditCard}
+                icon={CreditCardCheck}
                 tone="blue"
                 title={isCorporate ? "Total Nilai" : "Total Pembayaran"}
                 value={formatRupiah(getTotalAmount())}
