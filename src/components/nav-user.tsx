@@ -86,7 +86,7 @@ export function NavUser() {
                 </AvatarFallback>
               </Avatar>
 
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold text-slate-900">
                   {user.name}
                 </span>
@@ -94,7 +94,7 @@ export function NavUser() {
                   {user.email}
                 </span>
               </div>
-              <MoreVerticalIcon className="ml-auto size-4 text-slate-400" />
+              <MoreVerticalIcon className="ml-auto size-4 text-slate-400 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

@@ -104,8 +104,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   // Gaya referensi: sidebar datar (bukan kartu "inset"), apa pun variant dari halaman.
+  // collapsible="icon": sidebar bisa diciutkan jadi strip ikon (toggle lewat
+  // tombol AlignLeft di SiteHeader / Ctrl+B), bukan slide off-canvas penuh.
   return (
-    <Sidebar collapsible="offcanvas" {...props} variant="sidebar">
+    <Sidebar collapsible="icon" {...props} variant="sidebar">
       <SidebarHeader className="flex h-16 flex-row items-center px-5 py-0">
         <Link href="/dashboard" aria-label="Beranda BhisaKirim">
           <Image
