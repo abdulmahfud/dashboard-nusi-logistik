@@ -884,15 +884,15 @@ export default function PembayaranPaketPage() {
             }}
             className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Cari: Order ID, AWB, Nama, No HP"
-                className="h-11 min-w-0 flex-1 basis-0 rounded-lg"
+                className="h-11 min-w-0 flex-1 basis-full rounded-lg sm:basis-0"
               />
               <Select value={vendorInput} onValueChange={setVendorInput}>
-                <SelectTrigger className="h-11 w-[170px] shrink-0 rounded-lg">
+                <SelectTrigger className="h-11 w-full shrink-0 rounded-lg sm:w-[170px]">
                   <SelectValue placeholder="Semua Ekspedisi" />
                 </SelectTrigger>
                 <SelectContent>
@@ -908,10 +908,10 @@ export default function PembayaranPaketPage() {
                 value={rangeInput}
                 onChange={setRangeInput}
                 placeholder="Pilih rentang tanggal"
-                className="w-[220px] shrink-0"
+                className="w-full shrink-0 sm:w-[220px]"
               />
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
