@@ -14,6 +14,7 @@ import { DateRangeField } from "@/components/redesign/date-range-field";
 import TopNav from "@/components/top-nav";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDashboardOrders } from "@/hooks/use-dashboard-orders";
 import { subDays } from "date-fns";
 import { useState } from "react";
 import type { DateRange } from "react-day-picker";
@@ -35,6 +36,14 @@ function DashboardContent() {
     from: subDays(new Date(), 6),
     to: new Date(),
   });
+  // Satu fetch order mentah dipakai bareng oleh Ringkasan Pengiriman, Status
+  // Pengiriman, Paket Reguler, dan Paket COD - supaya semuanya konsisten
+  // dengan data di laporan-pengiriman (sumber & klasifikasi yang sama).
+  const {
+    orders: dashboardOrders,
+    loading: ordersLoading,
+    error: ordersError,
+  } = useDashboardOrders(dateRange);
 
   if (loading) return <DashboardSkeleton />;
 
@@ -79,9 +88,14 @@ function DashboardContent() {
 
               <SectionCardsBalance />
               <SectionCardsCredit user={user} />
-              <SectionCardsShipmentSummary dateRange={dateRange} />
-              <SectionCardsCod dateRange={dateRange} />
-              <SectionCardsReguler dateRange={dateRange} />
+              <SectionCardsShipmentSummary
+                dateRange={dateRange}
+                orders={dashboardOrders}
+                loading={ordersLoading}
+                error={ordersError}
+              />
+              <SectionCardsCod orders={dashboardOrders} loading={ordersLoading} />
+              <SectionCardsReguler orders={dashboardOrders} loading={ordersLoading} />
               <SectionCardsTrouble dateRange={dateRange} />
             </div>
           </div>

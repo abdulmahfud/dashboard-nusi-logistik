@@ -1,68 +1,27 @@
 "use client";
 
 import { BookX, Boxes, PackageX, RefreshCcwDot, Truck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import type { DateRange } from "react-day-picker";
+import { useMemo } from "react";
 
 import { SectionCard } from "@/components/redesign/section-card";
 import { InlineStat } from "@/components/redesign/inline-stat";
-import { getOrderStatistics } from "@/lib/apiClient";
-
-interface CODStats {
-  belumDiEkspedisi: number;
-  prosesPengiriman: number;
-  sampaiTujuan: number;
-  kendalaPengiriman: number;
-  totalRetur: number;
-}
+import { classifyPackageType, countByStatus } from "@/lib/dashboardShipmentStats";
+import type { Order } from "@/types/laporanPengiriman";
 
 export function SectionCardsCod({
-  dateRange,
+  orders,
+  loading,
 }: {
-  dateRange: DateRange | undefined;
+  orders: Order[];
+  loading: boolean;
 }) {
-  const [stats, setStats] = useState<CODStats>({
-    belumDiEkspedisi: 0,
-    prosesPengiriman: 0,
-    sampaiTujuan: 0,
-    kendalaPengiriman: 0,
-    totalRetur: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  const fetchCODStats = async () => {
-    try {
-      setLoading(true);
-      const startDate = dateRange?.from
-        ? format(dateRange.from, "yyyy-MM-dd")
-        : undefined;
-      const endDate = dateRange?.to
-        ? format(dateRange.to, "yyyy-MM-dd")
-        : startDate;
-
-      const response = await getOrderStatistics(startDate, endDate);
-      const codPackageStats = response.data.cod_package_stats;
-
-      setStats({
-        belumDiEkspedisi:
-          codPackageStats.belum_di_expedisi + codPackageStats.belum_proses,
-        prosesPengiriman: codPackageStats.proses_pengiriman,
-        sampaiTujuan: codPackageStats.sampai_tujuan,
-        kendalaPengiriman: codPackageStats.kendala_pengiriman,
-        totalRetur: codPackageStats.retur,
-      });
-    } catch (error) {
-      console.error("Failed to fetch COD statistics:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchCODStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
+  // Sumber & klasifikasi sama dengan dashboard/laporan/laporan-pengiriman
+  // (service_type_code === "COD"), bukan endpoint statistik terpisah -
+  // supaya angkanya selalu sesuai dengan laporan itu.
+  const stats = useMemo(() => {
+    const codOrders = orders.filter((o) => classifyPackageType(o) === "COD");
+    return countByStatus(codOrders);
+  }, [orders]);
 
   return (
     <SectionCard icon={Boxes} title="Ringkasan Paket COD">
@@ -71,35 +30,35 @@ export function SectionCardsCod({
           icon={BookX}
           tone="blue"
           label="Belum Proses"
-          value={stats.belumDiEkspedisi}
+          value={stats.belum}
           loading={loading}
         />
         <InlineStat
           icon={Truck}
           tone="blue"
           label="Proses Pengiriman"
-          value={stats.prosesPengiriman}
+          value={stats.proses}
           loading={loading}
         />
         <InlineStat
           icon={RefreshCcwDot}
           tone="green"
           label="Sampai Tujuan"
-          value={stats.sampaiTujuan}
+          value={stats.sampai}
           loading={loading}
         />
         <InlineStat
           icon={Boxes}
           tone="red"
           label="Kendala Pengiriman"
-          value={stats.kendalaPengiriman}
+          value={stats.kendala}
           loading={loading}
         />
         <InlineStat
           icon={PackageX}
           tone="orange"
           label="Total Retur"
-          value={stats.totalRetur}
+          value={stats.retur}
           loading={loading}
         />
       </div>

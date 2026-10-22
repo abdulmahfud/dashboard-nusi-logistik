@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { format, eachDayOfInterval } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -19,56 +19,16 @@ import {
 import { LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react";
 
 import { SectionCard } from "@/components/redesign/section-card";
-import { getOrders } from "@/lib/apiClient";
+import { STATUS_KEYS, STATUS_META, type StatusKey } from "@/lib/dashboardShipmentStats";
 import type { Order } from "@/types/laporanPengiriman";
-
-type StatusKey = "proses" | "sampai" | "belum" | "dibatalkan" | "retur";
-
-const STATUS_META: Record<
-  StatusKey,
-  { label: string; color: string; match: (status: string) => boolean }
-> = {  
-  belum: {
-    label: "Belum Proses",
-    color: "#ef4444",
-    // Termasuk menunggu_pembayaran (status order personal non-COD yang
-    // belum bayar) - tanpa ini order personal yang masih menunggu
-    // pembayaran tidak terhitung di kartu mana pun, sama seperti perbaikan
-    // di laporan-pengiriman (count("Belum Proses") + count("Menunggu
-    // Pembayaran")).
-    match: (s) =>
-      s === "belum_proses" ||
-      s === "belum_di_expedisi" ||
-      s === "menunggu_pembayaran",
-  },
-  proses: {
-    label: "Proses Pengiriman",
-    color: "#2563eb",
-    match: (s) => s === "proses_pengiriman",
-  },
-  sampai: {
-    label: "Sampai Tujuan",
-    color: "#10b981",
-    match: (s) => s === "sampai_tujuan",
-  },
-  dibatalkan: {
-    label: "Dibatalkan",
-    color: "#7c3aed",
-    match: (s) => s === "dibatalkan",
-  },
-  retur: {
-    label: "Retur / Kendala",
-    color: "#f97316",
-    match: (s) => s === "retur" || s === "kendala_pengiriman",
-  },
-};
 
 const LINE_KEYS: StatusKey[] = [
   "proses",
   "sampai",
   "belum",
-  "dibatalkan",
+  "kendala",
   "retur",
+  "dibatalkan",
 ];
 
 type DailyPoint = { date: string; label: string } & Record<StatusKey, number>;
@@ -82,16 +42,11 @@ function buildDailySeries(orders: Order[], range: DateRange): DailyPoint[] {
   return days.map((day) => {
     const key = format(day, "yyyy-MM-dd");
     const dayOrders = orders.filter((o) => o.created_at.slice(0, 10) === key);
-    const point: DailyPoint = {
+    const point = {
       date: key,
       label: format(day, "d MMM", { locale: idLocale }),
-      proses: 0,
-      sampai: 0,
-      belum: 0,
-      dibatalkan: 0,
-      retur: 0,
-    };
-    (Object.keys(STATUS_META) as StatusKey[]).forEach((k) => {
+    } as DailyPoint;
+    STATUS_KEYS.forEach((k) => {
       point[k] = dayOrders.filter((o) => STATUS_META[k].match(o.status)).length;
     });
     return point;
@@ -100,7 +55,7 @@ function buildDailySeries(orders: Order[], range: DateRange): DailyPoint[] {
 
 function buildStatusBreakdown(orders: Order[]) {
   const total = orders.length;
-  const entries = (Object.keys(STATUS_META) as StatusKey[]).map((key) => {
+  const entries = STATUS_KEYS.map((key) => {
     const count = orders.filter((o) => STATUS_META[key].match(o.status)).length;
     return {
       key,
@@ -115,40 +70,15 @@ function buildStatusBreakdown(orders: Order[]) {
 
 export function SectionCardsShipmentSummary({
   dateRange,
+  orders,
+  loading,
+  error,
 }: {
   dateRange: DateRange | undefined;
+  orders: Order[];
+  loading: boolean;
+  error: string | null;
 }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const startDate = dateRange?.from
-          ? format(dateRange.from, "yyyy-MM-dd")
-          : undefined;
-        const endDate = dateRange?.to
-          ? format(dateRange.to, "yyyy-MM-dd")
-          : startDate;
-        const res = await getOrders(startDate, endDate);
-        if (!cancelled) setOrders(res.data ?? []);
-      } catch (err) {
-        console.error("Failed to fetch shipment summary:", err);
-        if (!cancelled) setError("Gagal memuat ringkasan pengiriman.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [dateRange]);
-
   const dailySeries = useMemo(
     () => (dateRange ? buildDailySeries(orders, dateRange) : []),
     [orders, dateRange]

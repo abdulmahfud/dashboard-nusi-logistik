@@ -8,76 +8,29 @@ import {
   Truck,
   Vault,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import type { DateRange } from "react-day-picker";
+import { useMemo } from "react";
 
 import { SectionCard } from "@/components/redesign/section-card";
 import { InlineStat } from "@/components/redesign/inline-stat";
-import { getOrderStatistics } from "@/lib/apiClient";
-
-interface RegularStats {
-  belumDibayar: number;
-  prosesPengiriman: number;
-  kendalaPengiriman: number;
-  sampaiTujuan: number;
-  totalRetur: number;
-  dibatalkan: number;
-}
+import { classifyPackageType, countByStatus } from "@/lib/dashboardShipmentStats";
+import type { Order } from "@/types/laporanPengiriman";
 
 export function SectionCardsReguler({
-  dateRange,
+  orders,
+  loading,
 }: {
-  dateRange: DateRange | undefined;
+  orders: Order[];
+  loading: boolean;
 }) {
-  const [stats, setStats] = useState<RegularStats>({
-    belumDibayar: 0,
-    prosesPengiriman: 0,
-    kendalaPengiriman: 0,
-    sampaiTujuan: 0,
-    totalRetur: 0,
-    dibatalkan: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
-  const fetchRegularStats = async () => {
-    try {
-      setLoading(true);
-
-      const startDate = dateRange?.from
-        ? format(dateRange.from, "yyyy-MM-dd")
-        : undefined;
-      const endDate = dateRange?.to
-        ? format(dateRange.to, "yyyy-MM-dd")
-        : startDate;
-
-      const response = await getOrderStatistics(startDate, endDate);
-      const regularPackageStats = response.data.regular_package_stats;
-
-      // "Paket Belum Dibayar" = belum_proses (akun corporate) + menunggu_pembayaran
-      // (akun personal) - sama seperti kartu Status Pengiriman di laporan-pengiriman,
-      // bukan regularPackageStats.total (itu total SEMUA status, bukan khusus unpaid).
-      setStats({
-        belumDibayar:
-          regularPackageStats.belum_proses +
-          regularPackageStats.menunggu_pembayaran,
-        prosesPengiriman: regularPackageStats.proses_pengiriman,
-        kendalaPengiriman: regularPackageStats.kendala_pengiriman,
-        sampaiTujuan: regularPackageStats.sampai_tujuan,
-        totalRetur: regularPackageStats.retur,
-        dibatalkan: regularPackageStats.dibatalkan,
-      });
-    } catch (err) {
-      console.error("Failed to fetch regular package statistics:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchRegularStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
+  // Sumber & klasifikasi sama dengan dashboard/laporan/laporan-pengiriman
+  // (service_type_code === "REGULER"/default), bukan endpoint statistik
+  // terpisah - supaya angkanya selalu sesuai dengan laporan itu.
+  const stats = useMemo(() => {
+    const regulerOrders = orders.filter(
+      (o) => classifyPackageType(o) === "Paket Reguler"
+    );
+    return countByStatus(regulerOrders);
+  }, [orders]);
 
   return (
     <SectionCard icon={Box} title="Ringkasan Paket Reguler">
@@ -85,36 +38,36 @@ export function SectionCardsReguler({
         <InlineStat
           icon={Box}
           tone="slate"
-          label="Belum Proses"
-          value={stats.belumDibayar}
+          label="Paket Belum Dibayar"
+          value={stats.belum}
           loading={loading}
         />
         <InlineStat
           icon={Truck}
           tone="blue"
           label="Proses Pengiriman"
-          value={stats.prosesPengiriman}
+          value={stats.proses}
           loading={loading}
         />
         <InlineStat
           icon={Vault}
           tone="red"
           label="Kendala Pengiriman"
-          value={stats.kendalaPengiriman}
+          value={stats.kendala}
           loading={loading}
         />
         <InlineStat
           icon={PackageCheck}
           tone="green"
           label="Sampai Tujuan"
-          value={stats.sampaiTujuan}
+          value={stats.sampai}
           loading={loading}
         />
         <InlineStat
           icon={PackageX}
           tone="orange"
           label="Total Retur"
-          value={stats.totalRetur}
+          value={stats.retur}
           loading={loading}
         />
         <InlineStat
