@@ -1,6 +1,13 @@
 "use client";
 
-import { BookX, Boxes, PackageX, RefreshCcwDot, Truck } from "lucide-react";
+import {
+  BookX,
+  Boxes,
+  PackageMinus,
+  PackageX,
+  RefreshCcwDot,
+  Truck,
+} from "lucide-react";
 import { useMemo } from "react";
 
 import { SectionCard } from "@/components/redesign/section-card";
@@ -25,7 +32,7 @@ export function SectionCardsCod({
 
   return (
     <SectionCard icon={Boxes} title="Ringkasan Paket COD">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <InlineStat
           icon={BookX}
           tone="blue"
@@ -59,6 +66,13 @@ export function SectionCardsCod({
           tone="orange"
           label="Total Retur"
           value={stats.retur}
+          loading={loading}
+        />
+        <InlineStat
+          icon={PackageMinus}
+          tone="violet"
+          label="Dibatalkan"
+          value={stats.dibatalkan}
           loading={loading}
         />
       </div>
