@@ -90,7 +90,7 @@ export function PageHeader({
         </Breadcrumb>
       )}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           {back ? (
             <Link
@@ -126,13 +126,13 @@ export function PageHeader({
         </div>
 
         {stacked ? (
-          <div className="flex shrink-0 flex-col items-end gap-3">
+          <div className="flex w-full shrink-0 flex-col items-end gap-3 sm:w-auto">
             {illustrationEl}
             <div className="flex flex-wrap justify-end gap-2">{action}</div>
           </div>
         ) : (
           <>
-            {action && <div className="shrink-0">{action}</div>}
+            {action && <div className="w-full shrink-0 sm:w-auto">{action}</div>}
             {illustrationEl}
           </>
         )}
