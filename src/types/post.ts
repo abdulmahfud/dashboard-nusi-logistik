@@ -70,3 +70,10 @@ export interface BlogPostDetailResponse {
   message?: string;
   data: BlogPost | null;
 }
+
+/** GET /public/posts_home — publik, tanpa auth, untuk widget beranda. */
+export interface HomePostsResponse {
+  success: boolean;
+  message?: string;
+  data: BlogPost[];
+}

@@ -113,6 +113,7 @@ import type {
   PostCategoryDetailResponse,
   BlogPostListResponse,
   BlogPostDetailResponse,
+  HomePostsResponse,
 } from "@/types/post";
 import type {
   KerjaSamaAccountListResponse,
@@ -1830,6 +1831,16 @@ export const deleteBlogPost = async (
   id: number
 ): Promise<{ success: boolean; message?: string }> => {
   const res = await apiClient.delete(`/admin/posts/${id}`);
+  return res.data;
+};
+
+/**
+ * GET /public/posts_home — publik (tanpa permission posts.index), dipakai
+ * widget "Update BhisaKirim" di beranda supaya semua role bisa melihat
+ * daftar artikel terbaru, bukan cuma yang punya akses admin blog.
+ */
+export const getHomePosts = async (): Promise<HomePostsResponse> => {
+  const res = await apiClient.get<HomePostsResponse>("/public/posts_home");
   return res.data;
 };
 

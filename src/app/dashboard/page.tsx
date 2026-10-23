@@ -9,6 +9,7 @@ import { SectionCardsCod } from "@/components/section-cards-cod";
 import { SectionCardsReguler } from "@/components/section-cards-reguler";
 import { SectionCardsTrouble } from "@/components/section-cards-trouble";
 import { SectionCardsShipmentSummary } from "@/components/section-cards-shipment-summary";
+import { SectionCardsUpdates } from "@/components/section-cards-updates";
 import { CodVerificationAlert } from "@/components/cod-verification-alert";
 import { DateRangeField } from "@/components/redesign/date-range-field";
 import TopNav from "@/components/top-nav";
@@ -97,6 +98,7 @@ function DashboardContent() {
               <SectionCardsCod orders={dashboardOrders} loading={ordersLoading} />
               <SectionCardsReguler orders={dashboardOrders} loading={ordersLoading} />
               <SectionCardsTrouble dateRange={dateRange} />
+              <SectionCardsUpdates />
             </div>
           </div>
         </div>
