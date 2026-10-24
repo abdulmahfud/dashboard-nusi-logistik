@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -74,7 +75,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} antialiased`}>{children}</body>
+      <body className={`${poppins.variable} antialiased`}>
+        {children}
+        {/* toast.error()/toast.success() dipakai di puluhan halaman tapi
+            tidak pernah tampil - <Toaster/> (target render sonner) tidak
+            pernah dipasang di mana pun, jadi semua panggilan toast cuma
+            antre tanpa ada yang merender. */}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   );
 }
