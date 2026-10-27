@@ -1835,6 +1835,21 @@ export const deleteBlogPost = async (
 };
 
 /**
+ * POST /admin/posts/upload-image — upload gambar yang disisipkan di dalam
+ * isi artikel (editor TipTap RichTextEditor), terpisah dari gambar sampul
+ * di createBlogPost/updateBlogPost. Dipakai saat admin menyisipkan gambar
+ * ke editor; hasilnya langsung dipasang ke `src` di konten.
+ */
+export const uploadPostContentImage = async (
+  file: File
+): Promise<{ success: boolean; message?: string; url?: string }> => {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await apiClient.post("/admin/posts/upload-image", formData);
+  return res.data;
+};
+
+/**
  * GET /public/posts_home — publik (tanpa permission posts.index), dipakai
  * widget "Update BhisaKirim" di beranda supaya semua role bisa melihat
  * daftar artikel terbaru, bukan cuma yang punya akses admin blog.

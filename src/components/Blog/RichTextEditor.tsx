@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
+import TiptapImage from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { toast } from "sonner";
 import {
   Bold,
   Italic,
@@ -17,10 +19,16 @@ import {
   ListOrdered,
   Quote,
   Link as LinkIcon,
+  Image as ImageIcon,
+  Loader2,
   Undo2,
   Redo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { uploadPostContentImage } from "@/lib/apiClient";
+
+const IMAGE_ACCEPT = "image/jpeg,image/jpg,image/png";
+const IMAGE_MAX_BYTES = 2000 * 1024; // 2MB, sama dengan validasi BE
 
 const toolbarBtn =
   "flex h-8 w-8 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-40";
@@ -37,6 +45,9 @@ export default function RichTextEditor({
   onChange,
   placeholder,
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -47,6 +58,9 @@ export default function RichTextEditor({
       Link.configure({
         openOnClick: false,
         autolink: true,
+      }),
+      TiptapImage.configure({
+        HTMLAttributes: { class: "rounded-lg" },
       }),
       Placeholder.configure({
         placeholder: placeholder ?? "Tulis isi artikel di sini...",
@@ -87,6 +101,35 @@ export default function RichTextEditor({
       return;
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+  };
+
+  const handleImageFile = async (file: File | null) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/jpg", "image/png"].includes(file.type)) {
+      toast.error("Gunakan JPEG atau PNG.");
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      toast.error(
+        `Maks. ${(IMAGE_MAX_BYTES / 1024 / 1024).toFixed(0)} MB (ini ${(file.size / 1024 / 1024).toFixed(2)} MB).`
+      );
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const res = await uploadPostContentImage(file);
+      if (res.success && res.url) {
+        editor.chain().focus().setImage({ src: res.url }).run();
+      } else {
+        toast.error(res.message || "Gagal mengunggah gambar.");
+      }
+    } catch (err) {
+      console.error("Failed to upload content image:", err);
+      toast.error("Gagal mengunggah gambar.");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   return (
@@ -212,6 +255,29 @@ export default function RichTextEditor({
         >
           <LinkIcon className="h-4 w-4" />
         </button>
+        <button
+          type="button"
+          className={toolbarBtn}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingImage}
+          aria-label="Sisipkan gambar"
+        >
+          {uploadingImage ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ImageIcon className="h-4 w-4" />
+          )}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            void handleImageFile(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }}
+        />
 
         <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />
 
