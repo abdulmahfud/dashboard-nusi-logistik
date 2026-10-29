@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
-import { ImagePlus, Loader2, Send, Trash2 } from "lucide-react";
+import { FileUp, FileText as FileTextIcon, Loader2, Send, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +31,11 @@ import { createPackageClaimReply, updatePackageClaim } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import { getVendorLabel } from "@/lib/vendorList";
 import {
-  CLAIM_REPLY_ACCEPT_IMAGES,
-  CLAIM_REPLY_MAX_FILES,
-  CLAIM_REPLY_MAX_IMAGE_BYTES,
+  CLAIM_ACCEPT_FILES,
+  CLAIM_MAX_ATTACHMENT_BYTES,
+  CLAIM_MAX_FILES,
   formatBytes,
-  validateClaimReplyImages,
+  validateClaimFiles,
 } from "@/lib/claim-upload";
 import {
   CLAIM_STATUS_OPTIONS,
@@ -44,6 +44,9 @@ import {
 } from "@/lib/packageClaimUi";
 import { cn } from "@/lib/utils";
 import type { PackageClaim } from "@/types/packageClaim";
+
+/** Status final (lihat PackageClaimStatus::final() di BE) - pemilik klaim tidak bisa membalas lagi setelahnya. */
+const FINAL_STATUSES = new Set(["disetujui", "ditolak", "selesai"]);
 
 type Props = {
   claim: PackageClaim | null;
@@ -75,13 +78,13 @@ export function ClaimDetailDialog({
   const [savingAdmin, setSavingAdmin] = useState(false);
 
   const [replyMessage, setReplyMessage] = useState("");
-  const [replyImages, setReplyImages] = useState<File[]>([]);
-  const [replyImageHint, setReplyImageHint] = useState<string | null>(null);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyFileHint, setReplyFileHint] = useState<string | null>(null);
   const [sendingReply, setSendingReply] = useState(false);
 
   const replyPreviews = useMemo(
-    () => replyImages.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    [replyImages]
+    () => replyFiles.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [replyFiles]
   );
 
   useEffect(() => {
@@ -95,41 +98,43 @@ export function ClaimDetailDialog({
       setAdminStatus(String(claim.status));
       setAdminRejectionReason(claim.rejection_reason ?? "");
       setReplyMessage("");
-      setReplyImages([]);
-      setReplyImageHint(null);
+      setReplyFiles([]);
+      setReplyFileHint(null);
     }
   }, [open, claim]);
 
-  const handleReplyImagesChange = (list: File[]) => {
-    setReplyImageHint(null);
+  const canReply = canManage || !FINAL_STATUSES.has(String(claim?.status));
+
+  const handleReplyFilesChange = (list: File[]) => {
+    setReplyFileHint(null);
     if (list.length === 0) {
-      setReplyImages([]);
+      setReplyFiles([]);
       return;
     }
-    const v = validateClaimReplyImages(list);
+    const v = validateClaimFiles(list);
     v.info.forEach((m) => toast.info(m));
     if (!v.ok) {
       v.errors.forEach((m) => toast.error(m));
-      setReplyImages([]);
+      setReplyFiles([]);
       return;
     }
-    setReplyImages(v.accepted);
-    if (v.info.length) setReplyImageHint(v.info.join(" "));
+    setReplyFiles(v.accepted);
+    if (v.info.length) setReplyFileHint(v.info.join(" "));
   };
 
-  const removeReplyImageAt = (index: number) => {
-    setReplyImages((prev) => prev.filter((_, i) => i !== index));
-    setReplyImageHint(null);
+  const removeReplyFileAt = (index: number) => {
+    setReplyFiles((prev) => prev.filter((_, i) => i !== index));
+    setReplyFileHint(null);
   };
 
   const handleSendReply = async () => {
-    if (!claim || !canManage) return;
+    if (!claim || !canReply) return;
     const text = replyMessage.trim();
-    if (!text && replyImages.length === 0) {
-      toast.error("Tulis pesan atau lampirkan gambar.");
+    if (!text && replyFiles.length === 0) {
+      toast.error("Tulis pesan atau lampirkan file.");
       return;
     }
-    const recheck = validateClaimReplyImages(replyImages);
+    const recheck = validateClaimFiles(replyFiles);
     if (!recheck.ok) {
       recheck.errors.forEach((m) => toast.error(m));
       return;
@@ -138,13 +143,13 @@ export function ClaimDetailDialog({
     try {
       const fd = new FormData();
       if (text) fd.append("message", text);
-      recheck.accepted.forEach((f) => fd.append("images[]", f));
+      recheck.accepted.forEach((f) => fd.append("attachments[]", f));
       const raw = await createPackageClaimReply(claim.id, fd);
       const updated = unwrapClaimDetail(raw);
       toast.success("Balasan terkirim.");
       setReplyMessage("");
-      setReplyImages([]);
-      setReplyImageHint(null);
+      setReplyFiles([]);
+      setReplyFileHint(null);
       if (updated) onUpdated?.(updated);
     } catch (err) {
       toast.error(
@@ -252,154 +257,189 @@ export function ClaimDetailDialog({
                   : ""}
               </p>
 
-              {(claim.replies.length > 0 || canManage) && (
-                <div className="space-y-3">
-                  <p className="font-medium text-slate-700">Balasan</p>
+              <div className="space-y-3 border-t border-slate-100 pt-4">
+                <p className="font-medium text-slate-700">Balasan</p>
 
-                  {claim.replies.length > 0 && (
-                    <ul className="flex flex-col gap-3">
-                      {claim.replies.map((r) => (
-                        <li
-                          key={r.id}
-                          className="rounded-lg border border-slate-100 bg-slate-50/80 p-3"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-slate-700">
-                              {r.author?.name ?? "Tim BhisaKirim"}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {formatClaimDateTime(r.created_at)}
-                            </span>
-                          </div>
-                          {r.message && (
-                            <p className="mt-1 whitespace-pre-wrap text-slate-700">
-                              {r.message}
-                            </p>
-                          )}
-                          {r.attachments.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {r.attachments.map((a) => (
-                                <ClaimReplyAttachmentImage key={a.id} attachment={a} />
-                              ))}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {canManage && (
-                    <div className="space-y-2 rounded-lg border border-slate-100 bg-white p-3">
-                      <Textarea
-                        value={replyMessage}
-                        onChange={(e) => setReplyMessage(e.target.value)}
-                        placeholder="Tulis balasan untuk pengaju klaim…"
-                        rows={3}
-                        disabled={sendingReply}
-                      />
-                      <div
-                        className={cn(
-                          "rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 p-3 transition-colors",
-                          "hover:border-blue-300 hover:bg-blue-50/40",
-                          sendingReply && "pointer-events-none opacity-60"
-                        )}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleReplyImagesChange(Array.from(e.dataTransfer.files ?? []));
-                        }}
-                      >
-                        <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                            <ImagePlus className="h-4 w-4" aria-hidden />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium text-slate-700">
-                              Seret gambar atau klik untuk memilih
-                            </p>
-                            <p className="text-muted-foreground text-xs">
-                              Maks. {formatBytes(CLAIM_REPLY_MAX_IMAGE_BYTES)} per gambar ·
-                              maks. {CLAIM_REPLY_MAX_FILES} gambar
-                            </p>
-                          </div>
-                          <Input
-                            id="kp-reply-images"
-                            type="file"
-                            accept={CLAIM_REPLY_ACCEPT_IMAGES}
-                            multiple
-                            disabled={sendingReply}
-                            className="sr-only"
-                            onChange={(e) => {
-                              const list = e.target.files ? Array.from(e.target.files) : [];
-                              handleReplyImagesChange(list);
-                              e.target.value = "";
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={sendingReply}
-                            className="shrink-0 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                            onClick={() => document.getElementById("kp-reply-images")?.click()}
+                {claim.replies.length === 0 ? (
+                  <p className="text-xs text-slate-400">Belum ada balasan.</p>
+                ) : (
+                  <ul className="flex max-h-[min(360px,50vh)] flex-col gap-3 overflow-y-auto rounded-lg bg-slate-50/60 p-3">
+                    {claim.replies.map((r) => {
+                      const staff = Boolean(r.author?.is_staff);
+                      return (
+                        <li key={r.id} className={cn("flex", staff ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                              staff
+                                ? "bg-blue-600 text-white"
+                                : "border border-slate-200 bg-white text-slate-900"
+                            )}
                           >
-                            Pilih gambar
-                          </Button>
-                        </div>
-                      </div>
-                      {replyImageHint ? (
-                        <p className="text-muted-foreground text-xs" role="status">
-                          {replyImageHint}
-                        </p>
-                      ) : null}
-                      {replyPreviews.length > 0 ? (
-                        <ul className="flex flex-wrap gap-2">
-                          {replyPreviews.map((p, index) => (
-                            <li
-                              key={`${p.file.name}-${p.file.size}-${index}`}
-                              className="relative h-16 w-16 overflow-hidden rounded-lg border shadow-sm"
+                            <div
+                              className={cn(
+                                "mb-1 flex flex-wrap items-center gap-2 text-xs",
+                                staff ? "text-blue-100" : "text-muted-foreground"
+                              )}
                             >
-                              {/* eslint-disable-next-line @next/next/no-img-element -- object URL lokal */}
-                              <img src={p.url} alt="" className="h-full w-full object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => removeReplyImageAt(index)}
-                                aria-label={`Hapus ${p.file.name}`}
-                                className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => void handleSendReply()}
-                        disabled={sendingReply}
-                        className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        {sendingReply ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Mengirim…
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-4 w-4" />
-                            Kirim Balasan
-                          </>
-                        )}
-                      </Button>
+                              <span className="font-semibold">
+                                {staff
+                                  ? r.author?.name
+                                    ? `Tim BhisaKirim · ${r.author.name}`
+                                    : "Tim BhisaKirim"
+                                  : (r.author?.name ?? "Pengaju")}
+                              </span>
+                              <time dateTime={r.created_at}>
+                                {formatClaimDateTime(r.created_at)}
+                              </time>
+                            </div>
+                            {r.message && (
+                              <p className="whitespace-pre-wrap break-words">{r.message}</p>
+                            )}
+                            {r.attachments.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {r.attachments.map((a) =>
+                                  (a.mime ?? "").startsWith("image/") ? (
+                                    <ClaimReplyAttachmentImage key={a.id} attachment={a} />
+                                  ) : (
+                                    <div key={a.id} className="w-full">
+                                      <ClaimAttachmentLink attachment={a} />
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {canReply ? (
+                  <div className="space-y-2 rounded-lg border border-slate-100 bg-white p-3">
+                    <Textarea
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      placeholder="Tulis balasan…"
+                      rows={3}
+                      disabled={sendingReply}
+                    />
+                    <div
+                      className={cn(
+                        "rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/80 p-3 transition-colors",
+                        "hover:border-blue-300 hover:bg-blue-50/40",
+                        sendingReply && "pointer-events-none opacity-60"
+                      )}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleReplyFilesChange(Array.from(e.dataTransfer.files ?? []));
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                          <FileUp className="h-4 w-4" aria-hidden />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-slate-700">
+                            Seret file atau klik untuk memilih
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            JPG, PNG, PDF · maks. {formatBytes(CLAIM_MAX_ATTACHMENT_BYTES)} per
+                            file · maks. {CLAIM_MAX_FILES} file
+                          </p>
+                        </div>
+                        <Input
+                          id="kp-reply-files"
+                          type="file"
+                          accept={CLAIM_ACCEPT_FILES}
+                          multiple
+                          disabled={sendingReply}
+                          className="sr-only"
+                          onChange={(e) => {
+                            const list = e.target.files ? Array.from(e.target.files) : [];
+                            handleReplyFilesChange(list);
+                            e.target.value = "";
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={sendingReply}
+                          className="shrink-0 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                          onClick={() => document.getElementById("kp-reply-files")?.click()}
+                        >
+                          Pilih file
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
+                    {replyFileHint ? (
+                      <p className="text-muted-foreground text-xs" role="status">
+                        {replyFileHint}
+                      </p>
+                    ) : null}
+                    {replyFiles.length > 0 ? (
+                      <ul className="flex flex-wrap gap-2">
+                        {replyPreviews.map((p, index) => (
+                          <li
+                            key={`${p.file.name}-${p.file.size}-${index}`}
+                            className="relative h-16 w-16 overflow-hidden rounded-lg border shadow-sm"
+                          >
+                            {p.file.type.startsWith("image/") ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- object URL lokal
+                              <img src={p.url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-slate-100 text-slate-500">
+                                <FileTextIcon className="h-5 w-5" aria-hidden />
+                                <span className="px-1 text-center text-[10px] leading-tight">
+                                  PDF
+                                </span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeReplyFileAt(index)}
+                              aria-label={`Hapus ${p.file.name}`}
+                              className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleSendReply()}
+                      disabled={sendingReply}
+                      className="gap-2 bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      {sendingReply ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Mengirim…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          Kirim Balasan
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Klaim sudah selesai ditangani. Tidak dapat menambah balasan baru.
+                  </p>
+                )}
+              </div>
 
               {canManage && (
                 <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/80 p-3">

@@ -35,6 +35,7 @@ export interface PackageClaimAttachment {
 export interface PackageClaimReplyAuthorRef {
   id: number;
   name?: string;
+  is_staff?: boolean;
 }
 
 export interface PackageClaimReply {
