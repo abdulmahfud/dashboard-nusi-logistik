@@ -107,6 +107,7 @@ import type {
   UpdateExpeditionGroupPayload,
 } from "@/types/expeditionGroup";
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
+import type { PackageClaimUpdateBody } from "@/types/packageClaim";
 import type {
   PostCategoryListResponse,
   PostCategoryAllResponse,
@@ -2171,6 +2172,46 @@ export const postSupportTicketMessage = async (
     `/admin/support/tickets/${id}/messages`,
     formData
   );
+  return res.data;
+};
+
+/** GET /admin/claims — claims.view (user: punya sendiri; claims.manage: semua + filter) */
+export const getPackageClaims = async (params?: {
+  status?: string;
+  vendor?: string;
+  user_id?: number;
+  search?: string;
+  per_page?: number;
+  page?: number;
+}): Promise<unknown> => {
+  const res = await apiClient.get("/admin/claims", { params });
+  return res.data;
+};
+
+/** GET /admin/claims/stats — claims.view, scope sama seperti getPackageClaims */
+export const getPackageClaimStats = async (): Promise<unknown> => {
+  const res = await apiClient.get("/admin/claims/stats");
+  return res.data;
+};
+
+/** GET /admin/claims/:id */
+export const getPackageClaim = async (id: number | string): Promise<unknown> => {
+  const res = await apiClient.get(`/admin/claims/${id}`);
+  return res.data;
+};
+
+/** POST /admin/claims — multipart: reference_no, vendor, issue_type, title, description, attachments[] */
+export const createPackageClaim = async (formData: FormData): Promise<unknown> => {
+  const res = await apiClient.post("/admin/claims", formData);
+  return res.data;
+};
+
+/** PATCH /admin/claims/:id — claims.manage */
+export const updatePackageClaim = async (
+  id: number | string,
+  body: PackageClaimUpdateBody
+): Promise<unknown> => {
+  const res = await apiClient.patch(`/admin/claims/${id}`, body);
   return res.data;
 };
 

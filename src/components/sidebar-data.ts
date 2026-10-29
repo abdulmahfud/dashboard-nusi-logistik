@@ -31,6 +31,7 @@ import {
   Download,
   Layers,
   Newspaper,
+  ShieldAlert,
 } from "lucide-react";
 
 /**
@@ -71,6 +72,13 @@ export const sidebarData = {
       icon: Ticket,
       matchPrefix: true,
       permission: "support.tickets.manage",
+    },
+    {
+      title: "Klaim Paket",
+      url: "/dashboard/paket/klaim-paket",
+      icon: ShieldAlert,
+      matchPrefix: true,
+      permission: "claims.view",
     },
     {
       title: "Tiket Bantuan",
