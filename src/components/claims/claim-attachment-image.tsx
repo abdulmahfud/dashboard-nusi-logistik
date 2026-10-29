@@ -11,8 +11,8 @@ type Props = {
   attachment: PackageClaimAttachment;
 };
 
-/** Thumbnail gambar balasan klaim - endpoint private, ambil via blob lalu bisa diperbesar. */
-export function ClaimReplyAttachmentImage({ attachment }: Props) {
+/** Thumbnail gambar lampiran klaim (pengajuan atau balasan) - endpoint private, ambil via blob lalu bisa diperbesar. */
+export function ClaimAttachmentImage({ attachment }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -78,6 +78,15 @@ export function ClaimReplyAttachmentImage({ attachment }: Props) {
             alt={attachment.original_name ?? "Lampiran"}
             className="h-auto max-h-[80vh] w-full rounded-md object-contain"
           />
+          <div className="mt-3 flex justify-end">
+            <a
+              href={url}
+              download={attachment.original_name || "lampiran"}
+              className="text-sm font-medium text-blue-600 underline underline-offset-2"
+            >
+              Unduh gambar
+            </a>
+          </div>
         </DialogContent>
       </Dialog>
     </>

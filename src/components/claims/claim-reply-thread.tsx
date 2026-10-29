@@ -8,8 +8,8 @@ import { FileText as FileTextIcon, FileUp, Loader2, Send, Trash2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ClaimAttachmentImage } from "@/components/claims/claim-attachment-image";
 import { ClaimAttachmentLink } from "@/components/claims/claim-attachment-link";
-import { ClaimReplyAttachmentImage } from "@/components/claims/claim-reply-attachment-image";
 import { createPackageClaimReply } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
 import {
@@ -160,7 +160,7 @@ export function ClaimReplyThread({ claim, isStaff, onUpdated }: Props) {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {r.attachments.map((a) =>
                         (a.mime ?? "").startsWith("image/") ? (
-                          <ClaimReplyAttachmentImage key={a.id} attachment={a} />
+                          <ClaimAttachmentImage key={a.id} attachment={a} />
                         ) : (
                           <div key={a.id} className="w-full">
                             <ClaimAttachmentLink attachment={a} />

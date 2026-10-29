@@ -12,6 +12,7 @@ import TopNav from "@/components/top-nav";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClaimAttachmentImage } from "@/components/claims/claim-attachment-image";
 import { ClaimAttachmentLink } from "@/components/claims/claim-attachment-link";
 import { ClaimManageDialog } from "@/components/claims/claim-manage-dialog";
 import { ClaimReplyThread } from "@/components/claims/claim-reply-thread";
@@ -226,10 +227,16 @@ export default function KlaimPaketDetailPage() {
                   {claim.attachments.length > 0 && (
                     <div>
                       <p className="mb-2 font-medium text-slate-700">Lampiran</p>
-                      <div className="flex flex-col gap-2">
-                        {claim.attachments.map((a) => (
-                          <ClaimAttachmentLink key={a.id} attachment={a} />
-                        ))}
+                      <div className="flex flex-wrap gap-2">
+                        {claim.attachments.map((a) =>
+                          (a.mime ?? "").startsWith("image/") ? (
+                            <ClaimAttachmentImage key={a.id} attachment={a} />
+                          ) : (
+                            <div key={a.id} className="w-full">
+                              <ClaimAttachmentLink attachment={a} />
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
