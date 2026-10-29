@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
@@ -39,7 +40,6 @@ import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import { StatCard } from "@/components/redesign/stat-card";
-import { ClaimDetailDialog } from "@/components/claims/claim-detail-dialog";
 import { ClaimStatusBadge } from "@/components/claims/claim-status-badge";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -106,7 +106,6 @@ export default function KlaimPaketPage() {
   const { hasPermission, loading: authLoading } = useAuth();
   const canView = hasPermission("claims.view");
   const canCreate = hasPermission("claims.create");
-  const canManage = hasPermission("claims.manage");
   const canAccessPage = canView || canCreate;
 
   // ---- Stats ----
@@ -323,15 +322,6 @@ export default function KlaimPaketPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  // ---- Detail dialog ----
-  const [selectedClaim, setSelectedClaim] = useState<PackageClaim | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const openDetail = (claim: PackageClaim) => {
-    setSelectedClaim(claim);
-    setDetailOpen(true);
   };
 
   const statusTabs = useMemo(
@@ -744,9 +734,8 @@ export default function KlaimPaketPage() {
                         <ul className="flex flex-col gap-3">
                           {items.map((c) => (
                             <li key={c.id}>
-                              <button
-                                type="button"
-                                onClick={() => openDetail(c)}
+                              <Link
+                                href={`/dashboard/paket/klaim-paket/${c.id}`}
                                 className="flex w-full items-start gap-3 rounded-xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/30"
                               >
                                 <div className="min-w-0 flex-1">
@@ -767,7 +756,7 @@ export default function KlaimPaketPage() {
                                     Diajukan {formatClaimDateTime(c.created_at)}
                                   </p>
                                 </div>
-                              </button>
+                              </Link>
                             </li>
                           ))}
                         </ul>
@@ -793,17 +782,6 @@ export default function KlaimPaketPage() {
             </div>
           </div>
         </div>
-
-        <ClaimDetailDialog
-          claim={selectedClaim}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-          canManage={canManage}
-          onUpdated={(updated) => {
-            setSelectedClaim(updated);
-            refreshAll();
-          }}
-        />
       </SidebarInset>
     </SidebarProvider>
   );

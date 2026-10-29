@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AxiosError } from "axios";
 import { toast } from "sonner";
@@ -40,7 +41,6 @@ import {
 import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
-import { ClaimDetailDialog } from "@/components/claims/claim-detail-dialog";
 import { ClaimStatusBadge } from "@/components/claims/claim-status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { getPackageClaims, getPackageClaimStats } from "@/lib/apiClient";
@@ -225,15 +225,6 @@ export default function KlaimMasukPage() {
     setSearch("");
     setPage(1);
     void load({ targetPage: 1, status: "all", vendor: "all", search: "" });
-  };
-
-  // ---- Detail dialog ----
-  const [selectedClaim, setSelectedClaim] = useState<PackageClaim | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const openDetail = (claim: PackageClaim) => {
-    setSelectedClaim(claim);
-    setDetailOpen(true);
   };
 
   if (authLoading) {
@@ -434,13 +425,12 @@ export default function KlaimMasukPage() {
                       {items.map((c) => (
                         <TableRow key={c.id} className="border-slate-100 hover:bg-slate-50/60">
                           <TableCell className="py-4">
-                            <button
-                              type="button"
-                              onClick={() => openDetail(c)}
-                              className="line-clamp-2 text-left text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline"
+                            <Link
+                              href={`/dashboard/paket/klaim-paket/${c.id}`}
+                              className="line-clamp-2 text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline"
                             >
                               {c.title}
-                            </button>
+                            </Link>
                             <p className="text-xs text-slate-500">
                               #{c.id} · {c.reference_no}
                             </p>
@@ -468,10 +458,15 @@ export default function KlaimMasukPage() {
                               variant="outline"
                               size="sm"
                               className="h-9 gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                              onClick={() => openDetail(c)}
+                              asChild
                             >
-                              <Eye className="h-4 w-4" aria-hidden />
-                              Lihat Detail
+                              <Link
+                                href={`/dashboard/paket/klaim-paket/${c.id}`}
+                                aria-label={`Lihat detail klaim: ${c.title}`}
+                              >
+                                <Eye className="h-4 w-4" aria-hidden />
+                                Lihat Detail
+                              </Link>
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -485,13 +480,12 @@ export default function KlaimMasukPage() {
                     <li key={c.id}>
                       <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openDetail(c)}
-                            className="min-w-0 text-left text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline"
+                          <Link
+                            href={`/dashboard/paket/klaim-paket/${c.id}`}
+                            className="min-w-0 text-sm font-semibold text-slate-900 hover:text-blue-600 hover:underline"
                           >
                             {c.title}
-                          </button>
+                          </Link>
                           <ClaimStatusBadge
                             status={String(c.status)}
                             statusLabel={c.status_label}
@@ -509,10 +503,15 @@ export default function KlaimMasukPage() {
                             variant="outline"
                             size="sm"
                             className="h-9 w-full gap-1.5 rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 sm:w-auto"
-                            onClick={() => openDetail(c)}
+                            asChild
                           >
-                            <Eye className="h-4 w-4" aria-hidden />
-                            Lihat Detail
+                            <Link
+                              href={`/dashboard/paket/klaim-paket/${c.id}`}
+                              aria-label={`Lihat detail klaim: ${c.title}`}
+                            >
+                              <Eye className="h-4 w-4" aria-hidden />
+                              Lihat Detail
+                            </Link>
                           </Button>
                         </div>
                       </div>
@@ -537,17 +536,6 @@ export default function KlaimMasukPage() {
             )}
           </SectionCard>
         </div>
-
-        <ClaimDetailDialog
-          claim={selectedClaim}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-          canManage={canManage}
-          onUpdated={(updated) => {
-            setSelectedClaim(updated);
-            refreshAll();
-          }}
-        />
       </SidebarInset>
     </SidebarProvider>
   );
