@@ -1,3 +1,13 @@
+import {
+  CheckCircle2,
+  Clock,
+  FileText,
+  Send,
+  ShieldCheck,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
+
 export const CLAIM_ISSUE_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "paket_hilang", label: "Paket Hilang" },
   { value: "paket_rusak", label: "Paket Rusak" },
@@ -39,53 +49,46 @@ export function claimIssueTypeLabel(
   );
 }
 
-/** Class Tailwind badge status, selaras dengan warna di mockup. */
+/**
+ * Class Tailwind pill badge status: ikon + latar lembut senada warna (bukan
+ * gradien tebal) - mengikuti referensi desain kartu "Riwayat Klaim Paket".
+ */
 export function claimStatusBadgeClassName(status: string): string {
   switch (status) {
     case "diajukan":
-      return [
-        "border-sky-400/50",
-        "bg-gradient-to-r from-sky-200/80 via-sky-100 to-blue-100",
-        "!text-sky-950",
-        "shadow-sm ring-1 ring-sky-400/35",
-      ].join(" ");
+      return "border-sky-100 bg-sky-50 text-sky-600";
     case "dalam_pemeriksaan":
-      return [
-        "border-amber-400/50",
-        "bg-gradient-to-r from-amber-200/90 via-amber-100 to-orange-100",
-        "!text-amber-950",
-        "shadow-sm ring-1 ring-amber-400/30",
-      ].join(" ");
+      return "border-orange-100 bg-orange-50 text-orange-600";
     case "menunggu_dokumen":
-      return [
-        "border-orange-400/50",
-        "bg-gradient-to-r from-orange-200/90 via-orange-100 to-amber-100",
-        "!text-orange-950",
-        "shadow-sm ring-1 ring-orange-400/30",
-      ].join(" ");
+      return "border-amber-100 bg-amber-50 text-amber-600";
     case "disetujui":
-      return [
-        "border-emerald-400/45",
-        "bg-gradient-to-r from-emerald-200/80 to-green-100",
-        "!text-emerald-950",
-        "shadow-sm ring-1 ring-emerald-400/30",
-      ].join(" ");
+      return "border-emerald-100 bg-emerald-50 text-emerald-600";
     case "ditolak":
-      return [
-        "border-rose-400/50",
-        "bg-gradient-to-r from-rose-200/90 via-rose-100 to-red-100",
-        "!text-rose-950",
-        "shadow-sm ring-1 ring-rose-400/30",
-      ].join(" ");
+      return "border-rose-100 bg-rose-50 text-rose-600";
     case "selesai":
-      return [
-        "border-slate-400/50",
-        "bg-gradient-to-r from-slate-300/90 to-slate-200/80",
-        "!text-slate-900",
-        "shadow-sm",
-      ].join(" ");
+      return "border-violet-100 bg-violet-50 text-violet-600";
     default:
-      return "border-slate-200 bg-slate-100 !text-slate-800";
+      return "border-slate-200 bg-slate-100 text-slate-600";
+  }
+}
+
+/** Ikon pill badge status, selaras dengan warna di claimStatusBadgeClassName(). */
+export function claimStatusIcon(status: string): LucideIcon {
+  switch (status) {
+    case "diajukan":
+      return Send;
+    case "dalam_pemeriksaan":
+      return Clock;
+    case "menunggu_dokumen":
+      return FileText;
+    case "disetujui":
+      return CheckCircle2;
+    case "ditolak":
+      return XCircle;
+    case "selesai":
+      return ShieldCheck;
+    default:
+      return FileText;
   }
 }
 

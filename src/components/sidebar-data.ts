@@ -74,11 +74,20 @@ export const sidebarData = {
       permission: "support.tickets.manage",
     },
     {
+      title: "Klaim Masuk",
+      url: "/dashboard/paket/klaim-masuk",
+      icon: ShieldAlert,
+      matchPrefix: true,
+      permission: "claims.manage",
+    },
+    {
       title: "Klaim Paket",
       url: "/dashboard/paket/klaim-paket",
       icon: ShieldAlert,
       matchPrefix: true,
       permission: "claims.view",
+      // Disembunyikan untuk staff (claims.manage) - staff pakai "Klaim Masuk".
+      excludeIfPermission: "claims.manage",
     },
     {
       title: "Tiket Bantuan",
@@ -86,6 +95,8 @@ export const sidebarData = {
       icon: Ticket,
       exact: true,
       permission: "support.tickets.create",
+      // Disembunyikan untuk staff (support.tickets.manage) - staff pakai "Tiket Masuk".
+      excludeIfPermission: "support.tickets.manage",
     },
   ],
   wallet: [
