@@ -19,7 +19,7 @@ export type SupportStatusKind = ReturnType<
   typeof resolveSupportTicketStatusKind
 >;
 
-/** Gaya redesain per status tiket: ikon + warna tile + warna pil. */
+/** Gaya redesain per status tiket: ikon + warna tile + warna pil (pill border+bg+text). */
 export const SUPPORT_STATUS_STYLE: Record<
   SupportStatusKind,
   { icon: LucideIcon; tile: string; pill: string }
@@ -27,27 +27,27 @@ export const SUPPORT_STATUS_STYLE: Record<
   awaiting_support: {
     icon: Clock,
     tile: "bg-orange-50 text-orange-500",
-    pill: "bg-amber-50 text-amber-700",
+    pill: "border-amber-100 bg-amber-50 text-amber-700",
   },
   awaiting_customer: {
     icon: MessageCircle,
     tile: "bg-sky-50 text-sky-600",
-    pill: "bg-sky-50 text-sky-700",
+    pill: "border-sky-100 bg-sky-50 text-sky-700",
   },
   resolved: {
     icon: CheckCircle2,
     tile: "bg-emerald-50 text-emerald-600",
-    pill: "bg-emerald-50 text-emerald-700",
+    pill: "border-emerald-100 bg-emerald-50 text-emerald-700",
   },
   closed: {
     icon: XCircle,
     tile: "bg-slate-100 text-slate-500",
-    pill: "bg-slate-100 text-slate-600",
+    pill: "border-slate-200 bg-slate-100 text-slate-600",
   },
   unknown: {
     icon: Ticket,
     tile: "bg-slate-100 text-slate-500",
-    pill: "bg-slate-100 text-slate-600",
+    pill: "border-slate-200 bg-slate-100 text-slate-600",
   },
 };
 
@@ -65,16 +65,18 @@ export function TicketStatusPill({
   ticket: SupportTicketSummary;
   className?: string;
 }) {
+  const { icon: Icon, pill } = SUPPORT_STATUS_STYLE[kindOf(ticket)];
   return (
     <span
       role="status"
       className={cn(
-        "inline-flex max-w-[14rem] items-center rounded-full px-2.5 py-1 text-xs font-medium leading-tight",
-        SUPPORT_STATUS_STYLE[kindOf(ticket)].pill,
+        "inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold leading-tight",
+        pill,
         className
       )}
     >
-      {ticket.status_label ?? ticket.status}
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span className="truncate">{ticket.status_label ?? ticket.status}</span>
     </span>
   );
 }

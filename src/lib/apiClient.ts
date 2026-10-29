@@ -2215,6 +2215,15 @@ export const updatePackageClaim = async (
   return res.data;
 };
 
+/** POST /admin/claims/:id/replies — claims.manage, multipart: message?, images[]? */
+export const createPackageClaimReply = async (
+  id: number | string,
+  formData: FormData
+): Promise<unknown> => {
+  const res = await apiClient.post(`/admin/claims/${id}/replies`, formData);
+  return res.data;
+};
+
 /** GET /admin/feedbacks — feedbacks.index */
 export const getFeedbacks = async (params?: {
   user_id?: number;

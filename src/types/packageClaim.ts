@@ -32,6 +32,19 @@ export interface PackageClaimAttachment {
   url: string;
 }
 
+export interface PackageClaimReplyAuthorRef {
+  id: number;
+  name?: string;
+}
+
+export interface PackageClaimReply {
+  id: number;
+  message: string | null;
+  author?: PackageClaimReplyAuthorRef | null;
+  created_at: string;
+  attachments: PackageClaimAttachment[];
+}
+
 export interface PackageClaim {
   id: number;
   reference_no: string;
@@ -50,6 +63,7 @@ export interface PackageClaim {
   created_at: string;
   updated_at?: string;
   attachments: PackageClaimAttachment[];
+  replies: PackageClaimReply[];
 }
 
 export interface PackageClaimsPaginator {
