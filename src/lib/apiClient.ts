@@ -109,6 +109,11 @@ import type {
 import type { SupportTicketPatchBody } from "@/types/supportTicket";
 import type { PackageClaimUpdateBody } from "@/types/packageClaim";
 import type {
+  NotificationDetailResponse,
+  NotificationsListResponse,
+  UnreadNotificationCountResponse,
+} from "@/types/notification";
+import type {
   PostCategoryListResponse,
   PostCategoryAllResponse,
   PostCategoryDetailResponse,
@@ -2221,6 +2226,35 @@ export const createPackageClaimReply = async (
   formData: FormData
 ): Promise<unknown> => {
   const res = await apiClient.post(`/admin/claims/${id}/replies`, formData);
+  return res.data;
+};
+
+/** GET /admin/notifications — scoped ke user login, tidak perlu permission */
+export const getNotifications = async (params?: {
+  page?: number;
+  per_page?: number;
+}): Promise<NotificationsListResponse> => {
+  const res = await apiClient.get("/admin/notifications", { params });
+  return res.data;
+};
+
+/** GET /admin/notifications/unread-count */
+export const getUnreadNotificationCount = async (): Promise<UnreadNotificationCountResponse> => {
+  const res = await apiClient.get("/admin/notifications/unread-count");
+  return res.data;
+};
+
+/** POST /admin/notifications/:id/read */
+export const markNotificationAsRead = async (
+  id: string
+): Promise<NotificationDetailResponse> => {
+  const res = await apiClient.post(`/admin/notifications/${id}/read`);
+  return res.data;
+};
+
+/** POST /admin/notifications/read-all */
+export const markAllNotificationsAsRead = async (): Promise<unknown> => {
+  const res = await apiClient.post("/admin/notifications/read-all");
   return res.data;
 };
 

@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/notification-bell";
 import { NavUserTop } from "./nav-user-top";
 
 /** Bagian kanan top bar: tombol Kirim Paket + menu akun. */
@@ -19,6 +20,7 @@ export default function TopNav() {
           <span className="hidden sm:inline">Kirim Paket</span>
         </Link>
       </Button>
+      <NotificationBell />
       <NavUserTop />
     </div>
   );
