@@ -413,6 +413,7 @@ export default function KlaimMasukPage() {
                     <TableHeader>
                       <TableRow className="border-slate-100 hover:bg-transparent">
                         <TableHead className={headCls}>Klaim</TableHead>
+                        <TableHead className={headCls}>Resi</TableHead>
                         <TableHead className={headCls}>Pengguna</TableHead>
                         <TableHead className={headCls}>Ekspedisi</TableHead>
                         <TableHead className={headCls}>Jenis Kendala</TableHead>
@@ -431,9 +432,10 @@ export default function KlaimMasukPage() {
                             >
                               {c.title}
                             </Link>
-                            <p className="text-xs text-slate-500">
-                              #{c.id} · {c.reference_no}
-                            </p>
+                            <p className="text-xs text-slate-500">#{c.id}</p>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap py-4 text-sm font-medium text-slate-700">
+                            {c.reference_no}
                           </TableCell>
                           <TableCell className="max-w-[180px] py-4 text-sm">
                             <p className="font-medium text-slate-900">{c.user?.name ?? "—"}</p>
