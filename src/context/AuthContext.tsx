@@ -15,6 +15,15 @@ type AuthContextType = {
   loading: boolean;
   /** Klasifikasi error terakhir GET /admin/me (403 sering dipakai untuk email belum verifikasi). */
   meErrorKind: AdminMeErrorKind;
+  /**
+   * `error_code` dari body 403 terakhir (lihat EnsureCorporateApproved) -
+   * "corporate_pending_approval" / "corporate_rejected" kalau akun corporate
+   * belum/ditolak disetujui admin, kosong untuk kasus lain (mis. email
+   * belum verifikasi).
+   */
+  meErrorCode?: string;
+  meErrorMessage?: string;
+  meCorporateRejectedReason?: string | null;
   /** Paksa fetch baru dari API (setelah login, update profil, dll.) */
   refreshUser: (options?: { force?: boolean }) => Promise<UserData | null>;
   isVerified: boolean;
@@ -34,16 +43,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [meErrorKind, setMeErrorKind] = useState<AdminMeErrorKind>("none");
+  const [meErrorCode, setMeErrorCode] = useState<string | undefined>();
+  const [meErrorMessage, setMeErrorMessage] = useState<string | undefined>();
+  const [meCorporateRejectedReason, setMeCorporateRejectedReason] = useState<
+    string | null | undefined
+  >();
 
   const refreshUser = useCallback(async (options?: { force?: boolean }) => {
     setLoading(true);
     try {
       // default: jangan force (hindari spam /me)
-      const { user: u, errorKind } = await fetchAdminMe({
-        force: options?.force ?? false,
-      });
+      const { user: u, errorKind, errorCode, errorMessage, corporateRejectedReason } =
+        await fetchAdminMe({ force: options?.force ?? false });
       setUser(u);
       setMeErrorKind(errorKind);
+      setMeErrorCode(errorCode);
+      setMeErrorMessage(errorMessage);
+      setMeCorporateRejectedReason(corporateRejectedReason);
       return u;
     } finally {
       setLoading(false);
@@ -53,9 +69,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loadInitial = useCallback(async () => {
     setLoading(true);
     try {
-      const { user: u, errorKind } = await fetchAdminMe({ force: false });
+      const { user: u, errorKind, errorCode, errorMessage, corporateRejectedReason } =
+        await fetchAdminMe({ force: false });
       setUser(u);
       setMeErrorKind(errorKind);
+      setMeErrorCode(errorCode);
+      setMeErrorMessage(errorMessage);
+      setMeCorporateRejectedReason(corporateRejectedReason);
     } finally {
       setLoading(false);
     }
@@ -77,6 +97,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         loading,
         meErrorKind,
+        meErrorCode,
+        meErrorMessage,
+        meCorporateRejectedReason,
         refreshUser,
         isVerified,
         hasPermission,

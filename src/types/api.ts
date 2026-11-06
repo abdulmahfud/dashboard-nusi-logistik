@@ -32,6 +32,14 @@ export interface UserData {
     outstanding_balance: number;
     kerja_sama_is_active: boolean;
   };
+  /**
+   * Hanya muncul kalau account_type === "corporate" - lihat
+   * EnsureCorporateApproved. null/kosong berarti masih menunggu
+   * persetujuan admin (lihat /dashboard/menunggu-persetujuan).
+   */
+  corporate_approved_at?: string | null;
+  corporate_rejected_at?: string | null;
+  corporate_rejected_reason?: string | null;
 }
 
 export interface UsersResponse {
@@ -75,6 +83,10 @@ export interface LoginResponseUser {
   whatsapp?: string;
   roles?: string[];
   permissions?: string[];
+  account_type?: "personal" | "corporate";
+  corporate_approved_at?: string | null;
+  corporate_rejected_at?: string | null;
+  corporate_rejected_reason?: string | null;
 }
 
 /** Map permission → boolean dari backend login */

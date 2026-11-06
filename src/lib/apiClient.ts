@@ -1099,6 +1099,28 @@ export const resendEmailVerification = async () => {
   return res.data;
 };
 
+/**
+ * POST /register/corporate — multipart: company_name, jenis_usaha, npwp,
+ * nib, billing_address, pic_name, email, whatsapp, password,
+ * password_confirmation, npwp_document, nib_document, pic_ktp_document.
+ * Akun dibuat dengan account_type=corporate, corporate_approved_at=null
+ * (pending) sampai admin approve - lihat approveCorporateRegistration().
+ */
+export const registerCorporate = async (formData: FormData): Promise<unknown> => {
+  const res = await apiClient.post("/register/corporate", formData);
+  return res.data;
+};
+
+/**
+ * POST /auth/google — body: { credential } (ID token JWT dari
+ * @react-oauth/google). Selalu login/bikin akun personal; bentuk respons
+ * identik POST /login (success, user, permissions, token).
+ */
+export const loginWithGoogle = async (credential: string): Promise<unknown> => {
+  const res = await apiClient.post("/auth/google", { credential });
+  return res.data;
+};
+
 // ✅ Cancel order functions for different vendors
 export const cancelJntExpressOrder = async (data: {
   orderid: string;
@@ -1145,10 +1167,36 @@ export const getUsers = async (
   if (params.role_name != null && params.role_name !== "")
     q.role_name = params.role_name;
   if (params.per_page != null) q.per_page = params.per_page;
+  if (params.pending_corporate) q.pending_corporate = 1;
 
   const res = await apiClient.get("/admin/users", { params: q });
   return res.data;
 };
+
+/** POST /admin/users/:id/approve-corporate — permission users.update */
+export const approveCorporateRegistration = async (
+  userId: number
+): Promise<unknown> => {
+  const res = await apiClient.post(`/admin/users/${userId}/approve-corporate`);
+  return res.data;
+};
+
+/** POST /admin/users/:id/reject-corporate — permission users.update */
+export const rejectCorporateRegistration = async (
+  userId: number,
+  reason: string
+): Promise<unknown> => {
+  const res = await apiClient.post(`/admin/users/${userId}/reject-corporate`, {
+    reason,
+  });
+  return res.data;
+};
+
+/** GET /admin/users/:id/corporate-documents/:type — permission users.update */
+export const corporateDocumentUrl = (
+  userId: number,
+  type: "npwp" | "nib" | "pic_ktp"
+): string => `/admin/users/${userId}/corporate-documents/${type}`;
 
 export const getUserById = async (id: number): Promise<UserDetailResponse> => {
   const res = await apiClient.get(`/admin/users/${id}`);

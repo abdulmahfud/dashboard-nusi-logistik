@@ -32,6 +32,7 @@ import {
   Layers,
   Newspaper,
   ShieldAlert,
+  Building2,
 } from "lucide-react";
 
 /**
@@ -320,6 +321,12 @@ export const sidebarData = {
       url: "/dashboard/users/create",
       icon: UserRoundPlus,
       permission: "users.store",
+    },
+    {
+      title: "Pendaftar Perusahaan",
+      url: "/dashboard/users/pendaftar-perusahaan",
+      icon: Building2,
+      permission: "users.update",
     },
     {
       title: "List Role",

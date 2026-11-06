@@ -20,6 +20,8 @@ export type GetUsersQueryParams = {
   role_name?: string;
   /** 1–100; default backend 5 jika tidak dikirim */
   per_page?: number;
+  /** account_type=corporate AND corporate_approved_at IS NULL - antrean pendaftaran perusahaan. */
+  pending_corporate?: boolean;
 };
 
 export interface User {
@@ -31,6 +33,16 @@ export interface User {
   created_at: string;
   updated_at: string;
   roles: UserRole[];
+  account_type?: "personal" | "corporate";
+  company_name?: string | null;
+  jenis_usaha?: string | null;
+  npwp?: string | null;
+  nib?: string | null;
+  pic_name?: string | null;
+  billing_address?: string | null;
+  corporate_approved_at?: string | null;
+  corporate_rejected_at?: string | null;
+  corporate_rejected_reason?: string | null;
 }
 
 export interface UserListResponse {

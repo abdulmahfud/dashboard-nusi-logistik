@@ -39,6 +39,14 @@ export type AdminMeErrorKind =
 export type AdminMeFetchResult = {
   user: UserData | null;
   errorKind: AdminMeErrorKind;
+  /**
+   * `error_code` dari body 403 (lihat EnsureCorporateApproved) - dipakai
+   * ProtectedRoute untuk membedakan "email belum verifikasi" (tidak ada
+   * error_code) dari "akun corporate menunggu/ditolak persetujuan admin".
+   */
+  errorCode?: string;
+  errorMessage?: string;
+  corporateRejectedReason?: string | null;
 };
 
 let inflight: Promise<AdminMeFetchResult> | null = null;
@@ -76,12 +84,33 @@ export async function fetchAdminMe(options?: {
       return result;
     } catch (e) {
       let errorKind: AdminMeErrorKind = "unknown";
+      let errorCode: string | undefined;
+      let errorMessage: string | undefined;
+      let corporateRejectedReason: string | null | undefined;
       if (isAxiosError(e)) {
         const s = e.response?.status;
         if (s === 401 || s === 419) errorKind = "unauthenticated";
-        else if (s === 403) errorKind = "forbidden";
+        else if (s === 403) {
+          errorKind = "forbidden";
+          const body = e.response?.data as Record<string, unknown> | undefined;
+          if (body && typeof body.error_code === "string") {
+            errorCode = body.error_code;
+          }
+          if (body && typeof body.message === "string") {
+            errorMessage = body.message;
+          }
+          if (body && typeof body.corporate_rejected_reason === "string") {
+            corporateRejectedReason = body.corporate_rejected_reason;
+          }
+        }
       }
-      const result: AdminMeFetchResult = { user: null, errorKind };
+      const result: AdminMeFetchResult = {
+        user: null,
+        errorKind,
+        errorCode,
+        errorMessage,
+        corporateRejectedReason,
+      };
       cached = { ...result, at: Date.now() };
       return result;
     } finally {

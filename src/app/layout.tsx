@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -76,7 +77,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable} antialiased`}>
-        {children}
+        <GoogleOAuthProvider
+          clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}
+        >
+          {children}
+        </GoogleOAuthProvider>
         {/* toast.error()/toast.success() dipakai di puluhan halaman tapi
             tidak pernah tampil - <Toaster/> (target render sonner) tidak
             pernah dipasang di mana pun, jadi semua panggilan toast cuma
