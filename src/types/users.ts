@@ -49,7 +49,6 @@ export interface User {
   city?: string | null;
   birth_date?: string | null;
   gender?: "male" | "female" | null;
-  has_ktp_document?: boolean;
   has_npwp_document?: boolean;
   has_nib_document?: boolean;
   has_pic_ktp_document?: boolean;

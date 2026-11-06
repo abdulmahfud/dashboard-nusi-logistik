@@ -47,7 +47,6 @@ export interface UserData {
   city?: string | null;
   birth_date?: string | null;
   gender?: "male" | "female" | null;
-  has_ktp_document?: boolean;
   /** Hanya muncul kalau account_type === "corporate". */
   company_name?: string | null;
   jenis_usaha?: string | null;

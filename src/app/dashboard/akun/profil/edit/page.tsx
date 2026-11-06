@@ -33,10 +33,8 @@ import {
   Mail,
   RefreshCw,
   AlertCircle,
-  FileText,
-  Loader2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -45,7 +43,6 @@ import {
   updateUser,
   resendEmailVerification,
   requestPasswordReset,
-  uploadKtpDocument,
 } from "@/lib/apiClient";
 import type { User, UserUpdateRequest } from "@/types/users";
 import { AxiosError } from "axios";
@@ -82,8 +79,6 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
-  const [uploadingKtp, setUploadingKtp] = useState(false);
-  const ktpInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<UserUpdateRequest>({
     name: "",
@@ -226,27 +221,6 @@ export default function ProfileEditPage() {
       }
     } finally {
       setSendingReset(false);
-    }
-  };
-
-  const handleKtpFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploadingKtp(true);
-    try {
-      await uploadKtpDocument(file);
-      toast.success("Dokumen KTP berhasil diunggah.");
-      setProfile((prev) => (prev ? { ...prev, has_ktp_document: true } : prev));
-      await refreshUser({ force: true });
-    } catch (error: unknown) {
-      const msg =
-        error instanceof AxiosError && error.response?.data
-          ? (error.response.data as { message?: string }).message
-          : undefined;
-      toast.error(msg || "Gagal mengunggah dokumen KTP.");
-    } finally {
-      setUploadingKtp(false);
     }
   };
 
@@ -599,45 +573,17 @@ export default function ProfileEditPage() {
                       </Select>
                     </div>
 
-                    <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex gap-3">
-                        <FileText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-                        <div>
-                          <p className="font-medium leading-none">Dokumen KTP</p>
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {profile.has_ktp_document
-                              ? "KTP sudah diunggah. Unggah ulang untuk mengganti."
-                              : "Belum diunggah. Format JPG/PNG/PDF, maks 5MB."}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
+                    <p className="text-muted-foreground text-xs">
+                      Dokumen KTP dikelola lewat halaman{" "}
+                      <button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        disabled={uploadingKtp}
-                        onClick={() => ktpInputRef.current?.click()}
+                        onClick={() => router.push("/dashboard/akun/rekening")}
+                        className="font-medium text-blue-600 underline-offset-2 hover:underline"
                       >
-                        {uploadingKtp ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Mengunggah…
-                          </>
-                        ) : profile.has_ktp_document ? (
-                          "Ganti KTP"
-                        ) : (
-                          "Upload KTP"
-                        )}
-                      </Button>
-                      <input
-                        ref={ktpInputRef}
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,application/pdf"
-                        className="hidden"
-                        onChange={(e) => void handleKtpFileChange(e)}
-                      />
-                    </div>
+                        Rekening Bank
+                      </button>{" "}
+                      (diunggah bersama foto rekening sebagai syarat COD).
+                    </p>
                   </>
                 )}
 

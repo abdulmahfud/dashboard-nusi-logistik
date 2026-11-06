@@ -34,9 +34,11 @@ import apiClient, {
   requestPasswordReset,
   updateUser,
   uploadAvatar,
-  uploadKtpDocument,
   ownDocumentUrl,
+  getBankAccounts,
+  getBankAccountFile,
 } from "@/lib/apiClient";
+import type { BankAccount } from "@/types/bankAccount";
 import { AxiosError } from "axios";
 
 const JENIS_USAHA_LABELS: Record<string, string> = {
@@ -117,10 +119,39 @@ export default function UserProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [sendingReset, setSendingReset] = useState(false);
-  const [uploadingKtp, setUploadingKtp] = useState(false);
-  const ktpInputRef = useRef<HTMLInputElement>(null);
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
   const [savingPref, setSavingPref] = useState<string | null>(null);
+
+  // KTP personal tidak diunggah terpisah di profil - diambil dari rekening
+  // bank (BankAccount::photo_ktp), yang memang mewajibkan KTP + disetujui
+  // admin sebagai syarat COD. Lihat docs/be-fe - hindari dua sumber KTP.
+  const [bankAccount, setBankAccount] = useState<BankAccount | null>(null);
+  const [loadingBankAccount, setLoadingBankAccount] = useState(true);
+
+  useEffect(() => {
+    if (!user || user.account_type === "corporate") {
+      setLoadingBankAccount(false);
+      return;
+    }
+    let active = true;
+    setLoadingBankAccount(true);
+    getBankAccounts()
+      .then((res) => {
+        if (!active) return;
+        const accounts = res.data ?? [];
+        const withKtp = accounts.find((a) => a.photo_ktp) ?? accounts[0] ?? null;
+        setBankAccount(withKtp);
+      })
+      .catch(() => {
+        if (active) setBankAccount(null);
+      })
+      .finally(() => {
+        if (active) setLoadingBankAccount(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (loading) {
     return (
@@ -158,24 +189,6 @@ export default function UserProfilePage() {
     }
   };
 
-  const handleKtpChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setUploadingKtp(true);
-    try {
-      await uploadKtpDocument(file);
-      toast.success("Dokumen KTP berhasil diunggah.");
-      await refreshUser({ force: true });
-    } catch (error) {
-      const msg =
-        error instanceof AxiosError ? error.response?.data?.message : undefined;
-      toast.error(msg || "Gagal mengunggah dokumen KTP.");
-    } finally {
-      setUploadingKtp(false);
-    }
-  };
-
   const handleSendPasswordReset = async () => {
     setSendingReset(true);
     try {
@@ -190,7 +203,7 @@ export default function UserProfilePage() {
     }
   };
 
-  const handleViewDocument = async (type: "ktp" | "npwp" | "nib" | "pic_ktp") => {
+  const handleViewDocument = async (type: "npwp" | "nib" | "pic_ktp") => {
     setViewingDoc(type);
     try {
       const res = await apiClient.get<Blob>(ownDocumentUrl(type), {
@@ -201,6 +214,20 @@ export default function UserProfilePage() {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
       toast.error("Gagal membuka dokumen.");
+    } finally {
+      setViewingDoc(null);
+    }
+  };
+
+  const handleViewKtpFromBankAccount = async () => {
+    if (!bankAccount) return;
+    setViewingDoc("ktp");
+    try {
+      const url = await getBankAccountFile(bankAccount.id, "ktp");
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      toast.error("Gagal membuka dokumen KTP.");
     } finally {
       setViewingDoc(null);
     }
@@ -401,22 +428,14 @@ export default function UserProfilePage() {
                       />
                     </>
                   ) : (
-                    <DocumentRow
-                      label="KTP"
-                      exists={!!user.has_ktp_document}
-                      verified={false}
-                      loading={viewingDoc === "ktp" || uploadingKtp}
-                      onView={() => void handleViewDocument("ktp")}
-                      onUpload={() => ktpInputRef.current?.click()}
+                    <KtpFromBankAccountRow
+                      bankAccount={bankAccount}
+                      loading={loadingBankAccount}
+                      viewLoading={viewingDoc === "ktp"}
+                      onView={() => void handleViewKtpFromBankAccount()}
+                      onGoToBankAccount={() => router.push("/dashboard/akun/rekening")}
                     />
                   )}
-                  <input
-                    ref={ktpInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,application/pdf"
-                    className="hidden"
-                    onChange={(e) => void handleKtpChange(e)}
-                  />
                 </div>
               </SectionCard>
             </div>
@@ -560,15 +579,13 @@ function DocumentRow({
   verified,
   loading,
   onView,
-  onUpload,
 }: {
   label: string;
   exists: boolean;
-  /** Dokumen sudah ditinjau admin (corporate_approved_at) - personal tidak punya proses ini. */
+  /** Dokumen sudah ditinjau admin (corporate_approved_at). */
   verified: boolean;
   loading: boolean;
   onView: () => void;
-  onUpload?: () => void;
 }) {
   const statusLabel = !exists ? "Belum Diunggah" : verified ? "Terverifikasi" : "Tersimpan";
   return (
@@ -580,16 +597,67 @@ function DocumentRow({
           <StatusBadge status={exists && verified ? "success" : "pending"} label={statusLabel} />
         </div>
       </div>
-      {exists ? (
+      {exists && (
         <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onView}>
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Lihat File"}
         </Button>
+      )}
+    </div>
+  );
+}
+
+/** Status KTP personal diambil dari rekening bank (photo_ktp), bukan upload terpisah. */
+function KtpFromBankAccountRow({
+  bankAccount,
+  loading,
+  viewLoading,
+  onView,
+  onGoToBankAccount,
+}: {
+  bankAccount: BankAccount | null;
+  loading: boolean;
+  viewLoading: boolean;
+  onView: () => void;
+  onGoToBankAccount: () => void;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-slate-100 px-3 py-2.5 text-sm text-slate-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Memuat status KTP...
+      </div>
+    );
+  }
+
+  const hasKtp = !!bankAccount?.photo_ktp;
+  const { badgeStatus, statusLabel } = hasKtp
+    ? bankAccount!.status === "approved"
+      ? { badgeStatus: "success", statusLabel: "Terverifikasi" }
+      : bankAccount!.status === "rejected"
+      ? { badgeStatus: "failed", statusLabel: "Ditolak" }
+      : { badgeStatus: "pending", statusLabel: "Menunggu Persetujuan" }
+    : { badgeStatus: "pending", statusLabel: "Belum Diunggah" };
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-slate-400" aria-hidden />
+        <div>
+          <p className="text-sm font-medium text-slate-800">KTP</p>
+          <StatusBadge status={badgeStatus} label={statusLabel} />
+          <p className="mt-0.5 text-xs text-slate-400">
+            Dikumpulkan lewat Rekening Bank (syarat COD)
+          </p>
+        </div>
+      </div>
+      {hasKtp ? (
+        <Button type="button" size="sm" variant="outline" disabled={viewLoading} onClick={onView}>
+          {viewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Lihat File"}
+        </Button>
       ) : (
-        onUpload && (
-          <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onUpload}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Upload"}
-          </Button>
-        )
+        <Button type="button" size="sm" variant="outline" onClick={onGoToBankAccount}>
+          Upload di Rekening Bank
+        </Button>
       )}
     </div>
   );
