@@ -43,6 +43,16 @@ export interface User {
   corporate_approved_at?: string | null;
   corporate_rejected_at?: string | null;
   corporate_rejected_reason?: string | null;
+  avatar_url?: string | null;
+  notify_email?: boolean;
+  notify_whatsapp?: boolean;
+  city?: string | null;
+  birth_date?: string | null;
+  gender?: "male" | "female" | null;
+  has_ktp_document?: boolean;
+  has_npwp_document?: boolean;
+  has_nib_document?: boolean;
+  has_pic_ktp_document?: boolean;
 }
 
 export interface UserListResponse {
@@ -91,6 +101,11 @@ export interface UserUpdateRequest {
   password?: string;
   password_confirmation?: string;
   role?: string;
+  city?: string;
+  birth_date?: string;
+  gender?: "male" | "female";
+  notify_email?: boolean;
+  notify_whatsapp?: boolean;
 }
 
 export interface UserCreateResponse {

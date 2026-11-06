@@ -40,6 +40,24 @@ export interface UserData {
   corporate_approved_at?: string | null;
   corporate_rejected_at?: string | null;
   corporate_rejected_reason?: string | null;
+  avatar_url?: string | null;
+  notify_email?: boolean;
+  notify_whatsapp?: boolean;
+  /** Hanya muncul kalau account_type === "personal". */
+  city?: string | null;
+  birth_date?: string | null;
+  gender?: "male" | "female" | null;
+  has_ktp_document?: boolean;
+  /** Hanya muncul kalau account_type === "corporate". */
+  company_name?: string | null;
+  jenis_usaha?: string | null;
+  npwp?: string | null;
+  nib?: string | null;
+  billing_address?: string | null;
+  pic_name?: string | null;
+  has_npwp_document?: boolean;
+  has_nib_document?: boolean;
+  has_pic_ktp_document?: boolean;
 }
 
 export interface UsersResponse {

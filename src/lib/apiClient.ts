@@ -1223,6 +1223,37 @@ export const corporateDocumentUrl = (
   type: "npwp" | "nib" | "pic_ktp"
 ): string => `/admin/users/${userId}/corporate-documents/${type}`;
 
+/**
+ * POST /admin/me/avatar — multipart, field `avatar` (image, max 2MB).
+ * Self-service, ganti foto profil akun sendiri.
+ */
+export const uploadAvatar = async (file: File): Promise<unknown> => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  const res = await apiClient.post("/admin/me/avatar", formData);
+  return res.data;
+};
+
+/**
+ * POST /admin/me/ktp-document — multipart, field `ktp_document`. Hanya
+ * untuk account_type personal.
+ */
+export const uploadKtpDocument = async (file: File): Promise<unknown> => {
+  const formData = new FormData();
+  formData.append("ktp_document", file);
+  const res = await apiClient.post("/admin/me/ktp-document", formData);
+  return res.data;
+};
+
+/**
+ * GET /admin/me/documents/:type — self-service, versi tanpa permission
+ * users.update dari corporateDocumentUrl() di atas. `ktp` hanya valid utk
+ * akun personal, `npwp`/`nib`/`pic_ktp` hanya utk akun corporate.
+ */
+export const ownDocumentUrl = (
+  type: "ktp" | "npwp" | "nib" | "pic_ktp"
+): string => `/admin/me/documents/${type}`;
+
 export const getUserById = async (id: number): Promise<UserDetailResponse> => {
   const res = await apiClient.get(`/admin/users/${id}`);
   return res.data;
