@@ -203,12 +203,12 @@ export function LoginForm({
           {errors.password && (
             <p className="text-sm text-red-500">{errors.password}</p>
           )}
-          <a
-            href="#"
+          <Link
+            href="/forgot-password"
             className="ml-auto text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
           >
             Lupa kata sandi?
-          </a>
+          </Link>
         </div>
 
         <Button

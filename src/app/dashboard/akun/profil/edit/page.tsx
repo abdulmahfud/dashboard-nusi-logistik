@@ -7,7 +7,6 @@ import TopNav from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -21,8 +20,7 @@ import {
 import {
   ArrowLeft,
   Save,
-  Eye,
-  EyeOff,
+  KeyRound,
   UserRound,
   HelpCircle,
   Mail,
@@ -37,6 +35,7 @@ import {
   getCurrentUser,
   updateUser,
   resendEmailVerification,
+  requestPasswordReset,
 } from "@/lib/apiClient";
 import type { User, UserUpdateRequest } from "@/types/users";
 import { AxiosError } from "axios";
@@ -72,17 +71,12 @@ export default function ProfileEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [changePassword, setChangePassword] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const [formData, setFormData] = useState<UserUpdateRequest>({
     name: "",
     email: "",
     whatsapp: "",
-    password: "",
-    password_confirmation: "",
     role: "",
   });
 
@@ -97,8 +91,6 @@ export default function ProfileEditPage() {
         name: u.name,
         email: u.email,
         whatsapp: u.whatsapp ?? "",
-        password: "",
-        password_confirmation: "",
         role: u.roles?.length ? u.roles[0].name : "user",
       });
     } catch (e) {
@@ -150,20 +142,6 @@ export default function ProfileEditPage() {
       toast.error("Format nomor WhatsApp tidak valid");
       return false;
     }
-    if (changePassword) {
-      if (!formData.password) {
-        toast.error("Password baru harus diisi");
-        return false;
-      }
-      if (formData.password.length < 8) {
-        toast.error("Password minimal 8 karakter");
-        return false;
-      }
-      if (formData.password !== formData.password_confirmation) {
-        toast.error("Konfirmasi password tidak cocok");
-        return false;
-      }
-    }
     return true;
   };
 
@@ -179,10 +157,6 @@ export default function ProfileEditPage() {
         whatsapp: formData.whatsapp.trim(),
         role: formData.role || "user",
       };
-      if (changePassword && formData.password) {
-        updateData.password = formData.password;
-        updateData.password_confirmation = formData.password_confirmation;
-      }
 
       await updateUser(profile.id, updateData);
       toast.success("Profil berhasil diperbarui");
@@ -206,6 +180,28 @@ export default function ProfileEditPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendPasswordReset = async () => {
+    if (!profile) return;
+    setSendingReset(true);
+    try {
+      await requestPasswordReset(profile.email);
+      toast.success(
+        "Link ganti kata sandi telah dikirim ke email Anda. Tautan berlaku selama 10 menit."
+      );
+    } catch (error: unknown) {
+      if (error instanceof AxiosError && error.response?.data) {
+        const msg =
+          (error.response.data as { message?: string }).message ||
+          "Gagal mengirim link ganti kata sandi";
+        toast.error(msg);
+      } else {
+        toast.error("Gagal mengirim link ganti kata sandi");
+      }
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -339,8 +335,7 @@ export default function ProfileEditPage() {
                 Edit profil
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">
-                Perbarui nama, kontak, dan kata sandi. Data disimpan melalui API
-                pengguna yang sama dengan panel admin.
+                Perbarui nama, kontak, dan kata sandi.
               </p>
             </div>
 
@@ -374,12 +369,13 @@ export default function ProfileEditPage() {
                       biasanya memerlukan verifikasi ulang sesuai kebijakan server.
                     </li>
                     <li>
-                      • Aktifkan &quot;Ubah password&quot; hanya jika Anda ingin
-                      mengganti kata sandi login.
+                      • Untuk mengganti kata sandi, klik &quot;Kirim Link Ganti
+                      Kata Sandi&quot; lalu buka link di email Anda (berlaku 10
+                      menit).
                     </li>
                     <li>
-                      • Setelah password diubah, gunakan kredensial baru saat login
-                      berikutnya.
+                      • Setelah kata sandi diubah lewat link email, gunakan
+                      kredensial baru saat login berikutnya.
                     </li>
                     <li>
                       • Tombol &quot;Kirim ulang verifikasi&quot; memanggil endpoint{" "}
@@ -514,117 +510,37 @@ export default function ProfileEditPage() {
                   </p>
                 </div>
 
-                <div className="space-y-4 rounded-lg border p-4">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="profile-change-password"
-                      checked={changePassword}
-                      onCheckedChange={(c) =>
-                        setChangePassword(c === true)
-                      }
-                      aria-describedby="password-section-hint"
-                    />
-                    <div className="grid gap-1">
-                      <Label
-                        htmlFor="profile-change-password"
-                        className="cursor-pointer font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Ubah password
-                      </Label>
-                      <p
-                        id="password-section-hint"
-                        className="text-muted-foreground text-xs"
-                      >
-                        Kosongkan jika tidak ingin mengganti kata sandi.
+                <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-3">
+                    <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                    <div>
+                      <p className="font-medium leading-none">Kata sandi</p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        Kami akan mengirim link ganti kata sandi ke email Anda,
+                        berlaku selama 10 menit.
                       </p>
                     </div>
                   </div>
-
-                  {changePassword && (
-                    <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="profile-password">Password baru</Label>
-                        <div className="relative">
-                          <Input
-                            id="profile-password"
-                            name="password"
-                            type={showPassword ? "text" : "password"}
-                            autoComplete="new-password"
-                            value={formData.password}
-                            onChange={(e) =>
-                              handleInputChange("password", e.target.value)
-                            }
-                            placeholder="Minimal 8 karakter"
-                            required={changePassword}
-                            className="pr-10"
-                            aria-required={changePassword}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowPassword((v) => !v)}
-                            aria-label={
-                              showPassword
-                                ? "Sembunyikan password"
-                                : "Tampilkan password"
-                            }
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="profile-password-confirm">
-                          Konfirmasi password
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="profile-password-confirm"
-                            name="password_confirmation"
-                            type={showConfirmPassword ? "text" : "password"}
-                            autoComplete="new-password"
-                            value={formData.password_confirmation}
-                            onChange={(e) =>
-                              handleInputChange(
-                                "password_confirmation",
-                                e.target.value
-                              )
-                            }
-                            placeholder="Ulangi password baru"
-                            required={changePassword}
-                            className="pr-10"
-                            aria-required={changePassword}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() =>
-                              setShowConfirmPassword((v) => !v)
-                            }
-                            aria-label={
-                              showConfirmPassword
-                                ? "Sembunyikan konfirmasi password"
-                                : "Tampilkan konfirmasi password"
-                            }
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={sendingReset}
+                    onClick={() => void handleSendPasswordReset()}
+                  >
+                    {sendingReset ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Mengirim…
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Kirim Link Ganti Kata Sandi
+                      </>
+                    )}
+                  </Button>
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">

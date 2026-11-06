@@ -1121,6 +1121,31 @@ export const loginWithGoogle = async (credential: string): Promise<unknown> => {
   return res.data;
 };
 
+/**
+ * POST /password/forgot — body: { email }. Selalu sukses (pesan generik)
+ * baik email terdaftar atau tidak, supaya tidak bisa dipakai menebak email
+ * terdaftar. Dipakai juga untuk "ganti password" saat sudah login, dengan
+ * mengirim email akun sendiri.
+ */
+export const requestPasswordReset = async (email: string): Promise<unknown> => {
+  const res = await apiClient.post("/password/forgot", { email });
+  return res.data;
+};
+
+/**
+ * POST /password/reset — body: { email, token, password, password_confirmation }.
+ * Link dari email berlaku 10 menit (lihat PasswordResetController).
+ */
+export const resetPassword = async (data: {
+  email: string;
+  token: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<unknown> => {
+  const res = await apiClient.post("/password/reset", data);
+  return res.data;
+};
+
 // ✅ Cancel order functions for different vendors
 export const cancelJntExpressOrder = async (data: {
   orderid: string;
