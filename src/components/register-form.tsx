@@ -492,17 +492,25 @@ export function RegisterForm({
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
             <TabsTrigger
               value="personal"
-              className="gap-1.5 rounded-lg py-2.5 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-col gap-1 whitespace-normal rounded-lg py-2.5 text-sm leading-tight data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <User className="h-4 w-4" aria-hidden />
-              Pendaftaran Perorangan
+              <span className="text-center">
+                Pendaftaran
+                <br />
+                Perorangan
+              </span>
             </TabsTrigger>
             <TabsTrigger
               value="corporate"
-              className="gap-1.5 rounded-lg py-2.5 text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex-col gap-1 whitespace-normal rounded-lg py-2.5 text-sm leading-tight data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <Building2 className="h-4 w-4" aria-hidden />
-              Pendaftaran Perusahaan
+              <span className="text-center">
+                Pendaftaran
+                <br />
+                Perusahaan
+              </span>
             </TabsTrigger>
           </TabsList>
 
