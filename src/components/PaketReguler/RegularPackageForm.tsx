@@ -1616,12 +1616,10 @@ export default function RegularPackageForm({
           action={
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-lg"
+              className="h-10 gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
               onClick={handleOpenCatalog}
             >
-              <Boxes className="h-4 w-4" />
+              <Boxes size={16} />
               Pilih dari Katalog Produk
             </Button>
           }
