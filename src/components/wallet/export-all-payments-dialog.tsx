@@ -263,6 +263,7 @@ export default function ExportAllPaymentsDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

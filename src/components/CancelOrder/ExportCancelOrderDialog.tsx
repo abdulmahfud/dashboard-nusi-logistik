@@ -119,6 +119,7 @@ export default function ExportCancelOrderDialog({ open, onOpenChange }: Props) {
           value={range}
           onChange={setRange}
           placeholder="Semua waktu"
+          inDialog
         />
 
         <div className="space-y-2">

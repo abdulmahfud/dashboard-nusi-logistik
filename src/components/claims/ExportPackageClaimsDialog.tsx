@@ -178,6 +178,7 @@ export default function ExportPackageClaimsDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

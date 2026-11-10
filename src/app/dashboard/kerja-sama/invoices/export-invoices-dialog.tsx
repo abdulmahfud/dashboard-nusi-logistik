@@ -171,6 +171,7 @@ export default function ExportInvoicesDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

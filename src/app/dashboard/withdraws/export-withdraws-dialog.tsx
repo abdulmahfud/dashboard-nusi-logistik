@@ -161,6 +161,7 @@ export default function ExportWithdrawsDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

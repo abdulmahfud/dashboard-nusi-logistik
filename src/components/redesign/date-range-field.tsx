@@ -19,6 +19,15 @@ type DateRangeFieldProps = {
   onChange: (range: DateRange | undefined) => void;
   placeholder?: string;
   className?: string;
+  /**
+   * Set true kalau field ini dipakai di dalam Dialog (mis. dialog Export).
+   * Radix Dialog men-trap fokus ke DOM subtree-nya sendiri; PopoverContent
+   * yang di-Portal ke document.body dianggap "di luar" subtree itu,
+   * sehingga fokusnya ditarik balik dan Popover ikut tertutup (gejala:
+   * klik tanggal di kalender dalam dialog export malah menutup
+   * kalendernya). Render inline (tanpa Portal) menghindari konflik itu.
+   */
+  inDialog?: boolean;
 };
 
 /** "YYYY-MM-DD" dari tanggal lokal (dipakai sebagai query `date_from` / `date_to`). */
@@ -34,6 +43,7 @@ export function DateRangeField({
   onChange,
   placeholder = "Pilih tanggal",
   className,
+  inDialog = false,
 }: DateRangeFieldProps) {
   const label = value?.from
     ? value.to && value.to.getTime() !== value.from.getTime()
@@ -57,7 +67,7 @@ export function DateRangeField({
             <span className="truncate">{label}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0" align="start" portal={!inDialog}>
           <Calendar
             initialFocus
             mode="range"

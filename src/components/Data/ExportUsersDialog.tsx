@@ -183,6 +183,7 @@ export default function ExportUsersDialog({ open, onOpenChange }: Props) {
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

@@ -154,6 +154,7 @@ export default function ExportPendingOrdersDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

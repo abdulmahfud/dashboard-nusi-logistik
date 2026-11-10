@@ -192,6 +192,7 @@ export default function ExportLedgerDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

@@ -499,6 +499,7 @@ export default function AktivitasPengirimanPage() {
               value={exportRange}
               onChange={setExportRange}
               placeholder="Semua data"
+              inDialog
             />
             {selectedUser ? (
               <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">

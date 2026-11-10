@@ -253,6 +253,7 @@ export default function ExportWalletTransactionsDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

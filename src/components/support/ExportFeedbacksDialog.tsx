@@ -166,6 +166,7 @@ export default function ExportFeedbacksDialog({
             value={range}
             onChange={setRange}
             placeholder="Semua waktu"
+            inDialog
           />
         </div>
 

@@ -13,9 +13,21 @@ const PopoverAnchor = PopoverPrimitive.Anchor
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+    /**
+     * false = render inline (tanpa Portal). Dipakai saat Popover ini
+     * dibuka dari dalam Dialog: Radix Dialog men-trap fokus ke DOM
+     * subtree-nya sendiri, dan PopoverContent yang di-Portal ke
+     * document.body dianggap "di luar" subtree itu, jadi fokusnya
+     * ditarik balik dan Popover ikut tertutup (gejala: klik tanggal di
+     * kalender dalam dialog export malah menutup kalendernya). Konten
+     * tetap diposisikan lewat floating-ui (position: fixed), jadi
+     * render inline tidak mengubah tampilan/posisinya.
+     */
+    portal?: boolean
+  }
+>(({ className, align = "center", sideOffset = 4, portal = true, ...props }, ref) => {
+  const content = (
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
@@ -26,8 +38,13 @@ const PopoverContent = React.forwardRef<
       )}
       {...props}
     />
-  </PopoverPrimitive.Portal>
-))
+  )
+  return portal ? (
+    <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal>
+  ) : (
+    content
+  )
+})
 PopoverContent.displayName = PopoverPrimitive.Content.displayName
 
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }

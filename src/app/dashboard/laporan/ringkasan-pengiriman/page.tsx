@@ -373,6 +373,7 @@ export default function RingkasanPengirimanPage() {
               value={exportRange}
               onChange={setExportRange}
               placeholder="Semua waktu"
+              inDialog
             />
             {canPickAccount ? (
               <div className="space-y-2">

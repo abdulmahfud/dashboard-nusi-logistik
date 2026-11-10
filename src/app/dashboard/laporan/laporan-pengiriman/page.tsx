@@ -686,6 +686,7 @@ const LaporanPengiriman = () => {
               value={exportRange}
               onChange={setExportRange}
               placeholder="Semua data"
+              inDialog
             />
             <p className="text-xs text-slate-400">
               File dibuat di latar belakang lalu bisa diunduh di halaman
