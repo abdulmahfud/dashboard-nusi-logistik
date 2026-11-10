@@ -7,6 +7,7 @@ import { AxiosError } from "axios";
 import { toast } from "sonner";
 import {
   ChevronRight,
+  Copy,
   Eye,
   Filter,
   Loader2,
@@ -60,6 +61,15 @@ import type {
 } from "@/types/packageClaim";
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";
+
+async function copyReferenceNo(referenceNo: string) {
+  try {
+    await navigator.clipboard.writeText(referenceNo);
+    toast.success("Nomor resi disalin");
+  } catch {
+    toast.error("Gagal menyalin nomor resi");
+  }
+}
 
 const SUMMARY_CARDS: {
   value: string;
@@ -435,7 +445,19 @@ export default function KlaimMasukPage() {
                             <p className="text-xs text-slate-500">#{c.id}</p>
                           </TableCell>
                           <TableCell className="whitespace-nowrap py-4 text-sm font-medium text-slate-700">
-                            {c.reference_no}
+                            <span className="inline-flex items-center gap-1.5">
+                              {c.reference_no}
+                              {c.reference_no && (
+                                <button
+                                  type="button"
+                                  onClick={() => void copyReferenceNo(c.reference_no)}
+                                  className="text-slate-400 hover:text-blue-600"
+                                  title="Salin nomor resi"
+                                >
+                                  <Copy className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                              )}
+                            </span>
                           </TableCell>
                           <TableCell className="max-w-[180px] py-4 text-sm">
                             <p className="font-medium text-slate-900">{c.user?.name ?? "—"}</p>
