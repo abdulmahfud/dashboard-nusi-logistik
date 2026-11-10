@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import {
   ChevronRight,
   Copy,
+  Download,
   Eye,
   Filter,
   Loader2,
@@ -43,6 +44,7 @@ import { NumberedPagination } from "@/components/redesign/numbered-pagination";
 import { PageHeader } from "@/components/redesign/page-header";
 import { SectionCard } from "@/components/redesign/section-card";
 import { ClaimStatusBadge } from "@/components/claims/claim-status-badge";
+import ExportPackageClaimsDialog from "@/components/claims/ExportPackageClaimsDialog";
 import { useAuth } from "@/context/AuthContext";
 import { getPackageClaims, getPackageClaimStats } from "@/lib/apiClient";
 import { getAxiosErrorMessage } from "@/lib/apiError";
@@ -237,6 +239,9 @@ export default function KlaimMasukPage() {
     void load({ targetPage: 1, status: "all", vendor: "all", search: "" });
   };
 
+  const canExport = hasPermission("exports.package-claims");
+  const [exportOpen, setExportOpen] = useState(false);
+
   if (authLoading) {
     return (
       <SidebarProvider>
@@ -390,17 +395,31 @@ export default function KlaimMasukPage() {
                   : "Belum ada klaim"
             }
             action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                onClick={refreshAll}
-                disabled={loading}
-              >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
-                Muat Ulang
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {canExport && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    onClick={() => setExportOpen(true)}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Export
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                  onClick={refreshAll}
+                  disabled={loading}
+                >
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
+                  Muat Ulang
+                </Button>
+              </div>
             }
           >
             {error && !loading ? (
@@ -561,6 +580,17 @@ export default function KlaimMasukPage() {
           </SectionCard>
         </div>
       </SidebarInset>
+
+      {canExport && (
+        <ExportPackageClaimsDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          vendorOptions={vendorOptions}
+          initialStatus={filterStatus}
+          initialVendor={filterVendor}
+          initialSearch={search}
+        />
+      )}
     </SidebarProvider>
   );
 }

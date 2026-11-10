@@ -15,7 +15,8 @@ export type ExportType =
   | "wallet-history"
   | "payment-history"
   | "wallet-transactions"
-  | "pending-orders";
+  | "pending-orders"
+  | "package-claims";
 
 export type ExportStatus =
   | "pending"
@@ -49,7 +50,7 @@ export interface CreateExportPayload {
   end_date?: string;
   /** shipping-activity / shipping-summary (khusus yang boleh melihat semua akun): batasi ke satu akun. */
   user_id?: number;
-  /** bank-accounts: pending/approved/rejected. support-tickets: awaiting_support/awaiting_customer/resolved/closed. kerja-sama-invoices: draft/issued/partially_paid/paid/overdue/void. withdraws: pending/approved/rejected. kerja-sama-ledger: pending/confirmed/invoiced/voided. transactions / payment-history: pending/paid/expired/failed. wallet-history / wallet-transactions: pending/success/failed. */
+  /** bank-accounts: pending/approved/rejected. support-tickets: awaiting_support/awaiting_customer/resolved/closed. kerja-sama-invoices: draft/issued/partially_paid/paid/overdue/void. withdraws: pending/approved/rejected. kerja-sama-ledger: pending/confirmed/invoiced/voided. transactions / payment-history: pending/paid/expired/failed. wallet-history / wallet-transactions: pending/success/failed. package-claims: diajukan/dalam_pemeriksaan/menunggu_dokumen/disetujui/ditolak/selesai. */
   status?: string;
   /** Hanya untuk support-tickets: kode departemen. */
   department?: string;
@@ -58,7 +59,7 @@ export interface CreateExportPayload {
   /** Hanya untuk wallet-transactions: rentang nominal (angka >= 0). */
   amount_min?: number;
   amount_max?: number;
-  /** wallet-history / payment-history / transactions / wallet-transactions: kata pencarian, maks. 255. */
+  /** wallet-history / payment-history / transactions / wallet-transactions: kata pencarian, maks. 255. package-claims: judul atau no. resi. */
   search?: string;
   /** transactions / payment-history: wallet/cod/xendit. */
   payment_method?: string;
@@ -70,7 +71,7 @@ export interface CreateExportPayload {
   role?: string;
   /** Hanya untuk users: tipe akun customer. */
   account_type?: "personal" | "corporate";
-  /** Hanya untuk pending-orders: kode vendor (mis. "jne", "sap"). */
+  /** pending-orders / package-claims: kode vendor (mis. "jne", "sap"). */
   vendor?: string;
 }
 
