@@ -1251,12 +1251,18 @@ export default function CalculationResults({
       return null;
     }
 
-    // Calculate COD value - if COD method selected, cod = item_value
+    // Nilai COD = item_value + ongkir (+ asuransi kalau dipilih) - untuk
+    // pesanan COD, ongkir & asuransi TIDAK ditagih di muka ke pengirim
+    // (lihat calculateTotal() di atas: hanya codFee 3% yang dibayar di muka),
+    // jadi harus ikut ditagih ke penerima lewat COD, bukan cuma item_value.
     let codValue = 0;
     if (formData.formData.paymentMethod === "cod") {
-      // COD value should equal item_value when COD method is selected
       const itemValue = getItemValue();
-      codValue = itemValue;
+      const shippingCost = parseInt(
+        selectedShippingOption.price.replace(/[^\d]/g, "")
+      );
+      const insuranceCost = getInsuranceCost();
+      codValue = itemValue + shippingCost + insuranceCost;
     }
 
     // Calculate insurance value for API
