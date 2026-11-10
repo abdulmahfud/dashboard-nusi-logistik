@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Copy,
   CreditCard,
   Hourglass,
   Info,
@@ -17,8 +18,18 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+
+async function copyShipmentNo(shipmentNo: string) {
+  try {
+    await navigator.clipboard.writeText(shipmentNo);
+    toast.success("Nomor resi disalin");
+  } catch {
+    toast.error("Gagal menyalin nomor resi");
+  }
+}
 
 /** Warna badge status khusus laporan pengiriman (nama status sudah berbahasa Indonesia). */
 const STATUS_STYLE: Record<
@@ -75,11 +86,26 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "shipmentNo",
     header: "NO RESI / AWB",
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-slate-700">
-        {row.original.shipmentNo}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const shipmentNo = row.original.shipmentNo;
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="font-mono text-xs text-slate-700">
+            {shipmentNo}
+          </span>
+          {shipmentNo && (
+            <button
+              type="button"
+              onClick={() => void copyShipmentNo(shipmentNo)}
+              className="text-slate-400 hover:text-blue-600"
+              title="Salin nomor resi"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "packageType",
