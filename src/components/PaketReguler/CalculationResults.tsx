@@ -1207,14 +1207,14 @@ export default function CalculationResults({
     const itemValue = parseInt(formData?.itemValue || "0");
     const isCOD = formData?.paymentMethod === "cod";
 
-    // COD fee: 3% of item value
-    const codFee = isCOD ? Math.round(itemValue * 0.03) : 0;
+    // COD fee: 5% of item value
+    const codFee = isCOD ? Math.round(itemValue * 0.05) : 0;
 
     // Insurance: 0.5% of item value when checked
     const insuranceCost = isInsured ? Math.round(itemValue * 0.005) : 0;
 
     if (isCOD) {
-      // For COD: User pays COD fee (3%) only
+      // For COD: User pays COD fee (5%) only
       // Shipment cost and insurance are paid by recipient, not included in total
       return codFee;
     } else {
@@ -1231,8 +1231,8 @@ export default function CalculationResults({
   const getCODFee = () => {
     const itemValue = getItemValue();
     const isCOD = formData?.paymentMethod === "cod";
-    // COD fee: 3% of item value
-    return isCOD ? Math.round(itemValue * 0.03) : 0;
+    // COD fee: 5% of item value
+    return isCOD ? Math.round(itemValue * 0.05) : 0;
   };
 
   const getInsuranceCost = () => {
@@ -1251,10 +1251,10 @@ export default function CalculationResults({
       return null;
     }
 
-    // Nilai COD = item_value + ongkir (+ asuransi kalau dipilih) - untuk
-    // pesanan COD, ongkir & asuransi TIDAK ditagih di muka ke pengirim
-    // (lihat calculateTotal() di atas: hanya codFee 3% yang dibayar di muka),
-    // jadi harus ikut ditagih ke penerima lewat COD, bukan cuma item_value.
+    // Nilai COD = item_value + ongkir + fee COD (5%) (+ asuransi kalau
+    // dipilih) - untuk pesanan COD, ongkir/fee/asuransi TIDAK ditagih di
+    // muka ke pengirim (lihat calculateTotal() di atas: Total Pembayaran
+    // COD = Rp 0), jadi harus ikut ditagih ke penerima lewat COD.
     let codValue = 0;
     if (formData.formData.paymentMethod === "cod") {
       const itemValue = getItemValue();
@@ -1262,7 +1262,8 @@ export default function CalculationResults({
         selectedShippingOption.price.replace(/[^\d]/g, "")
       );
       const insuranceCost = getInsuranceCost();
-      codValue = itemValue + shippingCost + insuranceCost;
+      const codFee = getCODFee();
+      codValue = itemValue + shippingCost + insuranceCost + codFee;
     }
 
     // Calculate insurance value for API
