@@ -39,6 +39,7 @@ import {
   ArrowUp,
   ArrowUpCircle,
   ArrowUpDown,
+  Copy,
   CreditCard,
   Download,
   DollarSign,
@@ -95,6 +96,15 @@ function getErrorMessage(err: unknown, fallback: string): string {
     return data?.message || fallback;
   }
   return fallback;
+}
+
+async function copyAwb(awbNo: string) {
+  try {
+    await navigator.clipboard.writeText(awbNo);
+    toast.success("Nomor resi disalin");
+  } catch {
+    toast.error("Gagal menyalin nomor resi");
+  }
 }
 
 const headCls = "h-11 text-xs font-semibold text-slate-500";
@@ -256,7 +266,19 @@ function OrderRow({
             </p>
           )}
           {isCod && <p>COD: {formatRupiah(codValue)}</p>}
-          <p>Resi: {order.awb_no || "—"}</p>
+          <p className="inline-flex items-center gap-1">
+            Resi: {order.awb_no || "—"}
+            {order.awb_no && (
+              <button
+                type="button"
+                onClick={() => void copyAwb(order.awb_no!)}
+                className="text-slate-400 hover:text-blue-600"
+                title="Salin nomor resi"
+              >
+                <Copy className="h-3 w-3" aria-hidden />
+              </button>
+            )}
+          </p>
         </div>
       </TableCell>
 
