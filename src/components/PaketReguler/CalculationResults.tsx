@@ -2106,7 +2106,7 @@ export default function CalculationResults({
                   setShowSuccessDialog(false);
                   router.push("/dashboard/paket/pembayaran-paket");
                 }}
-                className="h-11 gap-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 font-semibold text-white hover:from-blue-600 hover:to-indigo-600"
+                className="h-11 gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 font-semibold text-white hover:from-blue-600 hover:to-indigo-600"
               >
                 <CreditCard className="h-4 w-4" />
                 {isCOD || isCorporate
@@ -2118,7 +2118,7 @@ export default function CalculationResults({
                 type="button"
                 onClick={handleCreateNewOrder}
                 variant="outline"
-                className="h-11 gap-2 rounded-full border-slate-200 font-semibold"
+                className="h-11 gap-2 rounded-xl border-slate-200 font-semibold"
               >
                 <Package className="h-4 w-4" />
                 Buat Paket Baru
