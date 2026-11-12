@@ -21,6 +21,12 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 async function copyShipmentNo(shipmentNo: string) {
   try {
@@ -58,13 +64,20 @@ const STATUS_STYLE: Record<
   Dibatalkan: { className: "bg-rose-50 text-rose-700", icon: XCircle },
 };
 
-export function DeliveryStatusBadge({ status }: { status: string }) {
+export function DeliveryStatusBadge({
+  status,
+  note,
+}: {
+  status: string;
+  /** Alasan singkat (mis. kenapa auto-"dibatalkan" setelah retry ke vendor habis) - ditampilkan sebagai tooltip kalau ada. */
+  note?: string | null;
+}) {
   const style = STATUS_STYLE[status] ?? {
     className: "bg-slate-100 text-slate-600",
     icon: Package,
   };
   const Icon = style.icon;
-  return (
+  const badge = (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
@@ -73,7 +86,21 @@ export function DeliveryStatusBadge({ status }: { status: string }) {
     >
       <Icon className="h-3.5 w-3.5" aria-hidden />
       {status}
+      {note && <Info className="h-3 w-3 opacity-70" aria-hidden />}
     </span>
+  );
+
+  if (!note) return badge;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-help">{badge}</span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs">{note}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -135,7 +162,12 @@ export const columns: ColumnDef<DeliveryReport>[] = [
   {
     accessorKey: "status",
     header: "STATUS",
-    cell: ({ row }) => <DeliveryStatusBadge status={row.original.status} />,
+    cell: ({ row }) => (
+      <DeliveryStatusBadge
+        status={row.original.status}
+        note={row.original.statusNote}
+      />
+    ),
   },
   {
     id: "actions",

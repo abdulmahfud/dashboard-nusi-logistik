@@ -46,6 +46,8 @@ export interface Order {
   request_payload?: Record<string, unknown>;
   /** Nominal yang ditagih (sama dengan POST /admin/payments/create). Selalu ada untuk `menunggu_pembayaran`; `null` = data anomali. */
   payment_amount?: number | null;
+  /** Alasan singkat perubahan status terakhir (mis. kenapa auto-"dibatalkan" setelah retry ke vendor habis). `null`/tidak ada = tidak ada catatan. */
+  status_note?: string | null;
 }
 
 /** Nilai `status` yang valid untuk filter GET /admin/list-orders (selain itu 422). */
@@ -90,6 +92,8 @@ export interface DeliveryReport {
    * menentukan aksi Lacak/Cetak Resi vs "Belum Tersedia", bukan status atau
    * shipmentNo (shipmentNo selalu ada karena fallback ke reference_no). */
   hasAwb: boolean;
+  /** Alasan singkat perubahan status terakhir (mis. kenapa auto-"dibatalkan" setelah retry ke vendor habis). */
+  statusNote?: string | null;
 }
 
 // Status mapping
