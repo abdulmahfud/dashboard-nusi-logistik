@@ -34,6 +34,27 @@ import type { StandardizedTrackingResponse } from "@/types/tracking";
 import { TrackingDisplay } from "@/components/tracking/TrackingDisplay";
 import { normalizeTrackingResponse } from "@/lib/trackingTransform";
 
+/**
+ * BE getTracking() tiap vendor balas { status: "error", message, vendor_response }
+ * kalau ekspedisi genuinely belum punya data tracking (resi belum di-manifest/
+ * di-scan) - respons HTTP-nya tetap 200, jadi bukan error jaringan. Bentuk ini
+ * tidak dikenali vendorTransformers manapun (semua mengharapkan tracking
+ * sukses), sehingga normalizeTrackingResponse balik null tanpa pesan yang
+ * jelas. Ekstrak pesan vendornya di sini supaya bisa ditampilkan apa adanya,
+ * dibedakan dari kegagalan sistem/jaringan.
+ */
+function extractVendorNotFoundMessage(response: unknown): string | null {
+  if (!response || typeof response !== "object") return null;
+  const r = response as Record<string, unknown>;
+  const candidates = [r, r.data as Record<string, unknown> | undefined];
+  for (const c of candidates) {
+    if (c && typeof c === "object" && c.status === "error" && typeof c.message === "string") {
+      return c.message;
+    }
+  }
+  return null;
+}
+
 const INFO_ITEMS: { icon: LucideIcon; text: string }[] = [
   {
     icon: Send,
@@ -64,6 +85,7 @@ export default function TrackingPage() {
   const [result, setResult] = useState<StandardizedTrackingResponse | null>(
     null
   );
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
   // Auto-fill awb_no from URL parameter and trigger tracking
   useEffect(() => {
@@ -86,6 +108,7 @@ export default function TrackingPage() {
     }
 
     setResult(null);
+    setNotFoundMessage(null);
     setLoading(true);
 
     try {
@@ -121,6 +144,14 @@ export default function TrackingPage() {
             return;
           }
         }
+
+        const vendorMessage = extractVendorNotFoundMessage(response);
+        if (vendorMessage) {
+          setNotFoundMessage(vendorMessage);
+          toast.error(vendorMessage);
+          return;
+        }
+
         toast.error("Data tracking tidak ditemukan");
       }
     } catch (error: unknown) {
@@ -136,6 +167,13 @@ export default function TrackingPage() {
         if (normalized) {
           setResult(normalized);
           toast.success("Data tracking berhasil ditemukan");
+          return;
+        }
+
+        const vendorMessage = extractVendorNotFoundMessage(errorResponse);
+        if (vendorMessage) {
+          setNotFoundMessage(vendorMessage);
+          toast.error(vendorMessage);
           return;
         }
       }
@@ -247,6 +285,23 @@ export default function TrackingPage() {
 
           {/* Hasil Tracking */}
           {result && <TrackingDisplay result={result} />}
+
+          {!result && notFoundMessage && (
+            <section className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm md:p-6">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                <Info className="h-5 w-5" aria-hidden />
+              </span>
+              <div>
+                <h3 className="font-semibold text-slate-900">
+                  Resi ditemukan, tapi belum ada riwayat tracking
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {notFoundMessage}. Paket kemungkinan belum di-manifest atau
+                  dijemput oleh ekspedisi. Coba lacak lagi beberapa saat lagi.
+                </p>
+              </div>
+            </section>
+          )}
 
           {/* Informasi */}
           <section className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 shadow-sm md:p-6">
