@@ -10,11 +10,14 @@ import { AxiosError } from "axios";
 interface PrintLabelButtonProps {
   orderId: number;
   className?: string;
+  /** No resi/AWB (atau reference_no sebagai fallback) - dipakai sebagai nama file unduhan. */
+  shipmentNo?: string;
 }
 
 export function PrintLabelButton({
   orderId,
   className,
+  shipmentNo,
 }: PrintLabelButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,18 +31,22 @@ export function PrintLabelButton({
       setIsLoading(true);
       const blob = await downloadOrderLabel(orderId);
 
-      // Create a blob URL and open in new tab
+      // Axios ambil responsenya sebagai Blob mentah - header Content-Disposition
+      // dari server (yang sudah benar set nama file + application/pdf) ikut
+      // hilang di titik ini, jadi nama+ekstensi file harus diset ulang manual
+      // di sini lewat atribut `download`, kalau tidak browser simpan tanpa
+      // ekstensi sama sekali (blob: URL tidak ada nama filenya sendiri).
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.target = "_blank";
+      link.download = `resi-${shipmentNo || orderId}.pdf`;
       link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success("Label opened successfully!");
+      toast.success("Label berhasil diunduh!");
     } catch (error: unknown) {
       console.error("Error downloading label:", error);
       let errorMessage = "Failed to download label";

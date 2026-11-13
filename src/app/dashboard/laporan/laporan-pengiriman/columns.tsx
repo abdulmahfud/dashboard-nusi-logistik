@@ -205,6 +205,7 @@ export const columns: ColumnDef<DeliveryReport>[] = [
           </Link>
           <PrintLabelButton
             orderId={order.orderId}
+            shipmentNo={order.shipmentNo}
             className="h-8 gap-1.5 rounded-lg text-xs"
           />
         </div>
