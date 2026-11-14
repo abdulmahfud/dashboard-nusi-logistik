@@ -812,16 +812,34 @@ export const getShipperById = async (id: number): Promise<ShipperResponse> => {
 };
 
 // ✅ Orders/Laporan Pengiriman operations
+/**
+ * Ambil SEMUA order yang cocok (bukan cuma 15 terbaru - default per_page
+ * backend) dengan mengikuti seluruh halaman paginasi. Dipakai oleh halaman
+ * yang menghitung statistik/filter di sisi client atas dataset lengkap
+ * (laporan-pengiriman, use-dashboard-orders) - tanpa ini, order lama di luar
+ * 15 teratas hilang begitu saja dari tabel/pencarian meski ada di database.
+ */
 export const getOrders = async (
   startDate?: string,
   endDate?: string
 ): Promise<OrderListResponse> => {
-  const params: { start_date?: string; end_date?: string } = {};
-  if (startDate) params.start_date = startDate;
-  if (endDate) params.end_date = endDate;
+  const baseParams: { start_date?: string; end_date?: string; per_page: number; page: number } =
+    { per_page: 200, page: 1 };
+  if (startDate) baseParams.start_date = startDate;
+  if (endDate) baseParams.end_date = endDate;
 
-  const res = await apiClient.get("/admin/list-orders", { params });
-  return res.data;
+  const first = await apiClient.get("/admin/list-orders", { params: baseParams });
+  const allData: Order[] = first.data.data ?? [];
+  const lastPage = first.data.meta?.last_page ?? 1;
+
+  for (let page = 2; page <= lastPage; page++) {
+    const res = await apiClient.get("/admin/list-orders", {
+      params: { ...baseParams, page },
+    });
+    allData.push(...(res.data.data ?? []));
+  }
+
+  return { ...first.data, data: allData };
 };
 
 /**
