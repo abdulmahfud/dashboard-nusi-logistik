@@ -270,6 +270,7 @@ const LaporanPengiriman = () => {
   const [exportRange, setExportRange] = useState<DateRange | undefined>(
     undefined
   );
+  const [exportVendor, setExportVendor] = useState("Semua Ekspedisi");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const { hasPermission, loading: authLoading } = useAuth();
@@ -283,8 +284,8 @@ const LaporanPengiriman = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      // Export dibuat di server (antrian); filter tabel (cari/status/jenis
-      // paket) tidak ikut terkirim, hanya rentang tanggal.
+      // Export dibuat di server (antrian); filter tabel (cari/jenis paket)
+      // tidak ikut terkirim, hanya rentang tanggal & ekspedisi.
       await createExport({
         type: "shipping-report",
         start_date: exportRange?.from ? toApiDate(exportRange.from) : undefined,
@@ -293,6 +294,7 @@ const LaporanPengiriman = () => {
           : exportRange?.from
             ? toApiDate(exportRange.from)
             : undefined,
+        vendor: exportVendor !== "Semua Ekspedisi" ? exportVendor : undefined,
       });
       toast.success("Export sedang diproses.", {
         description: "Unduh filenya di halaman Download Report.",
@@ -512,6 +514,7 @@ const LaporanPengiriman = () => {
                   className="h-11 gap-2 rounded-lg bg-blue-600 hover:bg-blue-700"
                   onClick={() => {
                     setExportRange(periode);
+                    setExportVendor(vendorFilter);
                     setExportOpen(true);
                   }}
                 >
@@ -711,18 +714,35 @@ const LaporanPengiriman = () => {
                 <div>
                   <DialogTitle>Export Laporan Pengiriman</DialogTitle>
                   <DialogDescription>
-                    Pilih rentang tanggal order dibuat. Kosongkan untuk semua
-                    data.
+                    Pilih rentang tanggal order dibuat dan/atau ekspedisi.
+                    Kosongkan untuk semua data.
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
-            <DateRangeField
-              value={exportRange}
-              onChange={setExportRange}
-              placeholder="Semua data"
-              inDialog
-            />
+            <div className="space-y-3">
+              <DateRangeField
+                value={exportRange}
+                onChange={setExportRange}
+                placeholder="Semua data"
+                inDialog
+              />
+              <Select value={exportVendor} onValueChange={setExportVendor}>
+                <SelectTrigger className="h-11 w-full rounded-lg border-slate-200 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Semua Ekspedisi">
+                    Semua Ekspedisi
+                  </SelectItem>
+                  {vendorOptions.map((v) => (
+                    <SelectItem key={v.value} value={v.value}>
+                      {v.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <p className="text-xs text-slate-400">
               File dibuat di latar belakang lalu bisa diunduh di halaman
               Download Report.
