@@ -60,8 +60,8 @@ import {
   Order,
   DeliveryReport,
   STATUS_MAPPING,
-  VENDOR_MAPPING,
 } from "@/types/laporanPengiriman";
+import { fetchAllVendors, getVendorLabel, type VendorOption } from "@/lib/vendorList";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
@@ -93,7 +93,7 @@ const transformOrderToDeliveryReport = (order: Order): DeliveryReport => {
     packageType = "Paket Instant";
   }
 
-  const courierService = VENDOR_MAPPING[order.vendor] || order.vendor;
+  const courierService = getVendorLabel(order.vendor);
   const status = STATUS_MAPPING[order.status] || order.status;
   const shippingMethod: DeliveryReport["shippingMethod"] =
     order.service_type_code === "COD" ? "COD" : "REGULER";
@@ -259,6 +259,8 @@ const LaporanPengiriman = () => {
   const [packageTypeFilter, setPackageTypeFilter] = useState(
     "Semua Jenis Paket"
   );
+  const [vendorFilter, setVendorFilter] = useState("Semua Ekspedisi");
+  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
   const [periode, setPeriode] = useState<DateRange | undefined>(undefined);
   const [dataReport, setDataReport] = useState<DeliveryReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -348,6 +350,12 @@ const LaporanPengiriman = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periode]);
 
+  useEffect(() => {
+    fetchAllVendors()
+      .then(setVendorOptions)
+      .catch((err) => console.error("Failed to fetch vendor options:", err));
+  }, []);
+
   const stats = useMemo(() => {
     const total = dataReport.length;
     const reguler = dataReport.filter(
@@ -411,19 +419,24 @@ const LaporanPengiriman = () => {
       const packageMatch =
         packageTypeFilter === "Semua Jenis Paket" ||
         item.packageType === packageTypeFilter;
-      return searchMatch && statusMatch && packageMatch;
+      const vendorMatch =
+        vendorFilter === "Semua Ekspedisi" ||
+        item.vendor.toLowerCase() === vendorFilter;
+      return searchMatch && statusMatch && packageMatch && vendorMatch;
     });
-  }, [dataReport, search, statusFilter, packageTypeFilter]);
+  }, [dataReport, search, statusFilter, packageTypeFilter, vendorFilter]);
 
   const hasFilter =
     Boolean(search) ||
     statusFilter !== "Semua Status" ||
-    packageTypeFilter !== "Semua Jenis Paket";
+    packageTypeFilter !== "Semua Jenis Paket" ||
+    vendorFilter !== "Semua Ekspedisi";
 
   const resetFilter = () => {
     setSearch("");
     setStatusFilter("Semua Status");
     setPackageTypeFilter("Semua Jenis Paket");
+    setVendorFilter("Semua Ekspedisi");
   };
 
   const statusIcon: Record<string, { icon: LucideIcon; tone: Tone }> = {
@@ -580,7 +593,7 @@ const LaporanPengiriman = () => {
               </SectionCard>
 
               <SectionCard icon={SlidersHorizontal} title="Filter Data">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-slate-700">
                       Cari Data
@@ -632,6 +645,27 @@ const LaporanPengiriman = () => {
                         {PACKAGE_TYPE_OPTIONS.map((p) => (
                           <SelectItem key={p} value={p}>
                             {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-700">
+                      Filter Ekspedisi
+                    </Label>
+                    <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                      <SelectTrigger className="h-11 rounded-lg border-slate-200 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Semua Ekspedisi">
+                          Semua Ekspedisi
+                        </SelectItem>
+                        {vendorOptions.map((v) => (
+                          <SelectItem key={v.value} value={v.value}>
+                            {v.label}
                           </SelectItem>
                         ))}
                       </SelectContent>

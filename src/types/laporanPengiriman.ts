@@ -107,14 +107,3 @@ export const STATUS_MAPPING: Record<string, string> = {
   retur: "Retur",
   dibatalkan: "Dibatalkan",
 };
-
-// Vendor mapping
-export const VENDOR_MAPPING: Record<string, string> = {
-  JNTEXPRESS: "J&T Express",
-  JNE: "JNE - Reguler",
-  SICEPAT: "SiCepat - Best",
-  TIKI: "TIKI - ONS",
-  NINJA: "Ninja Xpress",
-  ANTERAJA: "AnterAja - Same Day",
-  SAP: "SAP Express",
-};
