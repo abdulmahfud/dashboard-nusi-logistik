@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { CalendarIcon, X } from "lucide-react";
@@ -51,9 +52,22 @@ export function DateRangeField({
       : shortDate(value.from)
     : placeholder;
 
+  const [open, setOpen] = useState(false);
+
+  // Tutup otomatis begitu rentang lengkap (tanggal akhir sudah dipilih) -
+  // sebelumnya harus diklik di luar kalender dulu untuk menutup, padahal
+  // klik tanggal akhir seharusnya sudah cukup (pola standar date-range
+  // picker). Tetap terbuka selagi baru tanggal awal yang dipilih.
+  const handleSelect = (range: DateRange | undefined) => {
+    onChange(range);
+    if (range?.to) {
+      setOpen(false);
+    }
+  };
+
   return (
     <div className={cn("relative", className)}>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -74,7 +88,7 @@ export function DateRangeField({
             locale={idLocale}
             defaultMonth={value?.from}
             selected={value}
-            onSelect={onChange}
+            onSelect={handleSelect}
             numberOfMonths={2}
             disabled={{ after: new Date() }}
           />
