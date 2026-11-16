@@ -657,20 +657,6 @@ export default function ShippingForm({
           </Button>
         </div>
 
-        <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 animate-fade-in">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
-          <div>
-            <h4 className="mb-1 font-medium text-amber-900">Catatan</h4>
-            <ul className="list-inside list-disc space-y-1.5 text-sm text-amber-800">
-              <li>
-                Cek ongkos kirim di halaman ini hanya untuk pengiriman reguler,{" "}
-                <span className="font-medium">
-                  tidak termasuk layanan instant delivery.
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
       </section>
     </form>
   );
