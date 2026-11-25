@@ -304,7 +304,9 @@ export default function ShippingForm({
 
       notifyShipmentCost422Rejections([
         { label: "J&T Express", settled: jntResult },
-        { label: "Paxel", settled: paxelResult },
+        // Paxel sengaja tidak diikutkan: 422 "no corporate cluster price"
+        // untuk rute intracity sering terjadi dan bukan error yang perlu
+        // ditampilkan ke user - vendor ini cukup hilang diam-diam dari daftar.
         { label: "Lion Parcel", settled: lionResult },
         { label: "SAP", settled: sapResult },
         { label: "Pos Indonesia", settled: posIndonesiaResult },
