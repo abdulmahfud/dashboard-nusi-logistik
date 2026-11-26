@@ -395,6 +395,9 @@ export const getLionShipmentCost = async ({
   destination_district,
   weight,
   is_cod,
+  length,
+  width,
+  height,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -405,6 +408,10 @@ export const getLionShipmentCost = async ({
   weight: string | number;
   /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
   is_cod?: boolean;
+  /** Lion menghitung berat volumetrik dari dimensi (cm) - tanpa ini harga bisa jauh di bawah tarif asli untuk paket besar tapi ringan. */
+  length?: number;
+  width?: number;
+  height?: number;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -416,6 +423,9 @@ export const getLionShipmentCost = async ({
     destination_district,
     weight: weight.toString(),
     ...(is_cod ? { is_cod: true } : {}),
+    ...(length ? { length } : {}),
+    ...(width ? { width } : {}),
+    ...(height ? { height } : {}),
   };
 
   const res = await apiClient.post(
@@ -438,6 +448,9 @@ export const getSapShipmentCost = async ({
   destination_district,
   weight,
   is_cod,
+  length,
+  width,
+  height,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -448,13 +461,17 @@ export const getSapShipmentCost = async ({
   weight: string | number;
   /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
   is_cod?: boolean;
+  /** SAP menghitung berat volumetrik dari dimensi (cm) kalau diisi - default BE "1x1x1" (volumetrik diabaikan) kalau tidak dikirim. */
+  length?: number;
+  width?: number;
+  height?: number;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   // Pastikan format string (hilangkan trailing zero jika ada, misalnya "2.0" -> "2")
-  const weightValue = typeof weight === "string" 
-    ? weight 
+  const weightValue = typeof weight === "string"
+    ? weight
     : weight.toString();
-  
+
   // Hapus trailing zero dan titik desimal jika tidak perlu (misalnya "2.0" -> "2", "1.5" -> "1.5")
   const cleanWeight = weightValue.includes(".")
     ? weightValue.replace(/\.?0+$/, "")
@@ -469,6 +486,9 @@ export const getSapShipmentCost = async ({
     destination_district,
     weight: cleanWeight,
     ...(is_cod ? { is_cod: true } : {}),
+    ...(length && width && height
+      ? { volumetric: `${length}x${width}x${height}` }
+      : {}),
   };
 
   const res = await apiClient.post(
@@ -491,6 +511,9 @@ export const getPosIndonesiaShipmentCost = async ({
   destination_district,
   weight,
   is_cod,
+  length,
+  width,
+  height,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -501,6 +524,10 @@ export const getPosIndonesiaShipmentCost = async ({
   weight: string | number;
   /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
   is_cod?: boolean;
+  /** POS Indonesia default dimensi 1x1x1cm kalau tidak dikirim - kirim dimensi asli biar lebih akurat. */
+  length?: number;
+  width?: number;
+  height?: number;
 }) => {
   // Weight sudah dalam kilogram (dikonversi dari gram di frontend)
   const requestPayload = {
@@ -512,6 +539,9 @@ export const getPosIndonesiaShipmentCost = async ({
     destination_district,
     weight: weight.toString(),
     ...(is_cod ? { is_cod: true } : {}),
+    ...(length ? { length } : {}),
+    ...(width ? { width } : {}),
+    ...(height ? { height } : {}),
   };
 
   const res = await apiClient.post(
