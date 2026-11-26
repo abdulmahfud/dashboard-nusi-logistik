@@ -356,7 +356,7 @@ export const getPaxelShipmentCost = async ({
   weight: string | number;
   /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
   is_cod?: boolean;
-  /** Paxel menghitung harga berdasarkan dimensi paket (cm), bukan berat - lihat docs/be-fe/paxel-dimensi-cek-ongkir.md */
+  /** Paxel menghitung harga berdasarkan dimensi paket (cm), bukan berat - lihat docs/be-fe/dimensi-paket-cek-ongkir-multi-vendor.md */
   length?: number;
   width?: number;
   height?: number;
