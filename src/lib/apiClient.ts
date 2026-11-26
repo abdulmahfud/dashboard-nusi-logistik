@@ -343,6 +343,9 @@ export const getPaxelShipmentCost = async ({
   destination_district,
   weight,
   is_cod,
+  length,
+  width,
+  height,
 }: {
   origin_province: string;
   origin_regencie: string;
@@ -353,6 +356,10 @@ export const getPaxelShipmentCost = async ({
   weight: string | number;
   /** Lihat docs/be-fe/filter-ekspedisi-cod-cek-ongkir.md §2 — opsional, kirim `true` untuk cek ongkir kiriman COD. */
   is_cod?: boolean;
+  /** Paxel menghitung harga berdasarkan dimensi paket (cm), bukan berat - lihat docs/be-fe/paxel-dimensi-cek-ongkir.md */
+  length?: number;
+  width?: number;
+  height?: number;
 }) => {
   const requestPayload = {
     origin_province,
@@ -363,6 +370,9 @@ export const getPaxelShipmentCost = async ({
     destination_district,
     weight: weight.toString(),
     ...(is_cod ? { is_cod: true } : {}),
+    ...(length ? { length } : {}),
+    ...(width ? { width } : {}),
+    ...(height ? { height } : {}),
   };
 
   const res = await apiClient.post(

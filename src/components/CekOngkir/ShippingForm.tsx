@@ -255,6 +255,12 @@ export default function ShippingForm({
         destination_district: selectedDest.district.toUpperCase(),
         weight: weightInKg,
         is_cod: isCodOrder,
+        // Paxel menghitung harga berdasarkan dimensi paket (small/medium/large),
+        // bukan berat - tanpa ini Paxel selalu quote pakai dimensi default
+        // backend (20x15x10cm), bukan ukuran yang diisi user di form ini.
+        ...(formData.length ? { length: Number(formData.length) } : {}),
+        ...(formData.width ? { width: Number(formData.width) } : {}),
+        ...(formData.height ? { height: Number(formData.height) } : {}),
       };
 
       // Call all vendor APIs in parallel
