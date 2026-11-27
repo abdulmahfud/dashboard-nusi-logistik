@@ -15,11 +15,19 @@ import {
   ArrowRight,
   Copy,
   LogIn,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getPaymentStatus } from "@/lib/apiClient";
 import type { PaymentStatus } from "@/types/payment";
 import { useAuth } from "@/context/AuthContext";
+
+/** Berapa kali polling ulang kalau status masih "pending" saat halaman dibuka -
+ * perlu karena redirect "finish" Midtrans Snap bisa terjadi SEBELUM webhook
+ * notifikasi mereka selesai diproses (beda dari Xendit yang baru redirect
+ * setelah settlement final) - lihat docs/be-fe/midtrans-payment-gateway.md. */
+const MAX_POLL_ATTEMPTS = 5;
+const POLL_INTERVAL_MS = 3000;
 
 function PaymentSuccessContent() {
   const router = useRouter();
@@ -28,6 +36,7 @@ function PaymentSuccessContent() {
   const [payment, setPayment] = useState<PaymentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
 
   const referenceNo = searchParams.get("reference_no");
 
@@ -71,6 +80,21 @@ function PaymentSuccessContent() {
       setLoading(false);
     }
   }, [referenceNo, fetchPaymentStatus, user, authLoading]);
+
+  // Status masih "pending" saat landing di sini (bukan paid/expired/failed) -
+  // kemungkinan besar webhook belum sempat diproses, coba cek ulang beberapa
+  // kali sebelum menyerah ke pesan "sedang diproses" statis.
+  useEffect(() => {
+    if (!payment || payment.status !== "pending") return;
+    if (pollAttempts >= MAX_POLL_ATTEMPTS) return;
+
+    const timer = setTimeout(() => {
+      setPollAttempts((n) => n + 1);
+      void fetchPaymentStatus();
+    }, POLL_INTERVAL_MS);
+
+    return () => clearTimeout(timer);
+  }, [payment, pollAttempts, fetchPaymentStatus]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -129,30 +153,67 @@ function PaymentSuccessContent() {
     );
   }
 
+  const isPaid = payment?.status === "paid";
+  const isStillPending = payment?.status === "pending";
+  const stillPolling = isStillPending && pollAttempts < MAX_POLL_ATTEMPTS;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-6">
-        {/* Success Header */}
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-8 text-center">
-            <div className="mb-6">
-              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="w-12 h-12 text-green-600" />
+        {/* Header - kontennya tergantung status asli dari API, bukan selalu
+            "Lunas": redirect "finish" Midtrans Snap bisa terjadi sebelum
+            webhook notifikasi mereka selesai diproses (lihat komentar
+            MAX_POLL_ATTEMPTS di atas), jadi status di sini bisa saja masih
+            "pending" sesaat setelah user mendarat di halaman ini. */}
+        {isPaid ? (
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="mb-6">
+                <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="w-12 h-12 text-green-600" />
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Pembayaran Berhasil!
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  Terima kasih! Pembayaran Anda telah berhasil diproses.
+                </p>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Pembayaran Berhasil!
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Terima kasih! Pembayaran Anda telah berhasil diproses.
-              </p>
-            </div>
 
-            <Badge className="bg-green-100 text-green-800 border-green-200 px-4 py-2 text-sm font-medium">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Status: Lunas
-            </Badge>
-          </CardContent>
-        </Card>
+              <Badge className="bg-green-100 text-green-800 border-green-200 px-4 py-2 text-sm font-medium">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Status: Lunas
+              </Badge>
+            </CardContent>
+          </Card>
+        ) : payment ? (
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="mb-6">
+                <div className="mx-auto w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  {stillPolling ? (
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+                  ) : (
+                    <Clock className="w-12 h-12 text-blue-600" />
+                  )}
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                  Pembayaran Sedang Diproses
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  {isStillPending
+                    ? "Kami sedang memverifikasi pembayaran Anda. Halaman ini akan otomatis diperbarui begitu konfirmasi diterima."
+                    : `Status pembayaran saat ini: ${payment.status}. Silakan hubungi customer service kalau ini tidak berubah dalam beberapa menit.`}
+                </p>
+              </div>
+
+              <Badge className="bg-blue-100 text-blue-800 border-blue-200 px-4 py-2 text-sm font-medium">
+                <Clock className="w-4 h-4 mr-2" />
+                Status: {payment.status}
+              </Badge>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Login Required Message */}
         {authError && !user && (
@@ -268,62 +329,66 @@ function PaymentSuccessContent() {
           </Card>
         )}
 
-        {/* Next Steps */}
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-orange-600" />
-              Langkah Selanjutnya
-            </h2>
+        {/* Next Steps - cuma relevan kalau sudah benar-benar lunas, karena
+            langkah-langkahnya ("order sedang diproses", "AWB akan tersedia")
+            mengasumsikan pembayaran sudah dikonfirmasi. */}
+        {isPaid && (
+          <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <Clock className="w-5 h-5 mr-2 text-orange-600" />
+                Langkah Selanjutnya
+              </h2>
 
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-sm font-bold text-blue-600">1</span>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-sm font-bold text-blue-600">1</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-blue-900">
+                      Order Sedang Diproses
+                    </h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Tim kami sedang memproses order pengiriman Anda. Proses ini
+                      biasanya memakan waktu 5-15 menit.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium text-blue-900">
-                    Order Sedang Diproses
-                  </h3>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Tim kami sedang memproses order pengiriman Anda. Proses ini
-                    biasanya memakan waktu 5-15 menit.
-                  </p>
+
+                <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-lg">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-sm font-bold text-green-600">2</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-green-900">
+                      AWB Number Akan Tersedia
+                    </h3>
+                    <p className="text-sm text-green-700 mt-1">
+                      Setelah order diproses, Anda akan mendapatkan AWB number
+                      untuk tracking pengiriman.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-4 bg-purple-50 rounded-lg">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-sm font-bold text-purple-600">3</span>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-purple-900">
+                      Label Siap Dicetak
+                    </h3>
+                    <p className="text-sm text-purple-700 mt-1">
+                      Label pengiriman akan tersedia untuk dicetak melalui halaman
+                      laporan pengiriman.
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-lg">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-sm font-bold text-green-600">2</span>
-                </div>
-                <div>
-                  <h3 className="font-medium text-green-900">
-                    AWB Number Akan Tersedia
-                  </h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    Setelah order diproses, Anda akan mendapatkan AWB number
-                    untuk tracking pengiriman.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 bg-purple-50 rounded-lg">
-                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-sm font-bold text-purple-600">3</span>
-                </div>
-                <div>
-                  <h3 className="font-medium text-purple-900">
-                    Label Siap Dicetak
-                  </h3>
-                  <p className="text-sm text-purple-700 mt-1">
-                    Label pengiriman akan tersedia untuk dicetak melalui halaman
-                    laporan pengiriman.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
