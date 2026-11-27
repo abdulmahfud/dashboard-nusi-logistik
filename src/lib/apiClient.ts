@@ -101,6 +101,11 @@ import type {
   ExpeditionVendorSettingPatchResponse,
 } from "@/types/expeditionVendorSettings";
 import type {
+  PaymentGatewaySettingsListResponse,
+  PaymentGatewaySettingPatchBody,
+  PaymentGatewaySettingPatchResponse,
+} from "@/types/paymentGatewaySettings";
+import type {
   ExpeditionGroupListResponse,
   ExpeditionGroupDetailResponse,
   ExpeditionGroupPayload,
@@ -1652,7 +1657,8 @@ export const trackJntExpress = async (
 export const createPayment = async (data: {
   shipping_data: Record<string, unknown>;
   amount: number;
-  payment_method?: "xendit" | "wallet";
+  /** "online" = resolve ke gateway aktif (lihat payment-gateway-settings) - "xendit" diterima sebagai alias lama. */
+  payment_method?: "online" | "wallet" | "xendit";
 }): Promise<{
   success: boolean;
   message: string;
@@ -1664,7 +1670,7 @@ export const createPayment = async (data: {
     amount: number | string;
     expired_at?: string | null;
     status: "pending" | "paid" | string;
-    payment_method: "wallet" | "xendit";
+    payment_method: "wallet" | "online";
     requires_action: boolean;
     action_url: string | null;
     order_id?: number | null;
@@ -1822,6 +1828,27 @@ export const patchExpeditionVendorSettings = async (
 ): Promise<ExpeditionVendorSettingPatchResponse> => {
   const res = await apiClient.patch<ExpeditionVendorSettingPatchResponse>(
     `/admin/expedition-vendor-settings/${encodeURIComponent(vendor)}`,
+    body
+  );
+  return res.data;
+};
+
+/** GET /admin/payment-gateway-settings — payments.gateway_settings.view */
+export const getPaymentGatewaySettings =
+  async (): Promise<PaymentGatewaySettingsListResponse> => {
+    const res = await apiClient.get<PaymentGatewaySettingsListResponse>(
+      "/admin/payment-gateway-settings"
+    );
+    return res.data;
+  };
+
+/** PATCH /admin/payment-gateway-settings/{gateway} — payments.gateway_settings.update */
+export const patchPaymentGatewaySettings = async (
+  gateway: string,
+  body: PaymentGatewaySettingPatchBody
+): Promise<PaymentGatewaySettingPatchResponse> => {
+  const res = await apiClient.patch<PaymentGatewaySettingPatchResponse>(
+    `/admin/payment-gateway-settings/${encodeURIComponent(gateway)}`,
     body
   );
   return res.data;

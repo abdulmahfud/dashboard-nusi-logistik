@@ -383,8 +383,8 @@ export default function PembayaranPaketPage() {
 
   // Metode pembayaran bulk — hanya relevan untuk personal (corporate selalu
   // lewat limit kredit via handleBulkProcess).
-  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "xendit">(
-    "xendit"
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "online">(
+    "online"
   );
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
@@ -647,7 +647,7 @@ export default function PembayaranPaketPage() {
 
       if (paymentResponse.success && paymentResponse.data) {
         if (paymentResponse.data.invoice_url) {
-          // Xendit: buka halaman invoice
+          // Pembayaran online: buka halaman invoice/Snap gateway aktif
           window.open(paymentResponse.data.invoice_url, "_blank");
           toast.success("Invoice pembayaran berhasil dibuat");
         } else if (paymentResponse.data.payment_method === "wallet") {
@@ -1200,9 +1200,9 @@ export default function PembayaranPaketPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPaymentMethod("xendit")}
+                          onClick={() => setPaymentMethod("online")}
                           className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                            paymentMethod === "xendit"
+                            paymentMethod === "online"
                               ? "border-blue-500 bg-blue-50 text-blue-700"
                               : "border-slate-200 text-slate-600 hover:bg-slate-50"
                           }`}

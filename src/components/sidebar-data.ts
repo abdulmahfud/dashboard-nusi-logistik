@@ -299,6 +299,12 @@ export const sidebarData = {
       permission: "expedition.settings.update",
     },
     {
+      title: "Gateway Pembayaran",
+      url: "/dashboard/payment-gateway-settings",
+      icon: CreditCard,
+      permission: "payments.gateway_settings.update",
+    },
+    {
       title: "Grup Ekspedisi",
       url: "/dashboard/expedition/groups",
       icon: Layers,

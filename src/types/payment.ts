@@ -5,7 +5,7 @@ export interface PaymentCreateRequest {
     [key: string]: unknown;
   };
   amount: number;
-  payment_method?: "xendit" | "wallet";
+  payment_method?: "online" | "wallet" | "xendit";
 }
 
 export interface PaymentCreateResponse {
@@ -19,7 +19,7 @@ export interface PaymentCreateResponse {
     amount: number | string;
     expired_at?: string | null;
     status: "pending" | "paid" | string;
-    payment_method: "wallet" | "xendit";
+    payment_method: "wallet" | "online";
     requires_action: boolean;
     action_url: string | null;
     order_id?: number;

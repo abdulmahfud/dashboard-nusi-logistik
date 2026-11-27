@@ -37,7 +37,7 @@ export default function WalletTopupSuccessPage() {
                 Pembayaran sedang diproses
               </CardTitle>
               <CardDescription className="text-base text-slate-600">
-                Jika Anda baru menyelesaikan pembayaran di Xendit, sistem sedang
+                Jika Anda baru menyelesaikan pembayaran online, sistem sedang
                 memverifikasi. Saldo dompet akan bertambah beberapa saat setelah
                 pembayaran dikonfirmasi — bukan saat halaman ini dibuka.
               </CardDescription>

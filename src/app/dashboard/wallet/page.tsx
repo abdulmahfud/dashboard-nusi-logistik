@@ -277,7 +277,7 @@ export default function WalletPage() {
         toast.error(res.message || "Gagal membuat invoice pembayaran");
         return;
       }
-      toast.info("Mengarahkan ke halaman pembayaran Xendit…");
+      toast.info("Mengarahkan ke halaman pembayaran online…");
       window.location.href = res.data.invoice_url;
     } catch (err) {
       if (err instanceof AxiosError) {
@@ -473,7 +473,7 @@ export default function WalletPage() {
                 icon={ArrowUpFromLine}
                 iconClassName="bg-emerald-50 text-emerald-600"
                 title="Top-up Saldo"
-                description={`Minimum Rp ${MIN_TOPUP.toLocaleString("id-ID")} — Anda akan diarahkan ke halaman pembayaran Xendit.`}
+                description={`Minimum Rp ${MIN_TOPUP.toLocaleString("id-ID")} — Anda akan diarahkan ke halaman pembayaran online.`}
               >
                 <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px]">
                   {canTopup ? (
