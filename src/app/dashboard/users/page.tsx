@@ -262,6 +262,7 @@ export default function UsersPage() {
                     <TableHead className={headCls}>Email</TableHead>
                     <TableHead className={headCls}>WhatsApp</TableHead>
                     <TableHead className={headCls}>Roles</TableHead>
+                    <TableHead className={headCls}>Tipe User</TableHead>
                     <TableHead className={headCls}>Status</TableHead>
                     <TableHead className={headCls}>Tanggal Dibuat</TableHead>
                     <TableHead className={`${headCls} text-center`}>
@@ -272,7 +273,7 @@ export default function UsersPage() {
                 <TableBody>
                   {loading && data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={9} className="h-24 text-center">
                         <span className="inline-flex items-center gap-2 text-slate-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Memuat data pengguna...
@@ -317,6 +318,19 @@ export default function UsersPage() {
                                 </span>
                               ))}
                             </div>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <span
+                              className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                                user.account_type === "corporate"
+                                  ? "bg-violet-50 text-violet-700"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {user.account_type === "corporate"
+                                ? "Corporate"
+                                : "Personal"}
+                            </span>
                           </TableCell>
                           <TableCell className="py-4">
                             <StatusBadge
@@ -370,7 +384,7 @@ export default function UsersPage() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="h-24 text-center text-slate-500"
                       >
                         Tidak ada data pengguna.
