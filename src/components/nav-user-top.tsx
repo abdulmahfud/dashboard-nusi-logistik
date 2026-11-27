@@ -71,7 +71,7 @@ export function NavUserTop() {
               aria-label="Menu akun"
             >
               <Avatar className="h-10 w-10 rounded-full">
-                <AvatarImage src="/images/user.png" alt={user.name} />
+                <AvatarImage src={user.avatar_url || "/images/user.png"} alt={user.name} />
                 <AvatarFallback className="rounded-full bg-blue-100 text-blue-600">
                   {user.name ? user.name[0] : "U"}
                 </AvatarFallback>
@@ -96,7 +96,7 @@ export function NavUserTop() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src="/images/user.png" alt={user.name} />
+                  <AvatarImage src={user.avatar_url || "/images/user.png"} alt={user.name} />
                   <AvatarFallback className="rounded-lg">
                     {user.name ? user.name[0] : "U"}
                   </AvatarFallback>
