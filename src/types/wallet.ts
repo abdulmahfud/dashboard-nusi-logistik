@@ -126,6 +126,51 @@ export type WalletMyTransactionsQuery = {
   per_page?: number;
 };
 
+/** Baris GET /admin/wallet/users — user + saldo wallet-nya saat ini. */
+export interface WalletUserItem {
+  id: number;
+  name: string;
+  email: string;
+  account_type?: "personal" | "corporate" | null;
+  balance: number | string;
+  created_at?: string;
+}
+
+/** Query GET /admin/wallet/users */
+export type WalletUsersQuery = {
+  search?: string;
+  account_type?: "personal" | "corporate";
+  balance_min?: number;
+  balance_max?: number;
+  sort?: "balance_desc" | "balance_asc" | "latest";
+  page?: number;
+  per_page?: number;
+};
+
+export interface WalletUsersResponse {
+  success?: boolean;
+  message?: string;
+  data?: LaravelPaginator<WalletUserItem>;
+}
+
+/** GET /admin/wallet/users/summary — ringkasan global saldo semua user. */
+export interface WalletUsersSummaryData {
+  period: { month: string };
+  total_balance: number;
+  user_count: number;
+  users_with_balance: number;
+  total_topup_this_month: number;
+  total_usage_this_month: number;
+  total_withdraw_this_month: number;
+  total_cod_income_this_month: number;
+}
+
+export interface WalletUsersSummaryResponse {
+  success?: boolean;
+  message?: string;
+  data?: WalletUsersSummaryData;
+}
+
 /** POST /admin/wallet/withdraw — body mengikuti collection */
 export interface WalletWithdrawRequest {
   amount: number;

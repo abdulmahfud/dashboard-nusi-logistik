@@ -33,6 +33,7 @@ import {
   Newspaper,
   ShieldAlert,
   Building2,
+  Users,
 } from "lucide-react";
 
 /**
@@ -121,6 +122,13 @@ export const sidebarData = {
       icon: Globe,
       exact: true,
       permission: "wallet.transactions.view_all",
+    },
+    {
+      title: "Wallet User",
+      url: "/dashboard/wallet/users",
+      icon: Users,
+      exact: true,
+      permission: "wallet.users.view",
     },
     {
       title: "Permintaan withdraw",

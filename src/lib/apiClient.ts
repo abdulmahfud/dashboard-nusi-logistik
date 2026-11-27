@@ -94,6 +94,9 @@ import type {
   WalletWithdrawResponse,
   WithdrawListResponse,
   WithdrawRecord,
+  WalletUsersQuery,
+  WalletUsersResponse,
+  WalletUsersSummaryResponse,
 } from "@/types/wallet";
 import type {
   ExpeditionVendorSettingsListResponse,
@@ -2218,6 +2221,25 @@ export const getAllWalletTransactions = async (
   );
   return res.data;
 };
+
+/** Daftar user + saldo wallet (admin) — GET /admin/wallet/users, permission: wallet.users.view */
+export const getWalletUsers = async (
+  params?: WalletUsersQuery
+): Promise<WalletUsersResponse> => {
+  const res = await apiClient.get<WalletUsersResponse>("/admin/wallet/users", {
+    params,
+  });
+  return res.data;
+};
+
+/** Ringkasan global saldo semua user — GET /admin/wallet/users/summary, permission: wallet.users.view */
+export const getWalletUsersSummary =
+  async (): Promise<WalletUsersSummaryResponse> => {
+    const res = await apiClient.get<WalletUsersSummaryResponse>(
+      "/admin/wallet/users/summary"
+    );
+    return res.data;
+  };
 
 /** Tarik saldo — POST /admin/wallet/withdraw */
 export const requestWalletWithdraw = async (
