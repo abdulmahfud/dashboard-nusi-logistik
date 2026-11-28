@@ -31,7 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
+  createExport,
   getAllWalletTransactions,
   getWalletPaginatorMeta,
   getWalletUsers,
@@ -50,6 +53,7 @@ import {
   AlertCircle,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Download,
   Filter,
   History,
   Loader2,
@@ -90,7 +94,10 @@ function summaryValue(
 
 export default function WalletUsersPage() {
   const { user, loading: authLoading, hasPermission } = useAuth();
+  const router = useRouter();
   const canView = hasPermission("wallet.users.view");
+  const canExport = hasPermission("exports.wallet-transactions");
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
   // Ringkasan global
   const [summary, setSummary] = useState<WalletUsersSummaryData | null>(null);
@@ -267,6 +274,30 @@ export default function WalletUsersPage() {
   const handleDetailPageChange = (p: number) => {
     setDetailPage(p);
     if (detailUser) void loadDetail(detailUser, p);
+  };
+
+  const handleDownload = async (row: WalletUserItem) => {
+    setDownloadingId(row.id);
+    try {
+      await createExport({ type: "wallet-transactions", user_id: row.id });
+      toast.success(`Export riwayat wallet ${row.name} sedang diproses.`, {
+        description: "Unduh filenya di halaman Download Report.",
+      });
+      router.push("/dashboard/download-report");
+    } catch (e) {
+      const data =
+        e instanceof AxiosError
+          ? (e.response?.data as
+              | { message?: string; errors?: Record<string, string[]> }
+              | undefined)
+          : undefined;
+      const first = data?.errors
+        ? Object.values(data.errors).flat()[0]
+        : null;
+      toast.error(first || data?.message || "Gagal membuat export.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (authLoading) {
@@ -553,6 +584,9 @@ export default function WalletUsersPage() {
                         <th className="h-11 px-4 text-right text-xs font-semibold text-slate-500">
                           Saldo
                         </th>
+                        <th className="h-11 px-4 text-right text-xs font-semibold text-slate-500">
+                          Pemakaian
+                        </th>
                         <th className="h-11 px-4 text-left text-xs font-semibold text-slate-500">
                           Terdaftar
                         </th>
@@ -579,22 +613,44 @@ export default function WalletUsersPage() {
                           <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">
                             {formatRupiah(row.balance)}
                           </td>
+                          <td className="px-4 py-3 text-right tabular-nums text-rose-600">
+                            {formatRupiah(row.total_usage ?? 0)}
+                          </td>
                           <td className="px-4 py-3 text-slate-600">
                             {row.created_at
                               ? formatDateIdLong(row.created_at)
                               : "-"}
                           </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openDetail(row)}
-                              className="h-8 gap-1.5 rounded-lg border-slate-200 text-blue-700 hover:bg-blue-50"
-                            >
-                              <History className="h-3.5 w-3.5" aria-hidden />
-                              Lihat Riwayat
-                            </Button>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDetail(row)}
+                                className="h-8 gap-1.5 rounded-lg border-slate-200 text-blue-700 hover:bg-blue-50"
+                              >
+                                <History className="h-3.5 w-3.5" aria-hidden />
+                                Lihat Riwayat
+                              </Button>
+                              {canExport && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void handleDownload(row)}
+                                  disabled={downloadingId === row.id}
+                                  className="h-8 gap-1.5 rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50"
+                                >
+                                  {downloadingId === row.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Download className="h-3.5 w-3.5" aria-hidden />
+                                  )}
+                                  Download
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -622,16 +678,25 @@ export default function WalletUsersPage() {
             if (!open) setDetailUser(null);
           }}
         >
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <ArrowDownToLine className="h-5 w-5 text-blue-600" aria-hidden />
-                Riwayat Wallet — {detailUser?.name}
+          <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col gap-4 overflow-y-auto rounded-xl sm:w-full sm:max-w-4xl">
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="flex items-center gap-2 break-words">
+                <ArrowDownToLine
+                  className="h-5 w-5 shrink-0 text-blue-600"
+                  aria-hidden
+                />
+                <span className="truncate">
+                  Riwayat Wallet — {detailUser?.name}
+                </span>
               </DialogTitle>
-              <DialogDescription>
-                {detailUser?.email} — Saldo saat ini:{" "}
-                <span className="font-semibold text-slate-900">
-                  {detailUser ? formatRupiah(detailUser.balance) : "-"}
+              <DialogDescription className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <span className="break-all">{detailUser?.email}</span>
+                <span className="hidden sm:inline">—</span>
+                <span>
+                  Saldo saat ini:{" "}
+                  <span className="font-semibold text-slate-900">
+                    {detailUser ? formatRupiah(detailUser.balance) : "-"}
+                  </span>
                 </span>
               </DialogDescription>
             </DialogHeader>

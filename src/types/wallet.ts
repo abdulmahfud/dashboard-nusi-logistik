@@ -133,6 +133,8 @@ export interface WalletUserItem {
   email: string;
   account_type?: "personal" | "corporate" | null;
   balance: number | string;
+  /** Total transaksi type=payment berstatus success (pemakaian saldo untuk bayar order di kita). */
+  total_usage?: number | string;
   created_at?: string;
 }
 
