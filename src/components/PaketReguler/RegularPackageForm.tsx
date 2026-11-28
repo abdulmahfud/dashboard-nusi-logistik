@@ -551,7 +551,9 @@ export default function RegularPackageForm({
       case "itemType":
         return "";
       case "itemValue":
-        return parseInt(value) < 1000 ? "Nilai barang minimal Rp 1.000" : "";
+        if (parseInt(value) < 1000) return "Nilai barang minimal Rp 1.000";
+        if (parseInt(value) > 2500000) return "Nilai barang maksimal Rp 2.500.000";
+        return "";
       case "itemQuantity":
         return parseInt(value) < 1 ? "Jumlah minimal 1" : "";
       case "weight":
